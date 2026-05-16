@@ -10,7 +10,7 @@ const pillars = [
     desc: "목표를 듣고, 계획하고, 결과를 하나로 정리해주는 나만의 AI 존재.",
     Icon: Sparkles,
     color: "text-mos-lilac",
-    ring: "group-hover:border-mos-lilac/50",
+    ring: "hover:border-mos-lilac/50",
     glow: "bg-mos-lilac/10",
   },
   {
@@ -19,7 +19,7 @@ const pillars = [
     desc: "조사·글쓰기·디자인처럼 특정 일을 실제로 수행하는 실행 전문가.",
     Icon: Users,
     color: "text-mos-coral",
-    ring: "group-hover:border-mos-coral/50",
+    ring: "hover:border-mos-coral/50",
     glow: "bg-mos-coral/10",
   },
   {
@@ -28,7 +28,7 @@ const pillars = [
     desc: "Mon이 같은 일을 더 안정적으로 해내도록 돕는 절차·규칙 묶음.",
     Icon: ScrollText,
     color: "text-mos-gold",
-    ring: "group-hover:border-mos-gold/50",
+    ring: "hover:border-mos-gold/50",
     glow: "bg-mos-gold/10",
   },
   {
@@ -37,7 +37,7 @@ const pillars = [
     desc: "실행하고, Mon을 빌리고, Skill을 사고팔 때 순환하는 가치 단위.",
     Icon: Gem,
     color: "text-mos-iris",
-    ring: "group-hover:border-mos-iris/50",
+    ring: "hover:border-mos-iris/50",
     glow: "bg-mos-iris/10",
   },
 ];
