@@ -19,6 +19,17 @@ const config = {
     },
     extend: {
       colors: {
+        // Mosmos brand palette (extracted from official Brand Kit swatches)
+        mos: {
+          lilac: "#AC9DC6", // Memory Lilac — Main
+          coral: "#EE957C", // Hearth Coral — Sub
+          gold: "#F6C445", // Harvest Gold — Point
+          iris: "#8EA2FF", // Mana Iris — Support
+          cyan: "#9BCAD0", // Aether Cyan — Support
+          orbit: "#6F96C4", // Orbit Blue — Support
+          ink: "#121C20", // Mono Dark
+          cloud: "#F9FAFD", // Mono Light
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -75,11 +86,16 @@ const config = {
             "background-position": "calc(100% + var(--shimmer-width)) 0",
           },
         },
+        "orbit-float": {
+          "0%, 100%": { transform: "translateY(0px) rotate(-1deg)" },
+          "50%": { transform: "translateY(-14px) rotate(1deg)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         shimmer: "shimmer 8s infinite",
+        "orbit-float": "orbit-float 7s ease-in-out infinite",
       },
     },
   },
