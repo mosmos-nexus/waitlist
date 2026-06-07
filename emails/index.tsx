@@ -14,110 +14,123 @@ interface EmailProps {
   userFirstname: string;
 }
 
-export const NotionWaitlistEmail = ({ userFirstname }: EmailProps) => (
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://mosmos.world";
+
+export const MosmosWaitlistEmail = ({ userFirstname }: EmailProps) => (
   <Html>
     <Head />
-    <Preview>Thanks for Joining the Waitlist, {userFirstname}! 🎉</Preview>
+    <Preview>
+      {userFirstname}님, Mosmos 웨이트리스트에 오신 걸 환영합니다 🎉
+    </Preview>
     <Body style={main}>
       <Container style={container}>
         <Img
-          src={`https://nextjs-notion-waitlist.vercel.app/waitlist-logo.png`}
+          src={`${baseUrl}/brand/signature-horizontal.png`}
           width="220"
-          height="100"
-          alt="Notion Waitlist Logo"
+          height="54"
+          alt="Mosmos"
           style={logo}
         />
-        <Text style={greeting}>Hi {userFirstname},</Text>
+        <Text style={greeting}>{userFirstname}님, 반가워요 👋</Text>
         <Text style={paragraph}>
-          Thanks for joining the waitlist for our Next.js + Notion CMS waitlist
-          template! I'm Lakshay, the developer behind this project. I'm glad to
-          have you on board.
+          <strong style={brand}>Mosmos</strong> 비공개 베타 웨이트리스트에
+          합류해 주셔서 고맙습니다. Mosmos는 복잡한 AI·도구를 직접 고르지 않아도,
+          내 AI 화신 <strong style={brand}>Mos</strong>에게 목표만 말하면 필요한{" "}
+          <strong style={brand}>Mon</strong>을 불러 일을 끝내주는 세계입니다.
         </Text>
         <Text style={paragraph}>
-          I'll keep you posted on the progress and notify you as soon as it's
-          ready for you to use. In the meantime, if you have any questions or
-          feedback, don't hesitate to reach out by replying directly to{" "}
-          <a href="mailto:lakshb.work@gmail.com" style={link}>
-            this email {""}
+          준비가 되는 대로 가장 먼저 초대장을 보내드릴게요. 그때까지 진행 상황과
+          새로운 소식을 이메일로 전해드립니다. 궁금한 점이나 의견이 있다면 이
+          메일에{" "}
+          <a href="mailto:hello@mosmos.world" style={link}>
+            그대로 답장
           </a>
-          — I'm here to listen!
+          해 주세요 — 직접 읽고 답변드립니다.
         </Text>
         <Text style={paragraph}>
-          You can also follow me on X/Twitter for updates:{" "}
-          <a href="https://x.com/blakssh" style={link}>
-            @blakssh
+          더 알아보고 싶다면{" "}
+          <a href="https://mosmos.world" style={link}>
+            mosmos.world
           </a>
+          를 둘러보세요.
         </Text>
         <Text style={signOff}>
-          Best regards,
-          <br />
-          Lakshay
+          말만 하세요. 움직이는 건 Mos.
+          <br />— Mosmos 팀 드림
         </Text>
         <Hr style={hr} />
         <Text style={footer}>
-          You received this email because you signed up for the Notion waitlist.
-          If you believe this is a mistake, feel free to ignore this email.
+          이 메일은 Mosmos 웨이트리스트에 신청하셨기 때문에 발송되었습니다. 신청한
+          적이 없다면 이 메일을 무시하셔도 됩니다.
         </Text>
       </Container>
     </Body>
   </Html>
 );
 
-NotionWaitlistEmail.PreviewProps = {
-  userFirstname: "Tyler",
+MosmosWaitlistEmail.PreviewProps = {
+  userFirstname: "지호",
 } as EmailProps;
 
-export default NotionWaitlistEmail;
+export default MosmosWaitlistEmail;
 
 const main = {
-  background: "linear-gradient(-225deg, #FFE29F 0%, #FFA99F 48%, #FF719A 100%)",
-  fontFamily: 'figtree, "Helvetica Neue", Helvetica, Arial, sans-serif',
+  backgroundColor: "#0E1518",
+  fontFamily:
+    'figtree, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif',
   padding: "40px 0",
-  color: "#cccccc",
+  color: "#F9FAFD",
 };
 
 const container = {
   margin: "0 auto",
-  padding: "24px 32px 48px",
-  backgroundColor: "#1a1a1a",
-  borderRadius: "12px",
-  boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)",
+  padding: "28px 32px 44px",
+  backgroundColor: "#121C20",
+  borderRadius: "16px",
+  border: "1px solid #243036",
+  boxShadow: "0 12px 40px rgba(0, 0, 0, 0.35)",
   maxWidth: "600px",
 };
 
 const logo = {
-  margin: "0 auto",
-  paddingBottom: "20px",
+  margin: "0 auto 12px",
+};
+
+const brand = {
+  color: "#AC9DC6",
 };
 
 const greeting = {
   fontSize: "18px",
   lineHeight: "28px",
+  color: "#F9FAFD",
 };
 
 const paragraph = {
   fontSize: "16px",
   lineHeight: "26px",
-  marginBottom: "20px",
+  marginBottom: "18px",
+  color: "#C8CFD4",
 };
 
 const link = {
-  color: "#F7FF9B",
+  color: "#AC9DC6",
   textDecoration: "underline",
 };
 
 const signOff = {
   fontSize: "16px",
   lineHeight: "26px",
-  marginTop: "20px",
+  marginTop: "22px",
+  color: "#F9FAFD",
 };
 
 const hr = {
-  borderColor: "#cccccc",
-  margin: "20px 0",
+  borderColor: "#243036",
+  margin: "22px 0",
 };
 
 const footer = {
-  color: "#8c8c8c",
+  color: "#7E888E",
   fontSize: "12px",
 };

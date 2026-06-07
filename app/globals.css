@@ -36,33 +36,34 @@
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
+    /* Mosmos — Mono Dark (#121C20) base with Memory Lilac accent */
+    --background: 197 28% 8%;
+    --foreground: 222 30% 98%;
 
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
+    --card: 197 22% 12%;
+    --card-foreground: 222 30% 98%;
 
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 197 24% 11%;
+    --popover-foreground: 222 30% 98%;
 
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
+    --primary: 262 26% 70%;
+    --primary-foreground: 230 30% 12%;
 
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 197 16% 17%;
+    --secondary-foreground: 222 30% 96%;
 
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
+    --muted: 197 15% 16%;
+    --muted-foreground: 210 14% 66%;
 
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 197 18% 19%;
+    --accent-foreground: 222 30% 98%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 8 78% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+    --border: 197 15% 20%;
+    --input: 197 15% 20%;
+    --ring: 262 26% 70%;
   }
 }
 
@@ -77,6 +78,14 @@
 
 body {
   ::selection {
-    @apply bg-accent text-yellow-200;
+    @apply bg-mos-lilac/30 text-mos-cloud;
   }
+}
+
+/* Soft cosmos backdrop for the Mosmos waitlist */
+.mos-aurora {
+  background-image:
+    radial-gradient(40rem 30rem at 12% 8%, rgba(172, 157, 198, 0.18), transparent 60%),
+    radial-gradient(34rem 28rem at 88% 92%, rgba(238, 149, 124, 0.14), transparent 60%),
+    radial-gradient(26rem 22rem at 82% 6%, rgba(246, 196, 69, 0.1), transparent 60%);
 }

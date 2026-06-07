@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { ChangeEvent } from "react";
 import { motion } from "framer-motion";
-import { FaGithub, FaXTwitter } from "react-icons/fa6";
+import { FaArrowRightLong, FaRegEnvelope } from "react-icons/fa6";
 import { Input } from "@/components/ui/input";
-import { FaArrowRightLong } from "react-icons/fa6";
 import { EnhancedButton } from "@/components/ui/enhanced-btn";
 import { containerVariants, itemVariants } from "@/lib/animation-variants";
 
@@ -33,7 +32,7 @@ export default function Form({
       <motion.div variants={itemVariants}>
         <Input
           type="text"
-          placeholder="Your Name"
+          placeholder="이름"
           value={name}
           onChange={handleNameChange}
         />
@@ -41,7 +40,7 @@ export default function Form({
       <motion.div variants={itemVariants}>
         <Input
           type="email"
-          placeholder="Your Email Address"
+          placeholder="이메일 주소"
           value={email}
           onChange={handleEmailChange}
         />
@@ -54,25 +53,18 @@ export default function Form({
           iconPlacement="right"
           className="mt-2 w-full"
           disabled={loading}>
-          {loading ? "Loading..." : "Join Waitlist!"}
+          {loading ? "신청 중..." : "웨이트리스트 신청하기"}
         </EnhancedButton>
       </motion.div>
       <motion.div
         variants={itemVariants}
-        className="mt-4 flex w-full items-center justify-center gap-1 text-muted-foreground">
-        <p>For any queries, reach out at </p>
+        className="mt-4 flex w-full items-center justify-center gap-1.5 text-sm text-muted-foreground">
+        <p>궁금한 점은</p>
         <Link
-          href="https://x.com/blakssh"
-          rel="noopener noreferrer"
-          target="_blank">
-          <FaXTwitter className="h-4 w-4 transition-all duration-200 ease-linear hover:text-yellow-200" />
-        </Link>
-        or
-        <Link
-          href="https://github.com/lakshaybhushan"
-          rel="noopener noreferrer"
-          target="_blank">
-          <FaGithub className="ml-0.5 h-5 w-5 transition-all duration-200 ease-linear hover:text-yellow-200" />
+          href="mailto:hello@mosmos.world"
+          className="inline-flex items-center gap-1 text-mos-lilac underline-offset-2 transition-all duration-200 ease-linear hover:text-mos-coral hover:underline">
+          <FaRegEnvelope className="h-3.5 w-3.5" />
+          hello@mosmos.world
         </Link>
       </motion.div>
     </motion.div>

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 import CTA from "@/components/cta";
 import Form from "@/components/form";
-import Logos from "@/components/logos";
+import HowItWorks from "@/components/how-it-works";
 import Particles from "@/components/ui/particles";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
@@ -29,12 +29,12 @@ export default function Home() {
 
   const handleSubmit = async () => {
     if (!name || !email) {
-      toast.error("Please fill in all fields 😠");
+      toast.error("모든 항목을 입력해 주세요 🙂");
       return;
     }
 
     if (!isValidEmail(email)) {
-      toast.error("Please enter a valid email address 😠");
+      toast.error("올바른 이메일 주소를 입력해 주세요 🙂");
       return;
     }
 
@@ -85,21 +85,21 @@ export default function Home() {
     });
 
     toast.promise(promise, {
-      loading: "Getting you on the waitlist... 🚀",
+      loading: "웨이트리스트에 등록하는 중... 🚀",
       success: (data) => {
         setName("");
         setEmail("");
-        return "Thank you for joining the waitlist 🎉";
+        return "Mosmos 웨이트리스트 합류 완료! 곧 만나요 🎉";
       },
       error: (error) => {
         if (error === "Rate limited") {
-          return "You're doing that too much. Please try again later";
+          return "요청이 너무 잦아요. 잠시 후 다시 시도해 주세요.";
         } else if (error === "Email sending failed") {
-          return "Failed to send email. Please try again 😢.";
+          return "메일 발송에 실패했어요. 다시 시도해 주세요 😢";
         } else if (error === "Notion insertion failed") {
-          return "Failed to save your details. Please try again 😢.";
+          return "정보 저장에 실패했어요. 다시 시도해 주세요 😢";
         }
-        return "An error occurred. Please try again 😢.";
+        return "문제가 발생했어요. 다시 시도해 주세요 😢";
       },
     });
 
@@ -109,7 +109,7 @@ export default function Home() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center overflow-x-clip pt-12 md:pt-24">
+    <main className="mos-aurora flex min-h-screen flex-col items-center overflow-x-clip pt-12 md:pt-24">
       <section className="flex flex-col items-center px-4 sm:px-6 lg:px-8">
         <Header />
 
@@ -124,7 +124,7 @@ export default function Home() {
           loading={loading}
         />
 
-        <Logos />
+        <HowItWorks />
       </section>
 
       <Footer />
@@ -133,7 +133,7 @@ export default function Home() {
         quantityDesktop={350}
         quantityMobile={100}
         ease={80}
-        color={"#F7FF9B"}
+        color={"#AC9DC6"}
         refresh
       />
     </main>

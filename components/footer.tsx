@@ -8,17 +8,18 @@ export default function Footer() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="mt-auto flex w-full items-center justify-center gap-1 border-t bg-background p-6 text-muted-foreground md:justify-start">
+      className="mt-auto flex w-full flex-col items-center justify-center gap-1 border-t bg-background p-6 text-sm text-muted-foreground md:flex-row md:justify-between">
       <motion.div variants={itemVariants}>
-        Brought to you by{" "}
+        © 2026 Mosmos. 내 AI가 자라는 세계.
+      </motion.div>
+      <motion.div variants={itemVariants}>
         <Link
-          href="https://lakshb.dev"
+          href="https://mosmos.world"
           rel="noopener noreferrer"
           target="_blank">
-          <span className="text-zinc-300 underline underline-offset-2 transition-all duration-200 ease-linear hover:text-yellow-200">
-            lakshaybhushan
+          <span className="text-zinc-300 underline underline-offset-2 transition-all duration-200 ease-linear hover:text-mos-lilac">
+            mosmos.world
           </span>
-          .
         </Link>
       </motion.div>
     </motion.div>
