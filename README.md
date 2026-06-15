@@ -14,21 +14,21 @@ SvelteKit waitlist app. Signups are stored in a Notion database and a welcome em
 
 ```sh
 cp .env.example .env   # fill in NOTION_SECRET, NOTION_DB, RESEND_API_KEY, UPSTASH_*
-bun install
-bun run dev
+pnpm install
+pnpm run dev
 ```
 
 The Notion database needs two properties: `Name` (Title) and `Email` (Email).
 
 ## Scripts
 
-| Command          | Description              |
-| ---------------- | ------------------------ |
-| `bun run dev`    | Start dev server         |
-| `bun run build`  | Production build         |
-| `bun run check`  | svelte-check (types)     |
-| `bun run lint`   | Prettier + ESLint checks |
-| `bun run format` | Format with Prettier     |
+| Command           | Description              |
+| ----------------- | ------------------------ |
+| `pnpm run dev`    | Start dev server         |
+| `pnpm run build`  | Production build         |
+| `pnpm run check`  | svelte-check (types)     |
+| `pnpm run lint`   | Prettier + ESLint checks |
+| `pnpm run format` | Format with Prettier     |
 
 ## API
 
