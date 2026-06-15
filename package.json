@@ -1,5 +1,5 @@
 {
-	"name": "mosmos-waitlist",
+	"name": "mosmos-landing",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
@@ -31,11 +31,5 @@
 		"typescript": "^6.0.3",
 		"typescript-eslint": "^8.60.1",
 		"vite": "^8.0.16"
-	},
-	"dependencies": {
-		"@notionhq/client": "^5.22.0",
-		"@upstash/ratelimit": "^2.0.8",
-		"@upstash/redis": "^1.38.0",
-		"resend": "^6.12.4"
 	}
 }
