@@ -1,0 +1,12 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "생성물·템플릿·락파일은 시크릿 스캔에서 제외"
+paths = [
+  '''(^|/)\.env\.example$''',
+  '''(^|/)paraglide/''',
+  '''pnpm-lock\.yaml$''',
+  '''(^|/)\.svelte-kit/''',
+  '''(^|/)\.output/''',
+]

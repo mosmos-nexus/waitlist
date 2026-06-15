@@ -1,3 +1,19 @@
+# Dependencies & lockfiles
+node_modules/
+pnpm-lock.yaml
+
+# Build outputs
+**/.svelte-kit/
+**/.output/
+**/dist/
+**/build/
+
+# Generated i18n artifacts — Paraglide compile output / Inlang meta
+**/paraglide/
+project.inlang/.meta.json
+project.inlang/README.md
+project.inlang/cache/
+
 # Package Managers
 package-lock.json
 yarn.lock
