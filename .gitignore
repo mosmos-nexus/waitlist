@@ -28,3 +28,6 @@ src/lib/paraglide/
 # Inlang cache
 **/.inlang/
 project.inlang/cache/
+
+# Local agent session state
+.omc/

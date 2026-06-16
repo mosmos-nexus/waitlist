@@ -13,6 +13,7 @@ export default defineConfig(
       '**/build/**',
       '**/.svelte-kit/**',
       '**/.output/**',
+      '**/.vercel/**',
       '**/paraglide/**',
     ],
   },
