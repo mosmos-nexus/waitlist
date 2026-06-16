@@ -2,6 +2,7 @@
   import '../app.css';
   import { dev } from '$app/environment';
   import { injectAnalytics } from '@vercel/analytics/sveltekit';
+  import { injectSpeedInsights } from '@vercel/speed-insights/sveltekit';
   import favicon from '$lib/assets/favicon.svg';
   import Logo from '$lib/components/ui/Logo.svelte';
   import LanguageToggle from '$lib/components/ui/LanguageToggle.svelte';
@@ -9,6 +10,7 @@
   import { localizeHref } from '$lib/paraglide/runtime';
 
   injectAnalytics({ mode: dev ? 'development' : 'production' });
+  injectSpeedInsights();
 
   let { children } = $props();
 
