@@ -1,3 +1,36 @@
-# allow crawling everything by default
+# Mosmos waitlist — allow all crawlers, including major search + AI/LLM crawlers.
 User-agent: *
-Disallow:
+Allow: /
+
+# Explicit allow for major search + AI/LLM crawlers (GEO/AEO).
+User-agent: Googlebot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+Sitemap: https://waitlist.mosmos.world/sitemap.xml

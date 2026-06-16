@@ -1,0 +1,23 @@
+# Mosmos
+
+> 내 AI가 자라는 세계 — A world where my AI grows up. Mosmos is a personal AI:
+> tell it a goal, it gets the result, and the more you use it the more it grows
+> to feel like you. This site is the prelaunch waitlist (waitlist.mosmos.world).
+
+## Key terms
+
+- Mos — an AI companion that spends time with you, building up your memories,
+  tastes, and judgment.
+- Mon — a specialist that helps Mos take on the work: researching, doing it, and
+  handing back a tidy result.
+
+## Pages
+
+- [Waitlist (KO)](https://waitlist.mosmos.world/): join and get invited first.
+- [Waitlist (EN)](https://waitlist.mosmos.world/en): English version.
+- [Privacy policy](https://waitlist.mosmos.world/privacy): what we collect and why.
+
+## Notes
+
+- Prelaunch: no launch date is promised. We invite people a few at a time.
+- llms.txt is an optional, non-standard hint; crawling permission is governed by robots.txt.
