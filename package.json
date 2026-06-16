@@ -30,7 +30,7 @@
     "@commitlint/config-conventional": "^19.8.1",
     "@eslint/js": "^10.0.1",
     "@inlang/paraglide-js": "^2.18.1",
-    "@sveltejs/adapter-auto": "^7.0.1",
+    "@sveltejs/adapter-vercel": "^6.3.3",
     "@sveltejs/kit": "^2.63.0",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@types/node": "^24",
@@ -42,10 +42,17 @@
     "lint-staged": "^15.5.2",
     "prettier": "^3.8.3",
     "prettier-plugin-svelte": "^4.1.0",
+    "sharp": "^0.35.1",
     "svelte": "^5.56.1",
     "svelte-check": "^4.6.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.60.1",
     "vite": "^8.0.16"
+  },
+  "dependencies": {
+    "@notionhq/client": "^5.22.0",
+    "@upstash/redis": "^1.38.0",
+    "resend": "^6.12.4",
+    "zod": "^4.4.3"
   }
 }

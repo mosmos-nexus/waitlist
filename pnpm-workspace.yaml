@@ -1,0 +1,6 @@
+# esbuild (via vite) and sharp ship native binaries. Approving their build scripts
+# lets `pnpm install` finish cleanly (exit 0) so the pre-run deps check doesn't abort
+# `pnpm check` / `build` / `lint`.
+allowBuilds:
+  esbuild: true
+  sharp: true
