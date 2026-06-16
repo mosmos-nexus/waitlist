@@ -71,7 +71,8 @@ export async function createWaitlistEntry(email: string): Promise<string> {
 export interface SurveyUpdate {
   job?: string;
   aiTasks?: string[];
-  other?: string;
+  jobOther?: string;
+  taskOther?: string;
 }
 
 /** Updates the optional 2nd-step survey fields on an existing waitlist row. */
@@ -83,8 +84,11 @@ export async function updateWaitlistSurvey(pageId: string, survey: SurveyUpdate)
   if (survey.aiTasks && survey.aiTasks.length > 0) {
     properties['사용 중인 AI 작업'] = { multi_select: survey.aiTasks.map((name) => ({ name })) };
   }
-  if (survey.other && survey.other.trim()) {
-    properties['기타 입력'] = { rich_text: [{ text: { content: survey.other.trim() } }] };
+  if (survey.jobOther && survey.jobOther.trim()) {
+    properties['직업 기타'] = { rich_text: [{ text: { content: survey.jobOther.trim() } }] };
+  }
+  if (survey.taskOther && survey.taskOther.trim()) {
+    properties['작업 기타'] = { rich_text: [{ text: { content: survey.taskOther.trim() } }] };
   }
   if (Object.keys(properties).length === 0) return;
   await notion.pages.update({

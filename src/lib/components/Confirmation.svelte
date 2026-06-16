@@ -21,10 +21,13 @@
 
   let job = $state('');
   let aiTasks = $state<string[]>([]);
-  let other = $state('');
+  let jobOther = $state('');
+  let taskOther = $state('');
   let surveyState = $state<'idle' | 'submitting' | 'done'>('idle');
 
-  const showOther = $derived(job === OTHER_VALUE || aiTasks.includes(OTHER_VALUE));
+  // Two distinct "기타" inputs — one per question, matching the DB's 직업 기타 / 작업 기타 columns.
+  const showJobOther = $derived(job === OTHER_VALUE);
+  const showTaskOther = $derived(aiTasks.includes(OTHER_VALUE));
 
   function toggleTask(value: string) {
     aiTasks = aiTasks.includes(value) ? aiTasks.filter((t) => t !== value) : [...aiTasks, value];
@@ -40,7 +43,8 @@
           id: pageId,
           job: job || undefined,
           aiTasks,
-          other: showOther ? other : undefined,
+          jobOther: showJobOther ? jobOther : undefined,
+          taskOther: showTaskOther ? taskOther : undefined,
         }),
       });
     } catch {
@@ -75,6 +79,16 @@
         name="job"
       />
 
+      {#if showJobOther}
+        <Input
+          label={m.survey_job_other_label()}
+          name="jobOther"
+          placeholder={m.survey_job_other_placeholder()}
+          bind:value={jobOther}
+          maxlength={1000}
+        />
+      {/if}
+
       <fieldset class="tasks">
         <legend>{m.survey_ai_label()}</legend>
         <p class="hint">{m.survey_ai_hint()}</p>
@@ -90,12 +104,12 @@
         </div>
       </fieldset>
 
-      {#if showOther}
+      {#if showTaskOther}
         <Input
-          label={m.survey_other_label()}
-          name="other"
-          placeholder={m.survey_other_placeholder()}
-          bind:value={other}
+          label={m.survey_task_other_label()}
+          name="taskOther"
+          placeholder={m.survey_task_other_placeholder()}
+          bind:value={taskOther}
           maxlength={1000}
         />
       {/if}

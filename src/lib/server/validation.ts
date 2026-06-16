@@ -13,7 +13,8 @@ export const surveySchema = z.object({
   id: z.string().min(1),
   job: z.string().optional(),
   aiTasks: z.array(z.string()).optional(),
-  other: z.string().optional(),
+  jobOther: z.string().optional(),
+  taskOther: z.string().optional(),
 });
 
 export function normalizeEmail(email: string): string {

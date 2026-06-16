@@ -20,10 +20,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
   const job = sanitizeJob(parsed.data.job);
   const aiTasks = sanitizeAiTasks(parsed.data.aiTasks);
-  const other = parsed.data.other?.slice(0, 1000);
+  const jobOther = parsed.data.jobOther?.slice(0, 1000);
+  const taskOther = parsed.data.taskOther?.slice(0, 1000);
 
   try {
-    await updateWaitlistSurvey(parsed.data.id, { job, aiTasks, other });
+    await updateWaitlistSurvey(parsed.data.id, { job, aiTasks, jobOther, taskOther });
     return json({ ok: true });
   } catch (err) {
     console.error('survey update failed', err);
