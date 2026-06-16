@@ -31,3 +31,6 @@ project.inlang/cache/
 
 # Local agent session state
 .omc/
+
+# Local welcome-email preview (disposable)
+email-preview.html
