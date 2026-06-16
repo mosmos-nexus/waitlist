@@ -52,6 +52,7 @@
   "dependencies": {
     "@notionhq/client": "^5.22.0",
     "@upstash/redis": "^1.38.0",
+    "@vercel/analytics": "^2.0.1",
     "resend": "^6.12.4",
     "zod": "^4.4.3"
   }

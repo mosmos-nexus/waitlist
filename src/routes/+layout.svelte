@@ -1,10 +1,14 @@
 <script lang="ts">
   import '../app.css';
+  import { dev } from '$app/environment';
+  import { injectAnalytics } from '@vercel/analytics/sveltekit';
   import favicon from '$lib/assets/favicon.svg';
   import Logo from '$lib/components/ui/Logo.svelte';
   import LanguageToggle from '$lib/components/ui/LanguageToggle.svelte';
   import { m } from '$lib/paraglide/messages.js';
   import { localizeHref } from '$lib/paraglide/runtime';
+
+  injectAnalytics({ mode: dev ? 'development' : 'production' });
 
   let { children } = $props();
 
