@@ -15,6 +15,8 @@ export default defineConfig(
       '**/.output/**',
       '**/.vercel/**',
       '**/paraglide/**',
+      // Vendored design-system reference bundle (read-only handoff, not app source).
+      'design_system/**',
     ],
   },
   js.configs.recommended,

@@ -58,7 +58,7 @@ function copyFor(locale: AppLocale): Copy {
     return {
       subject: 'Welcome — I’m Mos',
       preheader: 'Thanks for joining the front of the line. I’ll be the first to come find you.',
-      heading: 'Hi, I’m Mos 👋',
+      heading: 'Hi, I’m Mos',
       paragraphs: [
         'Thanks for joining the front of the line. I’m Mos — the AI companion that grows up alongside you. From here on, there’s no picking the right tools or wrestling with prompts: just tell me the goal, and I’ll do the moving and bring back the result.',
         'We’re still getting ready. The moment everything’s in place, I’ll be the very first to bring your invite. We start small, just a few people at a time, because we want to listen closely to your story.',
@@ -76,7 +76,7 @@ function copyFor(locale: AppLocale): Copy {
   return {
     subject: '환영해요 — 저는 Mos예요',
     preheader: '앞줄에 함께해 주셔서 고마워요. 준비되는 대로 제가 가장 먼저 찾아올게요.',
-    heading: '안녕하세요, 저는 Mos예요 👋',
+    heading: '안녕하세요, 저는 Mos예요',
     paragraphs: [
       '앞줄에 함께해 주셔서 고마워요. 저는 당신과 함께 자라날 AI 동반자예요. 앞으로는 어떤 도구를 쓸지 고르거나 프롬프트를 다듬지 않아도 돼요 — 목표만 말해 주시면, 움직이는 건 제가 할게요. 결과까지 챙겨서 가져다드릴게요.',
       '아직은 준비 중이에요. 다 갖춰지는 대로, 제가 가장 먼저 초대장을 들고 찾아올게요. 처음엔 한 분 한 분 천천히 모실 거예요 — 당신의 이야기를 깊이 듣고 싶거든요.',

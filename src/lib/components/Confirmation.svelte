@@ -29,6 +29,9 @@
   const showJobOther = $derived(job === OTHER_VALUE);
   const showTaskOther = $derived(aiTasks.includes(OTHER_VALUE));
 
+  // §7: a 12-piece confetti burst — decorative, finite, removed after ~1.2s.
+  const confetti = Array.from({ length: 12 }, (_, i) => i);
+
   function toggleTask(value: string) {
     aiTasks = aiTasks.includes(value) ? aiTasks.filter((t) => t !== value) : [...aiTasks, value];
   }
@@ -55,8 +58,19 @@
 </script>
 
 <div class="confirm" aria-live="polite">
-  <img class="mascot" src="/characters/mos-happy.webp" alt="" width={140} height={140} />
+  <div class="celebrate">
+    <div class="confetti" aria-hidden="true">
+      {#each confetti as i (i)}
+        <span class="bit b{i}"></span>
+      {/each}
+    </div>
+    <div class="mascot-hold">
+      <div class="halo" aria-hidden="true"></div>
+      <img class="mascot" src="/characters/mos-happy.webp" alt="" width={140} height={131} />
+    </div>
+  </div>
 
+  <p class="world-tagline">{m.confirm_world_tagline()}</p>
   <h2>{m.confirm_title()}</h2>
   {#if emailSent}
     <p class="reward">{m.confirm_email_sent()}</p>
@@ -68,6 +82,9 @@
     <p class="done">{m.survey_done()}</p>
   {:else}
     <div class="survey">
+      <div class="progress" aria-hidden="true">
+        <span class="bar"><span class="fill"></span></span>
+      </div>
       <p class="survey-intro">{m.survey_intro()}</p>
       <span class="step">{m.survey_step_label()}</span>
 
@@ -140,8 +157,149 @@
     width: 100%;
     max-width: 560px;
   }
-  .mascot {
+
+  /* §7 celebration — Mos jumps once, confetti bursts once. */
+  .celebrate {
+    position: relative;
     align-self: center;
+    width: 200px;
+    height: 170px;
+  }
+  .mascot-hold {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+  }
+  .mascot {
+    position: relative;
+    z-index: 2;
+    height: auto;
+    animation: mos-jump 1s var(--ease-out) 1;
+  }
+  .halo {
+    position: absolute;
+    inset: 10% 6%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(15, 111, 218, 0.18), transparent 66%);
+    filter: blur(14px);
+  }
+  @keyframes mos-jump {
+    0% {
+      transform: translateY(0) scale(1);
+    }
+    30% {
+      transform: translateY(-22px) scale(1.04);
+    }
+    55% {
+      transform: translateY(0) scale(0.98);
+    }
+    72% {
+      transform: translateY(-7px) scale(1.01);
+    }
+    100% {
+      transform: translateY(0) scale(1);
+    }
+  }
+  .confetti {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .bit {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    opacity: 0;
+    animation: confetti 1.2s var(--ease-out) 0.1s 1;
+  }
+  .bit:nth-child(odd) {
+    border-radius: var(--radius-pill);
+  }
+  .b0 {
+    --tx: -78px;
+    --tr: -120px;
+    background: var(--blue-core);
+  }
+  .b1 {
+    --tx: -54px;
+    --tr: -150px;
+    background: var(--purple-pop);
+  }
+  .b2 {
+    --tx: -30px;
+    --tr: -132px;
+    background: var(--cyan-bright);
+  }
+  .b3 {
+    --tx: -10px;
+    --tr: -160px;
+    background: var(--blue-light);
+  }
+  .b4 {
+    --tx: 16px;
+    --tr: -150px;
+    background: var(--purple-pop);
+  }
+  .b5 {
+    --tx: 36px;
+    --tr: -134px;
+    background: var(--blue-core);
+  }
+  .b6 {
+    --tx: 60px;
+    --tr: -156px;
+    background: var(--cyan-bright);
+  }
+  .b7 {
+    --tx: 82px;
+    --tr: -122px;
+    background: var(--blue-light);
+  }
+  .b8 {
+    --tx: -66px;
+    --tr: -96px;
+    background: var(--cyan-bright);
+  }
+  .b9 {
+    --tx: 70px;
+    --tr: -98px;
+    background: var(--purple-pop);
+  }
+  .b10 {
+    --tx: -22px;
+    --tr: -176px;
+    background: var(--blue-core);
+  }
+  .b11 {
+    --tx: 26px;
+    --tr: -178px;
+    background: var(--blue-light);
+  }
+  @keyframes confetti {
+    0% {
+      opacity: 0;
+      transform: translate(0, 0) scale(0.6);
+    }
+    15% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translate(var(--tx, 0), var(--tr, -140px)) rotate(220deg) scale(1);
+    }
+  }
+
+  .world-tagline {
+    align-self: center;
+    margin: 0;
+    font-size: var(--fs-body-sm);
+    font-weight: var(--fw-semibold);
+    letter-spacing: var(--tracking-wide);
+    color: var(--color-secondary);
   }
   h2 {
     font-size: var(--fs-h2);
@@ -179,6 +337,31 @@
     background: var(--surface-subtle);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
+  }
+  /* 1/2 progress — "30초만 더" effort anchor; fills to half on entry. */
+  .progress .bar {
+    display: block;
+    height: 6px;
+    border-radius: var(--radius-pill);
+    background: var(--border-subtle);
+    overflow: hidden;
+  }
+  .progress .fill {
+    display: block;
+    height: 100%;
+    width: 50%;
+    border-radius: var(--radius-pill);
+    background: var(--gradient-brand);
+    transform-origin: left center;
+    animation: fill-half 0.9s var(--ease-out) 0.2s 1 backwards;
+  }
+  @keyframes fill-half {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
   }
   .survey-intro {
     margin: 0;
@@ -223,6 +406,22 @@
   @media (max-width: 480px) {
     .survey {
       padding: var(--space-base);
+    }
+  }
+
+  /* Explicit static final frame for reduced motion (don't rely only on the global
+     duration override): Mos at rest, no confetti, progress already filled. */
+  @media (prefers-reduced-motion: reduce) {
+    .mascot {
+      animation: none;
+      transform: none;
+    }
+    .bit {
+      display: none;
+    }
+    .progress .fill {
+      animation: none;
+      transform: scaleX(1);
     }
   }
 </style>

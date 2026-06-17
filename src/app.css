@@ -350,3 +350,63 @@ svg {
   white-space: nowrap;
   border: 0;
 }
+
+/* ---- Scroll-reveal (progressive enhancement; see $lib/actions/reveal.ts) ----
+   The hidden initial state applies ONLY when JS is active AND motion is welcome,
+   so SSR HTML, no-JS, and prefers-reduced-motion visitors always render the final
+   frame (DoD §5). transform/opacity only — compositor-friendly. */
+@media (prefers-reduced-motion: no-preference) {
+  html.js [data-reveal] {
+    opacity: 0;
+    transform: translateY(20px);
+    transition:
+      opacity 0.6s var(--ease-out),
+      transform 0.6s var(--ease-out);
+    transition-delay: var(--reveal-delay, 0ms);
+  }
+  html.js [data-reveal].is-in {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- Shared section scaffolding (new IA, §6) ---- */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0;
+  font-size: var(--fs-body-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--color-primary);
+}
+.eyebrow::before {
+  content: '';
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.55;
+}
+.section-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  max-width: var(--width-reading);
+}
+.section-head.center {
+  margin-inline: auto;
+  align-items: center;
+  text-align: center;
+}
+.section-title {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  letter-spacing: var(--tracking-tight);
+}
+.section-lead {
+  margin: 0;
+  font-size: var(--fs-subtitle);
+  line-height: var(--lh-subtitle);
+  color: var(--text-muted);
+}

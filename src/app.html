@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="text-scale" content="scale" />
     <meta name="theme-color" content="#0F6FDA" />
+    <!-- Mark JS active before first paint so scroll-reveal can hide-then-reveal
+         without FOUC; no-JS visitors keep the final (visible) frame. -->
+    <script>
+      document.documentElement.classList.add('js');
+    </script>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     %sveltekit.head%
   </head>
