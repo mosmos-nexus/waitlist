@@ -46,6 +46,7 @@
     <div class="copy">
       <h1 class="tagline">{m.hero_tagline()}</h1>
       <p class="sub">{m.hero_sub()}</p>
+      <p class="anchor">{m.hero_anchor()}</p>
 
       <div class="form-wrap">
         <WaitlistForm {onSuccess} />
@@ -201,6 +202,9 @@
     font-size: var(--fs-display);
     line-height: var(--lh-display);
     letter-spacing: var(--tracking-tight);
+    /* Break Korean headline at word boundaries, not mid-syllable. */
+    word-break: keep-all;
+    text-wrap: balance;
   }
   .sub {
     margin: 0;
@@ -208,14 +212,29 @@
     line-height: var(--lh-subtitle);
     color: var(--text-body);
   }
+  /* Target anchor — names the category + who it's for within the first 5 seconds. */
+  .anchor {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    align-self: flex-start;
+    margin: 0;
+    padding: 6px 14px;
+    font-size: var(--fs-body-sm);
+    font-weight: var(--fw-medium);
+    color: var(--color-primary);
+    background: rgba(15, 111, 218, 0.08);
+    border-radius: var(--radius-pill);
+  }
 
-  /* Form gets the single focus: a one-time entrance glow draws the eye to the CTA,
-     then focus-within adds a Cyan glow (§1 micro-motion). */
+  /* Form gets the single focus: a one-time entrance glow draws the eye to the CTA.
+     The field's own focus ring (Input.svelte) is the only focus affordance — the
+     wrapper deliberately adds none, so focusing the email box never paints a stray
+     ring around the whole form block. */
   .form-wrap {
     position: relative;
     margin-top: var(--space-sm);
     border-radius: var(--radius-lg);
-    transition: box-shadow var(--dur-slow) var(--ease-out);
   }
   .form-wrap::before {
     content: '';
@@ -226,9 +245,6 @@
     opacity: 0;
     pointer-events: none;
     animation: cta-pulse 2s var(--ease-out) 0.5s 1;
-  }
-  .form-wrap:focus-within {
-    box-shadow: 0 0 0 4px rgba(0, 160, 163, 0.16);
   }
   @keyframes cta-pulse {
     0% {

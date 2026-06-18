@@ -16,9 +16,9 @@
 
     <div class="art" use:reveal style="--reveal-delay: 400ms" aria-hidden="true">
       <div class="scene">
-        <span class="task task-a">메일 정리</span>
-        <span class="task task-b">자료 찾기</span>
-        <span class="task task-c">표 만들기</span>
+        <span class="task task-a">{m.empathy_task1()}</span>
+        <span class="task task-b">{m.empathy_task2()}</span>
+        <span class="task task-c">{m.empathy_task3()}</span>
         <div class="mos-hold">
           <div class="halo"></div>
           <img src="/characters/mos-curious.webp" alt="" width={180} height={178} />

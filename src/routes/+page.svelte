@@ -2,11 +2,12 @@
   import type { PageProps } from './$types';
   import Seo from '$lib/components/Seo.svelte';
   import Hero from '$lib/components/sections/Hero.svelte';
-  import InteractiveDemo from '$lib/components/sections/InteractiveDemo.svelte';
   import EmpathyCut from '$lib/components/sections/EmpathyCut.svelte';
-  import HowItWorks from '$lib/components/sections/HowItWorks.svelte';
+  import InteractiveDemo from '$lib/components/sections/InteractiveDemo.svelte';
   import MosTeaser from '$lib/components/sections/MosTeaser.svelte';
+  import GrowthLoop from '$lib/components/sections/GrowthLoop.svelte';
   import TrustCta from '$lib/components/sections/TrustCta.svelte';
+  import BuildCta from '$lib/components/sections/BuildCta.svelte';
   import Confirmation from '$lib/components/Confirmation.svelte';
   import { m } from '$lib/paraglide/messages.js';
 
@@ -31,11 +32,12 @@
   </section>
 {:else}
   <Hero {onSuccess} />
-  <InteractiveDemo />
   <EmpathyCut />
-  <HowItWorks />
+  <InteractiveDemo />
   <MosTeaser />
+  <GrowthLoop />
   <TrustCta {onSuccess} registrantCount={data.registrantCount} />
+  <BuildCta />
 {/if}
 
 <style>

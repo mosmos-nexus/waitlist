@@ -3,31 +3,69 @@
   import { reveal } from '$lib/actions/reveal';
   import { m } from '$lib/paraglide/messages.js';
 
-  // §2 timeline. 0=intro 1=user 2=내 AI 3=specialist working 4=result assembled
-  // 5=내 AI closing 6=user closing (rest). Starts at the FINAL frame so SSR / no-JS /
-  // reduced-motion render a complete, meaningful demo; motion users reset to 0 and play.
-  const LAST = 6;
-  const DUR = [700, 1500, 1500, 1900, 1700, 1400];
+  // §2 timeline (centerpiece). Mos doesn't just "split work three ways" — it SELECTS the
+  // right specialist AIs (Mon) for the situation, some already in my 보관함(Inventory),
+  // some fetched from the 공용 허브(Hub), then delegates and brings back ONE deliverable.
+  //   0 = intro (window framed)
+  //   1 = user states a goal
+  //   2 = Mos: "I'll bring in the specialist AIs this needs" (Mos-character avatar)
+  //   3 = the chosen Mons appear with their source (보관함/허브) and work (typing)
+  //   4 = each Mon finishes (check) and the pieces assemble into ONE deliverable card
+  //   5 = Mos hands back the finished deliverable ("the deck you asked for is ready")
+  // Starts at the FINAL frame so SSR / no-JS / reduced-motion render a complete,
+  // meaningful demo; motion users reset to 0 and play (DoD §5).
+  const DUR = [650, 1500, 1600, 2400, 1500];
+  const LAST = DUR.length;
+
+  // The three sample Mons, each mapped to its documented domain + identity color, and
+  // tagged with where Mos pulled it from — 'hub' (공용, brought in) vs 'inventory' (already mine).
+  const mons = [
+    {
+      img: '/characters/mon-research.webp',
+      label: () => m.demo_mon1_label(),
+      task: () => m.demo_mon1_task(),
+      tone: 'research',
+      src: 'hub',
+      delay: '0ms',
+      from: '-30px',
+    },
+    {
+      img: '/characters/mon-organize.webp',
+      label: () => m.demo_mon2_label(),
+      task: () => m.demo_mon2_task(),
+      tone: 'organize',
+      src: 'inventory',
+      delay: '150ms',
+      from: '0px',
+    },
+    {
+      img: '/characters/mon-design.webp',
+      label: () => m.demo_mon3_label(),
+      task: () => m.demo_mon3_task(),
+      tone: 'design',
+      src: 'inventory',
+      delay: '300ms',
+      from: '30px',
+    },
+  ] as const;
+
+  // Result lines — each fragment is tinted to the Mon that produced it and flies in
+  // from that Mon's side as the card assembles (Mosaic motif).
+  const lines = [
+    { text: () => m.demo_result_l1(), tone: 'research', dx: '-22px', d: '60ms' },
+    { text: () => m.demo_result_l2(), tone: 'organize', dx: '0px', d: '180ms' },
+    { text: () => m.demo_result_l3(), tone: 'design', dx: '22px', d: '300ms' },
+  ] as const;
 
   let started = $state(false);
   let step = $state(LAST);
   let playing = $state(false);
   // Decided eagerly (not in onMount): the reveal action calls start() synchronously
-  // during mount, before onMount runs — so a cached flag would still be false then and
-  // the timeline would play for reduced-motion users (DoD §5). matchMedia is client-only;
-  // on the server it's undefined and the SSR final frame already stands.
+  // during mount, before onMount runs. matchMedia is client-only; on the server it's
+  // undefined and the SSR final frame already stands.
   const reduceMotion =
     typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   let timer: ReturnType<typeof setTimeout> | undefined;
-
-  // Scattered → assembled offsets for the result tiles (Mosaic motif).
-  const tiles = [
-    { dx: '-26px', dy: '-20px', d: '0ms' },
-    { dx: '24px', dy: '-14px', d: '70ms' },
-    { dx: '-20px', dy: '16px', d: '140ms' },
-    { dx: '18px', dy: '22px', d: '210ms' },
-    { dx: '-14px', dy: '28px', d: '280ms' },
-  ];
 
   function clearTimer() {
     if (timer) {
@@ -79,7 +117,7 @@
 
 <section class="section demo">
   <div class="container">
-    <div class="head section-head center">
+    <div class="head section-head center" use:reveal>
       <p class="eyebrow">{m.demo_eyebrow()}</p>
       <h2 class="section-title">{m.demo_title()}</h2>
       <p class="section-lead">{m.demo_sub()}</p>
@@ -107,87 +145,94 @@
           </div>
 
           <div class="msg ai" class:show={vis(2)}>
-            <span class="avatar ai-orb" aria-hidden="true"></span>
+            <span class="avatar" aria-hidden="true">
+              <img src="/characters/mos-happy.webp" alt="" width={30} height={30} loading="lazy" />
+            </span>
             <p class="bubble">{m.demo_chat_ai()}</p>
           </div>
 
-          <div class="expert" class:show={vis(3)} class:done={vis(4)} aria-hidden={!vis(3)}>
-            <span class="expert-orb" aria-hidden="true"></span>
-            <span class="expert-meta">
-              <span class="expert-label">{m.demo_expert_label()}</span>
-              <span class="expert-task">
-                {#if vis(4)}
-                  <svg class="check" viewBox="0 0 16 16" aria-hidden="true"
-                    ><path
-                      d="M3.5 8.5l3 3 6-7"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    /></svg
-                  >
-                {:else}
-                  {m.demo_expert_task()}<span class="typing" aria-hidden="true"
-                    ><i></i><i></i><i></i></span
-                  >
-                {/if}
-              </span>
-            </span>
+          <!-- The chosen Mons appear with their source (보관함/허브), work, then check off. -->
+          <div class="team" class:show={vis(3)} class:done={vis(4)}>
+            <ul class="mon-row">
+              {#each mons as mon (mon.tone)}
+                <li
+                  class="mon"
+                  data-tone={mon.tone}
+                  style:--delay={mon.delay}
+                  style:--from={mon.from}
+                >
+                  <span class="mon-art">
+                    <img src={mon.img} alt="" width={44} height={44} loading="lazy" />
+                  </span>
+                  <span class="mon-meta">
+                    <span class="mon-label">{mon.label()}</span>
+                    <span class="mon-src" data-src={mon.src}>
+                      {mon.src === 'hub' ? m.demo_src_hub() : m.demo_src_inventory()}
+                    </span>
+                  </span>
+                  <span class="mon-task">
+                    {#if vis(4)}
+                      <svg class="check" viewBox="0 0 16 16" aria-hidden="true"
+                        ><path
+                          d="M3.5 8.5l3 3 6-7"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        /></svg
+                      >
+                    {:else}
+                      {mon.task()}<span class="typing" aria-hidden="true"
+                        ><i></i><i></i><i></i></span
+                      >
+                    {/if}
+                  </span>
+                </li>
+              {/each}
+            </ul>
+            <p class="mon-gloss">{m.demo_mon_gloss()}</p>
           </div>
 
+          <!-- Climax: the colored pieces assemble into one finished deliverable. -->
           <div class="result" class:built={vis(4)}>
-            <span
-              class="tile result-tag"
-              style:--dx={tiles[0].dx}
-              style:--dy={tiles[0].dy}
-              style:--d={tiles[0].d}
-            >
+            <span class="result-tag">
+              <svg class="deck-ico" viewBox="0 0 16 16" aria-hidden="true">
+                <rect
+                  x="2"
+                  y="3"
+                  width="12"
+                  height="9"
+                  rx="1.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                />
+                <path
+                  d="M6 13h4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+              </svg>
               {m.demo_result_tag()}
             </span>
-            <h3
-              class="tile result-title"
-              style:--dx={tiles[1].dx}
-              style:--dy={tiles[1].dy}
-              style:--d={tiles[1].d}
-            >
-              {m.demo_result_title()}
-            </h3>
+            <h3 class="result-title">{m.demo_result_title()}</h3>
             <ul class="result-list">
-              <li
-                class="tile"
-                style:--dx={tiles[2].dx}
-                style:--dy={tiles[2].dy}
-                style:--d={tiles[2].d}
-              >
-                {m.demo_result_l1()}
-              </li>
-              <li
-                class="tile"
-                style:--dx={tiles[3].dx}
-                style:--dy={tiles[3].dy}
-                style:--d={tiles[3].d}
-              >
-                {m.demo_result_l2()}
-              </li>
-              <li
-                class="tile"
-                style:--dx={tiles[4].dx}
-                style:--dy={tiles[4].dy}
-                style:--d={tiles[4].d}
-              >
-                {m.demo_result_l3()}
-              </li>
+              {#each lines as line (line.tone)}
+                <li class="rline" data-tone={line.tone} style:--dx={line.dx} style:--d={line.d}>
+                  {line.text()}
+                </li>
+              {/each}
             </ul>
           </div>
 
           <div class="msg ai" class:show={vis(5)}>
-            <span class="avatar ai-orb" aria-hidden="true"></span>
+            <span class="avatar" aria-hidden="true">
+              <img src="/characters/mos-happy.webp" alt="" width={30} height={30} loading="lazy" />
+            </span>
             <p class="bubble">{m.demo_chat_ai2()}</p>
-          </div>
-
-          <div class="msg user" class:show={vis(6)}>
-            <p class="bubble">{m.demo_chat_user2()}</p>
           </div>
         </div>
       </div>
@@ -270,7 +315,7 @@
     flex-direction: column;
     gap: var(--space-md);
     padding: var(--space-lg);
-    min-height: 420px;
+    min-height: 470px;
   }
 
   /* Bubbles: hidden until their step, then slide up. transform/opacity only. */
@@ -293,7 +338,7 @@
   }
   .bubble {
     margin: 0;
-    max-width: 78%;
+    max-width: 80%;
     padding: 10px 14px;
     font-size: var(--fs-body-sm);
     line-height: var(--lh-body-sm);
@@ -309,48 +354,90 @@
     color: var(--text-body);
     border-bottom-left-radius: var(--radius-sm);
   }
+  /* Chat avatar is Mos itself (the living companion), not an anonymous orb. */
   .avatar {
     flex: none;
-    width: 30px;
-    height: 30px;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
     border-radius: var(--radius-pill);
+    background: var(--surface-card);
+    box-shadow:
+      0 0 0 1px var(--border-subtle),
+      var(--shadow-e1);
+    overflow: hidden;
   }
-  .ai-orb {
-    background: radial-gradient(circle at 32% 30%, #9cbde9, var(--blue-core));
-    box-shadow: 0 2px 8px rgba(15, 111, 218, 0.3);
+  .avatar img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
   }
 
-  /* Specialist — slides out from behind the 내 AI side, works, then checks off. */
-  .expert {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    margin-left: 38px;
-    padding: 8px 12px;
-    width: fit-content;
-    background: var(--surface-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-pill);
-    box-shadow: var(--shadow-e1);
+  /* Team — the chosen Mons appear staggered from behind Mos, bob while working. */
+  .team {
+    margin-left: 40px;
     opacity: 0;
-    transform: translateX(-14px) scale(0.9);
+    transform: translateY(8px);
     transition:
       opacity 0.45s var(--ease-out),
       transform 0.45s var(--ease-out);
   }
-  .expert.show {
+  .team.show {
     opacity: 1;
     transform: none;
   }
-  .expert-orb {
-    width: 22px;
-    height: 22px;
-    border-radius: var(--radius-pill);
-    background: radial-gradient(circle at 32% 30%, #c4a6f6, var(--purple-pop));
-    box-shadow: 0 2px 7px rgba(155, 110, 239, 0.35);
-    animation: expert-bob 2.4s var(--ease-in-out) infinite;
+  .mon-row {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
   }
-  @keyframes expert-bob {
+  .mon {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px 6px 6px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-e1);
+    opacity: 0;
+    transform: translateX(var(--from, 0)) scale(0.86);
+  }
+  .team.show .mon {
+    animation: mon-in 0.5s var(--ease-out) var(--delay, 0ms) forwards;
+  }
+  @keyframes mon-in {
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .mon-art {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-subtle);
+    box-shadow: 0 0 0 2px var(--tone, var(--purple-pop));
+    overflow: hidden;
+  }
+  .mon-art img {
+    width: 34px;
+    height: 34px;
+    object-fit: cover;
+    animation: mon-bob 2.6s var(--ease-in-out) infinite;
+    animation-delay: var(--delay, 0ms);
+  }
+  .team.done .mon-art img {
+    animation-play-state: paused;
+  }
+  @keyframes mon-bob {
     0%,
     100% {
       transform: translateY(0);
@@ -359,22 +446,44 @@
       transform: translateY(-2px);
     }
   }
-  .expert-meta {
+  .mon-meta {
     display: flex;
     flex-direction: column;
-    line-height: 1.2;
+    gap: 1px;
+    min-width: 0;
   }
-  .expert-label {
+  .mon-label {
     font-size: var(--fs-caption);
     font-weight: var(--fw-semibold);
-    color: var(--purple-pop);
+    color: var(--tone, var(--text-strong));
+    line-height: 1.2;
   }
-  .expert-task {
+  /* Tiny source chip — where Mos pulled this specialist from (보관함 vs 허브).
+     Kept legible at mobile sizes: muted (not faint) + medium weight. */
+  .mon-src {
+    font-size: 11.5px;
+    font-weight: var(--fw-medium);
+    line-height: 1.2;
+    color: var(--text-muted);
+  }
+  .mon-src[data-src='hub'] {
+    color: var(--cyan-bright);
+  }
+  .mon-task {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     font-size: var(--fs-caption);
     color: var(--text-muted);
+  }
+  .mon[data-tone='research'] {
+    --tone: var(--mon-research);
+  }
+  .mon[data-tone='organize'] {
+    --tone: var(--mon-organize);
+  }
+  .mon[data-tone='design'] {
+    --tone: var(--mon-design);
   }
   .check {
     width: 14px;
@@ -410,12 +519,18 @@
       transform: translateY(-2px);
     }
   }
+  .mon-gloss {
+    margin: var(--space-sm) 0 0;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
+    color: var(--text-muted);
+  }
 
-  /* Result — the climax: scattered tiles assemble into the deliverable card. */
+  /* Result — the colored pieces assemble into the finished deliverable card. */
   .result {
     align-self: flex-start;
-    margin-left: 38px;
-    width: min(86%, 340px);
+    margin-left: 40px;
+    width: min(86%, 360px);
     padding: var(--space-base);
     background: var(--surface-card);
     border: 1px solid var(--border-default);
@@ -431,20 +546,10 @@
     opacity: 1;
     transform: none;
   }
-  .tile {
-    opacity: 0;
-    transform: translate(var(--dx, 0), var(--dy, 0)) scale(0.85);
-    transition:
-      opacity 0.5s var(--ease-out),
-      transform 0.5s var(--ease-out);
-    transition-delay: var(--d, 0ms);
-  }
-  .result.built .tile {
-    opacity: 1;
-    transform: none;
-  }
   .result-tag {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     margin-bottom: var(--space-sm);
     padding: 3px 10px;
     font-size: var(--fs-caption);
@@ -452,6 +557,10 @@
     color: var(--cyan-bright);
     background: rgba(0, 160, 163, 0.12);
     border-radius: var(--radius-pill);
+  }
+  .deck-ico {
+    width: 13px;
+    height: 13px;
   }
   .result-title {
     font-size: var(--fs-subtitle);
@@ -467,21 +576,40 @@
     flex-direction: column;
     gap: var(--space-sm);
   }
-  .result-list li {
+  .rline {
     position: relative;
     padding-left: 20px;
     font-size: var(--fs-body-sm);
     color: var(--text-body);
+    opacity: 0;
+    transform: translate(var(--dx, 0), 6px) scale(0.9);
+    transition:
+      opacity 0.5s var(--ease-out),
+      transform 0.5s var(--ease-out);
+    transition-delay: var(--d, 0ms);
   }
-  .result-list li::before {
+  .result.built .rline {
+    opacity: 1;
+    transform: none;
+  }
+  .rline::before {
     content: '';
     position: absolute;
     left: 2px;
-    top: 7px;
-    width: 8px;
-    height: 8px;
-    border-radius: 2px;
-    background: var(--gradient-brand);
+    top: 6px;
+    width: 9px;
+    height: 9px;
+    border-radius: 3px;
+    background: var(--tone, var(--blue-core));
+  }
+  .rline[data-tone='research'] {
+    --tone: var(--mon-research);
+  }
+  .rline[data-tone='organize'] {
+    --tone: var(--mon-organize);
+  }
+  .rline[data-tone='design'] {
+    --tone: var(--mon-design);
   }
 
   .controls {
@@ -537,14 +665,28 @@
   @media (max-width: 480px) {
     .thread {
       padding: var(--space-base);
-      min-height: 380px;
+      min-height: 440px;
     }
     .result,
-    .expert {
+    .team {
       margin-left: 0;
     }
     .bubble {
-      max-width: 86%;
+      max-width: 88%;
+    }
+  }
+
+  /* Reduced motion: the eager reduceMotion guard keeps the final frame (started=false),
+     so every bubble, the checked Mons, and the assembled card are already shown. Pin the
+     idle bob too so nothing loops. */
+  @media (prefers-reduced-motion: reduce) {
+    .mon-art img {
+      animation: none;
+    }
+    .team .mon {
+      opacity: 1;
+      transform: none;
+      animation: none;
     }
   }
 </style>

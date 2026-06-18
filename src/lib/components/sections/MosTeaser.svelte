@@ -12,11 +12,13 @@
           <span class="m1"></span><span class="m2"></span><span class="m3"></span>
           <span class="m4"></span><span class="m5"></span><span class="m6"></span>
         </div>
-        <!-- Specialist peeks from behind Mos (the "뒤따르는" relationship). -->
-        <span class="expert" aria-hidden="true"></span>
+        <!-- A real Mon peeks from behind Mos (the "뒤따르는 전문가" relationship). -->
+        <span class="mon-peek">
+          <img src="/characters/mon-research.webp" alt="" width={68} height={68} loading="lazy" />
+        </span>
         <div class="mos-hold">
           <div class="halo"></div>
-          <img src="/characters/mos-working.webp" alt="" width={220} height={213} />
+          <img src="/characters/mos-working.webp" alt="" width={220} height={213} loading="lazy" />
         </div>
         <span class="nametag">Mos</span>
       </div>
@@ -32,7 +34,7 @@
         <p class="skilled-sub">{m.mos_skilled_sub()}</p>
         <p class="hint">
           <span class="hint-dot" aria-hidden="true"></span>
-          {m.mos_expert_hint()}
+          {m.mos_mon_hint()}
         </p>
       </div>
     </div>
@@ -104,28 +106,38 @@
     border-radius: var(--radius-pill);
     box-shadow: var(--shadow-e1);
   }
-  /* Specialist orb peeking out from behind Mos on a slow loop. */
-  .expert {
+  /* Real Mon peeking out from behind Mos on a slow loop. */
+  .mon-peek {
     position: absolute;
     left: 50%;
-    top: 44%;
+    top: 46%;
     z-index: 1;
-    width: 56px;
-    height: 56px;
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
     border-radius: var(--radius-pill);
-    background: radial-gradient(circle at 34% 30%, #c4a6f6, var(--purple-pop));
-    box-shadow: 0 6px 16px rgba(155, 110, 239, 0.32);
-    animation: peek 6s var(--ease-in-out) infinite;
+    background: var(--surface-card);
+    box-shadow:
+      0 0 0 3px var(--mon-research),
+      var(--shadow-e2);
+    animation: peek 6.5s var(--ease-in-out) infinite;
+  }
+  .mon-peek img {
+    width: 58px;
+    height: 58px;
+    border-radius: var(--radius-pill);
+    object-fit: cover;
   }
   @keyframes peek {
     0%,
     100% {
-      transform: translate(-30%, 0) scale(0.85);
+      transform: translate(-40%, 0) scale(0.8);
       opacity: 0;
     }
-    45%,
-    70% {
-      transform: translate(58%, -6px) scale(1);
+    40%,
+    66% {
+      transform: translate(64%, -8px) scale(1);
       opacity: 1;
     }
   }
@@ -227,14 +239,14 @@
     gap: var(--space-sm);
     margin: var(--space-md) 0 0;
     font-size: var(--fs-body-sm);
-    color: var(--purple-pop);
+    color: var(--mon-research);
   }
   .hint-dot {
     width: 10px;
     height: 10px;
     flex: none;
     border-radius: var(--radius-pill);
-    background: radial-gradient(circle at 34% 30%, #c4a6f6, var(--purple-pop));
+    background: radial-gradient(circle at 34% 30%, #c4a6f6, var(--mon-research));
   }
 
   @media (max-width: 880px) {
@@ -247,6 +259,18 @@
     }
     .stage {
       height: 300px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mos-hold img,
+    .mosaic span {
+      animation: none;
+    }
+    .mon-peek {
+      animation: none;
+      transform: translate(64%, -8px) scale(1);
+      opacity: 1;
     }
   }
 </style>

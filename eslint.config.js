@@ -16,7 +16,8 @@ export default defineConfig(
       '**/.vercel/**',
       '**/paraglide/**',
       // Vendored design-system reference bundle (read-only handoff, not app source).
-      'design_system/**',
+      // Matches both the root copy and the skill copy (.claude/skills/design_system).
+      '**/design_system/**',
     ],
   },
   js.configs.recommended,

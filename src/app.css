@@ -52,6 +52,13 @@
   --purple-pop: #9b6eef;
   --cyan-bright: #00a0a3;
 
+  /* Mon identity colors — match the three sample Mon characters
+     (research = purple, organize = green, design = pink). Used for the
+     specialist rings + the color-coded result fragments in the demo/loop. */
+  --mon-research: #9b6eef;
+  --mon-organize: #25a87a;
+  --mon-design: #e96aa6;
+
   /* Neutrals */
   --clear-white: #f7f8f9;
   --blue-black: #1d2026;
