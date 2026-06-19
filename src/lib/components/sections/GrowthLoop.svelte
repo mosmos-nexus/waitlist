@@ -101,6 +101,9 @@
   .section-head {
     margin-bottom: var(--space-2xl);
   }
+  .section-lead {
+    text-wrap: balance;
+  }
 
   .ring {
     position: relative;

@@ -212,6 +212,7 @@
     font-size: var(--fs-subtitle);
     line-height: var(--lh-subtitle);
     color: var(--text-body);
+    text-wrap: balance;
   }
   .skilled {
     margin-top: var(--space-sm);

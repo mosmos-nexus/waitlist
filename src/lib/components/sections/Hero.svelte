@@ -202,8 +202,6 @@
     font-size: var(--fs-display);
     line-height: var(--lh-display);
     letter-spacing: var(--tracking-tight);
-    /* Break Korean headline at word boundaries, not mid-syllable. */
-    word-break: keep-all;
     text-wrap: balance;
   }
   .sub {
