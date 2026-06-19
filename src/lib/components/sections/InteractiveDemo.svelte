@@ -524,6 +524,7 @@
     font-size: var(--fs-caption);
     line-height: var(--lh-caption);
     color: var(--text-muted);
+    white-space: pre-line;
   }
 
   /* Result — the colored pieces assemble into the finished deliverable card. */
