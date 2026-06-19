@@ -52,6 +52,7 @@
     line-height: var(--lh-h2);
     letter-spacing: var(--tracking-tight);
     color: var(--text-strong);
+    white-space: pre-line;
   }
   .gain {
     display: flex;

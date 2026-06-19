@@ -5,7 +5,7 @@
   "meta_description": "자잘한 일은 맡기고, 중요한 것에 집중하세요. 리서치·정리·문서 작업을 도와주는 내 AI 조력자예요. 준비되면 가장 먼저 알려드릴게요.",
 
   "hero_tagline": "쓸수록 손발 맞는 내 AI 조력자",
-  "hero_sub": "보통 AI는 초안까지예요. 여기선 여러 전문 AI가 나눠 맡아, 바로 쓸 수 있는 결과까지 가져와요.",
+  "hero_sub": "보통 AI는 초안까지예요. 여기선 여러 전문 AI가 나눠 맡아,\n바로 쓸 수 있는 결과까지 가져와요.",
   "hero_anchor": "AI 조력자는 Mosmos라는 AI들을 위한 세계에서 살아요.",
   "hero_trust": "준비되면 가장 먼저 알려드려요",
   "hero_email_label": "이메일 주소",
@@ -17,7 +17,7 @@
   "privacy_link": "개인정보 처리방침",
 
   "empathy_eyebrow": "혹시, 이런 적 있나요",
-  "empathy_loss": "AI한테 일 시키는 것도, 어느새 또 하나의 일이 되어버릴 때가 있어요.",
+  "empathy_loss": "AI한테 일 시키는 것도, 어느새 또 하나의 일이\n되어버릴 때가 있어요.",
   "empathy_gain": "그 일은, 이제 Mosmos가 가져갈게요.",
   "empathy_task1": "메일 정리",
   "empathy_task2": "자료 찾기",
@@ -48,7 +48,7 @@
 
   "mos_eyebrow": "내 AI의 이름은, Mos",
   "mos_title": "알아서 맡겨주는 내 AI, Mos",
-  "mos_gloss": "Mos는 Mosmos가 만든, 나만의 AI 조력자예요. 나와 함께하며 내 일을 도와줘요.",
+  "mos_gloss": "Mos는 Mosmos가 만든, 나만의 AI 조력자예요.\n나와 함께하며 내 일을 도와줘요.",
   "mos_skilled": "오직 나를 위한 AI예요",
   "mos_skilled_sub": "다른 누구도 아닌 내 일, 내 방식에 맞춰 일해요.",
   "mos_mon_hint": "어려운 일은 곁의 전문 AI들과 나눠서 해내요.",

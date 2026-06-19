@@ -209,6 +209,7 @@
     font-size: var(--fs-subtitle);
     line-height: var(--lh-subtitle);
     color: var(--text-body);
+    white-space: pre-line;
   }
   /* Target anchor — names the category + who it's for within the first 5 seconds. */
   .anchor {
