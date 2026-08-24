@@ -119,13 +119,13 @@
   .form {
     display: flex;
     flex-direction: column;
-    gap: var(--space-md);
+    gap: var(--space-16);
     width: 100%;
     max-width: 520px;
   }
   .row {
     display: flex;
-    gap: var(--space-sm);
+    gap: var(--space-10);
     align-items: stretch;
   }
   .email {
@@ -134,20 +134,21 @@
   }
   .microcopy {
     margin: 0;
-    font-size: var(--fs-caption);
-    line-height: var(--lh-caption);
-    color: var(--text-muted);
+    font-size: var(--font-size-caption-2);
+    line-height: var(--line-height-label);
+    color: var(--label-assistive);
   }
   .microcopy a {
-    color: var(--text-link);
+    color: var(--primary-bright);
     text-decoration: underline;
+    text-underline-offset: 2px;
   }
   .error {
     margin: 0;
-    font-size: var(--fs-body-sm);
-    color: var(--status-error);
+    font-size: var(--font-size-body-2);
+    color: var(--status-error-fill);
   }
-  @media (max-width: 520px) {
+  @media (max-width: 560px) {
     .row {
       flex-direction: column;
     }

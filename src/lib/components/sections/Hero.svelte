@@ -1,339 +1,328 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { animate, stagger } from 'animejs';
+  import SkyIsland from '$lib/components/world/SkyIsland.svelte';
+  import MosBlob from '$lib/components/world/MosBlob.svelte';
+  import MonBlob from '$lib/components/world/MonBlob.svelte';
   import WaitlistForm from '$lib/components/WaitlistForm.svelte';
   import { m } from '$lib/paraglide/messages.js';
+  import { prefersReduced } from '$lib/anime/motion';
 
   interface Props {
     onSuccess: (result: { id: string; emailSent: boolean }) => void;
   }
   let { onSuccess }: Props = $props();
 
-  // §1: desktop-only "living companion" gaze. Mos drifts a few px toward the
-  // pointer (translate, never rotate/flip — DS character rule). Skipped on touch
-  // and under reduced motion so the idle float is the only movement there.
-  let art = $state<HTMLDivElement | null>(null);
-  onMount(() => {
-    if (!art) return;
-    const finePointer = matchMedia('(pointer: fine)').matches;
-    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!finePointer || reduce) return;
+  // Mos answers a poke with one of these, cycling so a second poke says
+  // something new rather than repeating.
+  const POKE_LINES = $derived([m.mos_poke_1(), m.mos_poke_2(), m.mos_poke_3(), m.mos_poke_4()]);
+  let pokeIndex = $state(-1);
+  const mosLine = $derived(pokeIndex < 0 ? m.mos_line_idle() : POKE_LINES[pokeIndex]);
 
-    let raf = 0;
-    const onMove = (e: PointerEvent) => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const x = (e.clientX / window.innerWidth - 0.5) * 2;
-        const y = (e.clientY / window.innerHeight - 0.5) * 2;
-        art?.style.setProperty('--gaze-x', `${(x * 6).toFixed(2)}px`);
-        art?.style.setProperty('--gaze-y', `${(y * 6).toFixed(2)}px`);
-      });
-    };
-    window.addEventListener('pointermove', onMove, { passive: true });
+  let lineEl = $state<HTMLParagraphElement | null>(null);
+  let copyEl = $state<HTMLDivElement | null>(null);
+  let resetTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function onPoke() {
+    pokeIndex = (pokeIndex + 1) % POKE_LINES.length;
+    clearTimeout(resetTimer);
+    // Fall back to the resting line so the scene settles instead of holding a
+    // reply forever.
+    resetTimer = setTimeout(() => {
+      pokeIndex = -1;
+    }, 6000);
+    if (lineEl && !prefersReduced()) {
+      animate(lineEl, { opacity: [0, 1], translateY: [6, 0], duration: 460, ease: 'out(3)' });
+    }
+  }
+
+  onMount(() => {
+    if (!copyEl || prefersReduced()) return;
+    // The hero is above the fold, so it plays on mount rather than on scroll.
+    const rows = Array.from(copyEl.querySelectorAll<HTMLElement>('[data-enter]'));
+    const anim = animate(rows, {
+      opacity: [0, 1],
+      translateY: [26, 0],
+      duration: 900,
+      delay: stagger(110, { start: 220 }),
+      ease: 'out(3)',
+    });
     return () => {
-      window.removeEventListener('pointermove', onMove);
-      cancelAnimationFrame(raf);
+      clearTimeout(resetTimer);
+      anim.revert();
     };
   });
 </script>
 
-<section class="hero">
-  <div class="aurora" aria-hidden="true"></div>
-  <div class="particles" aria-hidden="true">
-    <span></span><span></span><span></span><span></span><span></span><span></span>
-  </div>
-
-  <div class="container grid">
-    <div class="copy">
-      <h1 class="tagline">{m.hero_tagline()}</h1>
-      <p class="sub">{m.hero_sub()}</p>
-      <p class="anchor">{m.hero_anchor()}</p>
-
-      <div class="form-wrap">
-        <WaitlistForm {onSuccess} />
+<section class="hero" aria-label={m.hero_tagline().replace('\n', ' ')}>
+  <SkyIsland label={m.world_island_label()}>
+    {#snippet stage()}
+      <div class="stage-inner">
+        <MosBlob size={268} onpoke={onPoke} label="Mos" />
+        <div class="mos-plate">
+          <span class="status">
+            <i class="live"></i>
+            Mos · {m.mos_status_idle()}
+          </span>
+          <p class="mos-line prewrap" bind:this={lineEl} aria-live="polite">{mosLine}</p>
+        </div>
       </div>
+    {/snippet}
 
-      <p class="trust">
-        <svg class="tick" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-          <path
-            d="M3.5 8.5l3 3 6-7"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-        {m.hero_trust()}
-      </p>
+    {#snippet orbit()}
+      <!-- The Mon ring sits on the island's near edge, so it reads as three
+           specialists waiting beside Mos rather than decoration. -->
+      <div class="mon-ring" aria-label={m.mos_mon_hint()}>
+        <div class="mon left">
+          <MonBlob role="research" size={74} name={m.mon_research_name()} offset={0} />
+        </div>
+        <div class="mon mid">
+          <MonBlob role="organize" size={64} name={m.mon_organize_name()} offset={0.6} />
+        </div>
+        <div class="mon right">
+          <MonBlob role="design" size={70} name={m.mon_design_name()} offset={1.2} />
+        </div>
+      </div>
+    {/snippet}
+  </SkyIsland>
+
+  <div class="veil" aria-hidden="true"></div>
+
+  <div class="container copy" bind:this={copyEl}>
+    <span class="eyebrow" data-enter>{m.hero_eyebrow()}</span>
+    <h1 class="t-display-2 tagline prewrap" data-enter>{m.hero_tagline()}</h1>
+    <p class="t-subtitle-1 sub prewrap" data-enter>{m.hero_sub()}</p>
+
+    <div class="form-slot" data-enter>
+      <WaitlistForm {onSuccess} />
     </div>
 
-    <div class="art" bind:this={art} aria-hidden="true">
-      <div class="halo"></div>
-      <img
-        class="mos"
-        src="/characters/mos-greeting.webp"
-        alt=""
-        width={280}
-        height={264}
-        fetchpriority="high"
-      />
-    </div>
+    <p class="trust" data-enter>
+      <i class="dot"></i>
+      {m.hero_trust()}
+    </p>
+    <p class="anchor" data-enter>{m.hero_anchor()}</p>
   </div>
+
+  <span class="scroll-hint" aria-hidden="true">
+    {m.hero_scroll()}
+    <svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6" /></svg>
+  </span>
 </section>
 
 <style>
   .hero {
     position: relative;
+    min-height: 100svh;
+    display: flex;
+    align-items: flex-end;
     overflow: hidden;
-    background: var(--gradient-sky);
-    border-bottom: 1px solid var(--border-subtle);
+    isolation: isolate;
   }
 
-  /* Ambient pastel aurora — Core Blue → Pop Purple, drifting slowly (transform only). */
-  .aurora {
-    position: absolute;
-    inset: -25% -10% auto -10%;
-    height: 720px;
-    background:
-      radial-gradient(38% 55% at 22% 30%, rgba(15, 111, 218, 0.22), transparent 70%),
-      radial-gradient(34% 48% at 80% 22%, rgba(155, 110, 239, 0.2), transparent 72%),
-      radial-gradient(30% 42% at 62% 68%, rgba(0, 160, 163, 0.14), transparent 70%);
-    filter: blur(18px);
-    pointer-events: none;
-    animation: aurora-drift 24s var(--ease-in-out) infinite;
-  }
-  @keyframes aurora-drift {
-    0%,
-    100% {
-      transform: translate3d(0, 0, 0) scale(1);
-    }
-    50% {
-      transform: translate3d(-3%, 2%, 0) scale(1.06);
-    }
-  }
-
-  /* Floating round particles — Cosmos / 별빛 depth. */
-  .particles {
+  /* The island lives behind the copy; this gradient buys back the contrast the
+     text needs without flattening the scene. */
+  .veil {
     position: absolute;
     inset: 0;
+    z-index: 1;
     pointer-events: none;
-  }
-  .particles span {
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    border-radius: var(--radius-pill);
-    background: radial-gradient(
-      circle at 35% 35%,
-      rgba(255, 255, 255, 0.9),
-      rgba(156, 189, 233, 0.5)
+    background: linear-gradient(
+      180deg,
+      rgba(8, 9, 15, 0.34) 0%,
+      rgba(8, 9, 15, 0) 24%,
+      rgba(8, 9, 15, 0.42) 58%,
+      rgba(8, 9, 15, 0.9) 100%
     );
-    opacity: 0.7;
-    animation: particle-rise 14s linear infinite;
-  }
-  .particles span:nth-child(1) {
-    left: 12%;
-    bottom: -12px;
-    animation-delay: 0s;
-    transform: scale(0.7);
-  }
-  .particles span:nth-child(2) {
-    left: 34%;
-    bottom: -12px;
-    animation-delay: 3.5s;
-    transform: scale(1.1);
-  }
-  .particles span:nth-child(3) {
-    left: 53%;
-    bottom: -12px;
-    animation-delay: 7s;
-    transform: scale(0.6);
-  }
-  .particles span:nth-child(4) {
-    left: 68%;
-    bottom: -12px;
-    animation-delay: 1.8s;
-    transform: scale(0.9);
-  }
-  .particles span:nth-child(5) {
-    left: 82%;
-    bottom: -12px;
-    animation-delay: 5.2s;
-    transform: scale(0.75);
-  }
-  .particles span:nth-child(6) {
-    left: 92%;
-    bottom: -12px;
-    animation-delay: 9s;
-    transform: scale(0.5);
-  }
-  @keyframes particle-rise {
-    0% {
-      transform: translateY(0) scale(var(--s, 1));
-      opacity: 0;
-    }
-    12% {
-      opacity: 0.7;
-    }
-    90% {
-      opacity: 0.5;
-    }
-    100% {
-      transform: translateY(-560px) scale(var(--s, 1));
-      opacity: 0;
-    }
   }
 
-  .grid {
-    position: relative;
-    display: grid;
-    grid-template-columns: 1.15fr 0.85fr;
-    align-items: center;
-    gap: var(--space-2xl);
-    padding-block: clamp(56px, 9vw, 120px);
-  }
   .copy {
+    position: relative;
+    z-index: 2;
     display: flex;
     flex-direction: column;
-    gap: var(--space-base);
-    max-width: 560px;
+    align-items: flex-start;
+    gap: var(--space-16);
+    padding-bottom: clamp(var(--space-56), 9vh, var(--space-80));
+    padding-top: var(--space-64);
+    /* The container stretches across the island, so on its own it would
+       swallow every click meant for Mos. Only its children take pointers. */
+    pointer-events: none;
   }
-  .tagline {
-    font-size: var(--fs-display);
-    line-height: var(--lh-display);
-    letter-spacing: var(--tracking-tight);
-    text-wrap: balance;
-  }
-  .sub {
-    margin: 0;
-    font-size: var(--fs-subtitle);
-    line-height: var(--lh-subtitle);
-    color: var(--text-body);
-    white-space: pre-line;
-  }
-  /* Target anchor — names the category + who it's for within the first 5 seconds. */
-  .anchor {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-sm);
-    align-self: flex-start;
-    margin: 0;
-    padding: 6px 14px;
-    font-size: var(--fs-body-sm);
-    font-weight: var(--fw-medium);
-    color: var(--color-primary);
-    background: rgba(15, 111, 218, 0.08);
-    border-radius: var(--radius-pill);
+  .copy > * {
+    pointer-events: auto;
   }
 
-  /* Form gets the single focus: a one-time entrance glow draws the eye to the CTA.
-     The field's own focus ring (Input.svelte) is the only focus affordance — the
-     wrapper deliberately adds none, so focusing the email box never paints a stray
-     ring around the whole form block. */
-  .form-wrap {
-    position: relative;
-    margin-top: var(--space-sm);
-    border-radius: var(--radius-lg);
+  .tagline {
+    color: var(--label-strong);
+    max-width: 18ch;
+    text-shadow: 0 2px 24px rgba(8, 9, 15, 0.6);
   }
-  .form-wrap::before {
-    content: '';
-    position: absolute;
-    inset: -10px;
-    border-radius: var(--radius-xl);
-    background: radial-gradient(60% 80% at 30% 40%, rgba(0, 160, 163, 0.18), transparent 70%);
-    opacity: 0;
-    pointer-events: none;
-    animation: cta-pulse 2s var(--ease-out) 0.5s 1;
+  .sub {
+    color: var(--label-alternative);
+    font-weight: var(--weight-regular);
+    line-height: var(--line-height-body-reading);
+    max-width: 46ch;
   }
-  @keyframes cta-pulse {
-    0% {
-      opacity: 0;
-      transform: scale(0.98);
-    }
-    35% {
-      opacity: 1;
-      transform: scale(1);
-    }
-    100% {
-      opacity: 0;
-      transform: scale(1.02);
-    }
+
+  .form-slot {
+    margin-top: var(--space-8);
+    width: 100%;
   }
 
   .trust {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-sm);
-    margin: var(--space-xs) 0 0;
-    font-size: var(--fs-body-sm);
-    color: var(--text-muted);
+    gap: var(--space-8);
+    font-size: var(--font-size-body-2);
+    color: var(--label-normal);
   }
-  .tick {
-    width: 18px;
-    height: 18px;
-    flex: none;
-    color: var(--cyan-bright);
-  }
-
-  /* Right column — Mos idle float (translateY 6px / 5s) + gaze parallax on the wrapper. */
-  .art {
-    position: relative;
-    display: flex;
-    justify-content: center;
-    transform: translate(var(--gaze-x, 0), var(--gaze-y, 0));
-    transition: transform 0.6s var(--ease-out);
-  }
-  .halo {
-    position: absolute;
-    inset: 8% 14%;
+  .dot {
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(15, 111, 218, 0.18), transparent 68%);
-    filter: blur(14px);
-    animation: halo-breathe 6s var(--ease-in-out) infinite;
+    background: var(--summon-green);
+    box-shadow: 0 0 10px rgba(33, 237, 179, 0.9);
   }
-  .mos {
-    position: relative;
-    width: clamp(190px, 26vw, 280px);
-    height: auto;
-    animation: mos-float 5s var(--ease-in-out) infinite;
+
+  .anchor {
+    font-size: var(--font-size-caption-1);
+    color: var(--label-assistive);
   }
-  @keyframes mos-float {
+
+  /* ---- Mos on the disc ---- */
+  .stage-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-10);
+  }
+  .mos-plate {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-6);
+    max-width: 30ch;
+    text-align: center;
+  }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-6);
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    background: rgba(20, 23, 27, 0.68);
+    border: 1px solid var(--line-normal-normal);
+    font-size: var(--font-size-caption-2);
+    font-weight: var(--weight-semibold);
+    color: var(--label-normal);
+    backdrop-filter: blur(8px);
+    white-space: nowrap;
+  }
+  .live {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--summon-cyan);
+    box-shadow: 0 0 8px var(--summon-cyan);
+  }
+  .mos-line {
+    font-size: var(--font-size-caption-1);
+    line-height: var(--line-height-label);
+    color: var(--label-assistive);
+  }
+
+  /* ---- Mon ring ---- */
+  .mon-ring {
+    position: absolute;
+    left: 50%;
+    top: 470px;
+    translate: -50% 0;
+    width: 760px;
+    height: 1px;
+  }
+  .mon {
+    position: absolute;
+    /* Opts back in — the orbit layer around it passes pointers through. */
+    pointer-events: auto;
+  }
+  /* Placed by hand against the island's ellipse so each Mon sits on the rim
+     rather than floating over the void. */
+  .mon.left {
+    left: 6%;
+    top: 26px;
+  }
+  .mon.mid {
+    left: 50%;
+    top: 96px;
+    translate: -50% 0;
+  }
+  .mon.right {
+    right: 6%;
+    top: 14px;
+  }
+
+  .scroll-hint {
+    position: absolute;
+    z-index: 2;
+    right: var(--grid-gutter);
+    bottom: var(--space-20);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-6);
+    font-size: var(--font-size-caption-2);
+    color: var(--label-assistive);
+    pointer-events: none;
+  }
+  .scroll-hint svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    animation: nudge 2.2s var(--ease-in-out) infinite;
+  }
+  @keyframes nudge {
     0%,
     100% {
-      transform: translateY(0) scale(1);
+      transform: translateY(0);
+      opacity: 0.5;
     }
     50% {
-      transform: translateY(-6px) scale(1.012);
-    }
-  }
-  @keyframes halo-breathe {
-    0%,
-    100% {
-      opacity: 0.7;
-      transform: scale(1);
-    }
-    50% {
+      transform: translateY(4px);
       opacity: 1;
-      transform: scale(1.05);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .scroll-hint svg {
+      animation: none;
     }
   }
 
-  @media (max-width: 880px) {
-    .grid {
-      grid-template-columns: 1fr;
-      gap: var(--space-lg);
-    }
-  }
-  /* Mobile: lead with copy + form so the single CTA stays near the fold (DoD §1). */
-  @media (max-width: 640px) {
-    .art {
+  /* Below the desktop breakpoint the island loses its side Mon and the copy
+     takes the lower half outright — three blobs on the rim don't survive the
+     narrower disc. */
+  @media (max-width: 900px) {
+    .mon.left,
+    .mon.right {
       display: none;
     }
-    .grid {
-      padding-block: clamp(32px, 8vw, 56px);
+    .mon.mid {
+      top: 80px;
     }
+    .scroll-hint {
+      display: none;
+    }
+  }
+
+  @media (max-width: 560px) {
     .copy {
-      gap: var(--space-md);
+      gap: var(--space-12);
+    }
+    .tagline {
+      max-width: 100%;
     }
   }
 </style>

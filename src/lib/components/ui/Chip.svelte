@@ -18,29 +18,31 @@
   .chip {
     display: inline-flex;
     align-items: center;
-    min-height: var(--control-sm);
-    padding: 0 16px;
-    font-family: var(--font-body);
-    font-size: var(--fs-body-sm);
-    font-weight: var(--fw-medium);
-    color: var(--text-body);
-    background: var(--surface-card);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-pill);
+    min-height: var(--control-s);
+    padding: 0 14px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--line-normal-normal);
+    background: rgba(20, 23, 27, 0.6);
+    color: var(--label-alternative);
+    font-size: var(--font-size-body-2);
     cursor: pointer;
     transition:
-      background var(--dur-fast) var(--ease-out),
-      border-color var(--dur-fast) var(--ease-out),
-      color var(--dur-fast) var(--ease-out);
+      background var(--duration-base) var(--ease-out),
+      border-color var(--duration-base) var(--ease-out),
+      color var(--duration-base) var(--ease-out);
   }
   .chip:hover {
-    border-color: var(--border-strong);
-    background: rgba(15, 111, 218, 0.05);
+    border-color: var(--line-normal-strong);
+    color: var(--label-strong);
   }
   .chip.selected {
-    background: rgba(15, 111, 218, 0.1);
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-    font-weight: var(--fw-semibold);
+    background: var(--primary-normal);
+    border-color: var(--primary-normal);
+    color: var(--static-white);
+    font-weight: var(--weight-semibold);
+  }
+  .chip:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
   }
 </style>

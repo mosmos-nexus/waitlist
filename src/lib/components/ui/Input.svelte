@@ -31,17 +31,17 @@
   {#if label}
     <label for={fieldId}>{label}</label>
   {/if}
-  <div class="control" data-status={status} data-size={size}>
-    <input
-      id={fieldId}
-      bind:value
-      aria-invalid={status === 'error'}
-      aria-describedby={helper ? helperId : undefined}
-      {...rest}
-    />
-  </div>
+  <input
+    id={fieldId}
+    class="control {size} {status}"
+    data-cursor="text"
+    bind:value
+    aria-invalid={status === 'error' || undefined}
+    aria-describedby={helper ? helperId : undefined}
+    {...rest}
+  />
   {#if helper}
-    <span class="helper" id={helperId} data-status={status}>{helper}</span>
+    <p id={helperId} class="helper {status}">{helper}</p>
   {/if}
 </div>
 
@@ -49,71 +49,75 @@
   .field {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--space-6);
     width: 100%;
   }
+
   label {
-    font-family: var(--font-body);
-    font-size: 14px;
-    font-weight: var(--fw-medium);
-    color: var(--text-strong);
+    font-size: var(--font-size-label-2);
+    font-weight: var(--weight-medium);
+    color: var(--label-alternative);
   }
+
   .control {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    padding: 0 14px;
-    background: var(--surface-card);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-sm);
+    width: 100%;
+    background: rgba(20, 23, 27, 0.72);
+    border: 1px solid var(--line-normal-normal);
+    border-radius: var(--radius-s);
+    color: var(--label-strong);
     transition:
-      border-color var(--dur-base) var(--ease-out),
-      box-shadow var(--dur-base) var(--ease-out);
+      border-color var(--duration-base) var(--ease-out),
+      background var(--duration-base) var(--ease-out),
+      box-shadow var(--duration-base) var(--ease-out);
   }
-  .control[data-size='sm'] {
-    height: var(--control-sm);
+  .control::placeholder {
+    color: var(--label-assistive);
   }
-  .control[data-size='md'] {
-    height: var(--control-md);
+
+  .sm {
+    height: var(--control-s);
+    padding-inline: var(--space-14);
+    font-size: var(--font-size-body-2);
   }
-  .control[data-size='lg'] {
-    height: var(--control-lg);
+  .md {
+    height: var(--control-m);
+    padding-inline: var(--space-16);
+    font-size: var(--font-size-body-1);
   }
-  .control:focus-within {
-    border-color: var(--color-primary);
+  .lg {
+    height: var(--control-l);
+    padding-inline: var(--space-20);
+    font-size: var(--font-size-subtitle-1);
+  }
+
+  .control:hover {
+    border-color: var(--line-normal-strong);
+  }
+  .control:focus {
+    outline: none;
+    border-color: var(--primary-light);
+    background: rgba(20, 23, 27, 0.9);
     box-shadow: var(--shadow-focus);
   }
-  .control[data-status='error'] {
-    border-color: var(--status-error);
-    box-shadow: none;
+
+  .control.error {
+    border-color: var(--status-error-fill);
   }
-  .control[data-status='success'] {
-    border-color: var(--status-success);
-    box-shadow: none;
+  .control.error:focus {
+    box-shadow: 0 0 0 3px rgba(233, 83, 83, 0.28);
   }
-  input {
-    flex: 1;
-    min-width: 0;
-    border: none;
-    outline: none;
-    background: transparent;
-    font-family: var(--font-body);
-    font-size: 16px;
-    color: var(--text-body);
+  .control.success {
+    border-color: var(--summon-green);
   }
-  input::placeholder {
-    color: var(--text-faint);
-  }
+
   .helper {
-    font-family: var(--font-body);
-    font-size: 13px;
-    line-height: var(--lh-caption);
-    color: var(--text-muted);
+    font-size: var(--font-size-caption-1);
+    color: var(--label-alternative);
   }
-  .helper[data-status='error'] {
-    color: var(--status-error);
+  .helper.error {
+    color: var(--status-error-fill);
   }
-  .helper[data-status='success'] {
-    color: var(--status-success);
+  .helper.success {
+    color: var(--summon-green);
   }
 </style>

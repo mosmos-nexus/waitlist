@@ -5,13 +5,18 @@
   interface Props {
     height?: number;
     alt?: string;
+    /** The waitlist runs dark, so white is the default treatment. */
+    tone?: 'white' | 'color';
   }
 
-  let { height = 28, alt = 'mosmos' }: Props = $props();
+  let { height = 28, alt = 'mosmos', tone = 'white' }: Props = $props();
   const width = $derived(Math.round(height * RATIO));
+  const src = $derived(
+    tone === 'white' ? '/brand/mosmos-horizontal-white.svg' : '/brand/mosmos-horizontal-color.svg',
+  );
 </script>
 
-<img class="logo" src="/brand/mosmos-horizontal-color.svg" {alt} {height} {width} />
+<img class="logo" {src} {alt} {height} {width} />
 
 <style>
   .logo {

@@ -1,12 +1,17 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { createTimeline, stagger, utils } from 'animejs';
   import Button from '$lib/components/ui/Button.svelte';
   import Select from '$lib/components/ui/Select.svelte';
   import Chip from '$lib/components/ui/Chip.svelte';
   import Input from '$lib/components/ui/Input.svelte';
+  import MosBlob from '$lib/components/world/MosBlob.svelte';
+  import MonBlob from '$lib/components/world/MonBlob.svelte';
   import { m } from '$lib/paraglide/messages.js';
   import { getLocale } from '$lib/paraglide/runtime';
   import { JOB_OPTIONS, AI_TASK_OPTIONS, OTHER_VALUE, optionLabel } from '$lib/data/survey-options';
   import type { AppLocale } from '$lib/i18n';
+  import { prefersReduced } from '$lib/anime/motion';
 
   interface Props {
     pageId: string;
@@ -28,9 +33,6 @@
   // Two distinct "기타" inputs — one per question, matching the DB's 직업 기타 / 작업 기타 columns.
   const showJobOther = $derived(job === OTHER_VALUE);
   const showTaskOther = $derived(aiTasks.includes(OTHER_VALUE));
-
-  // §7: a 12-piece confetti burst — decorative, finite, removed after ~1.2s.
-  const confetti = Array.from({ length: 12 }, (_, i) => i);
 
   function toggleTask(value: string) {
     aiTasks = aiTasks.includes(value) ? aiTasks.filter((t) => t !== value) : [...aiTasks, value];
@@ -55,23 +57,72 @@
     }
     surveyState = 'done';
   }
+
+  // ---- The arrival ----
+  // The island the visitor met on the hero is the same island here, only lit:
+  // the halo turns Summon Green, the ring pulses out once, and the three Mon
+  // arrive to join Mos. It's the one moment on the page that earns a flourish.
+  let sceneEl = $state<HTMLDivElement | null>(null);
+
+  onMount(() => {
+    if (!sceneEl) return;
+
+    const rings = sceneEl.querySelectorAll('.ring');
+    const mons = sceneEl.querySelectorAll('.mon-join');
+    const glow = sceneEl.querySelectorAll('.glow');
+
+    if (prefersReduced()) {
+      utils.set(mons, { opacity: 1, scale: 1, translateY: 0 });
+      utils.set(glow, { opacity: 1 });
+      return;
+    }
+
+    utils.set(mons, { opacity: 0, scale: 0.5, translateY: -34 });
+    utils.set(rings, { opacity: 0, scale: 0.7 });
+    utils.set(glow, { opacity: 0 });
+
+    const tl = createTimeline({ defaults: { ease: 'out(3)' } })
+      .add(glow, { opacity: 1, duration: 1200 }, 0)
+      .add(rings, { opacity: [0, 0.7, 0], scale: 1.7, duration: 1900, delay: stagger(320) }, 120)
+      .add(
+        mons,
+        {
+          opacity: 1,
+          scale: 1,
+          translateY: 0,
+          duration: 900,
+          delay: stagger(180),
+          ease: 'out(4)',
+        },
+        620,
+      );
+
+    return () => tl.revert();
+  });
 </script>
 
 <div class="confirm" aria-live="polite">
-  <div class="celebrate">
-    <div class="confetti" aria-hidden="true">
-      {#each confetti as i (i)}
-        <span class="bit b{i}"></span>
-      {/each}
+  <div class="scene" bind:this={sceneEl}>
+    <span class="glow" aria-hidden="true"></span>
+    <span class="ring" aria-hidden="true"></span>
+    <span class="ring" aria-hidden="true"></span>
+
+    <div class="mos-hold">
+      <MosBlob size={170} mood="happy" label="Mos" />
     </div>
-    <div class="mascot-hold">
-      <div class="halo" aria-hidden="true"></div>
-      <img class="mascot" src="/characters/mos-happy.webp" alt="" width={140} height={131} />
+
+    <div class="joiners" aria-hidden="true">
+      <span class="mon-join j0"><MonBlob role="research" size={48} /></span>
+      <span class="mon-join j1"><MonBlob role="organize" size={44} /></span>
+      <span class="mon-join j2"><MonBlob role="design" size={46} /></span>
     </div>
   </div>
 
   <p class="world-tagline">{m.confirm_world_tagline()}</p>
-  <h2>{m.confirm_title()}</h2>
+  <h2 class="t-title-2 prewrap">{m.confirm_title()}</h2>
+
+  <p class="mos-say"><i class="live"></i>{m.confirm_mos_line()}</p>
+
   {#if emailSent}
     <p class="reward">{m.confirm_email_sent()}</p>
   {/if}
@@ -81,12 +132,9 @@
   {#if surveyState === 'done'}
     <p class="done">{m.survey_done()}</p>
   {:else}
-    <div class="survey">
-      <div class="progress" aria-hidden="true">
-        <span class="bar"><span class="fill"></span></span>
-      </div>
-      <p class="survey-intro">{m.survey_intro()}</p>
+    <div class="survey glass">
       <span class="step">{m.survey_step_label()}</span>
+      <p class="survey-intro">{m.survey_intro()}</p>
 
       <Select
         label={m.survey_job_label()}
@@ -153,230 +201,147 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--space-md);
+    gap: var(--space-12);
     width: 100%;
-    max-width: 560px;
+    max-width: 580px;
   }
 
-  /* §7 celebration — Mos jumps once, confetti bursts once. */
-  .celebrate {
+  /* ---- The arrival scene ---- */
+  .scene {
     position: relative;
     align-self: center;
-    width: 200px;
-    height: 170px;
+    width: 300px;
+    height: 220px;
+    display: grid;
+    place-items: center;
+    margin-bottom: var(--space-8);
   }
-  .mascot-hold {
+  .glow {
+    position: absolute;
+    inset: -14% -8%;
+    border-radius: 50%;
+    background: radial-gradient(
+      closest-side,
+      rgba(33, 237, 179, 0.22),
+      rgba(31, 206, 206, 0.12) 52%,
+      transparent
+    );
+    pointer-events: none;
+  }
+  .ring {
     position: absolute;
     left: 50%;
-    bottom: 0;
-    transform: translateX(-50%);
+    top: 56%;
+    translate: -50% -50%;
+    width: 240px;
+    height: 78px;
+    border-radius: 50%;
+    border: 1px solid rgba(33, 237, 179, 0.5);
+    opacity: 0;
+    pointer-events: none;
   }
-  .mascot {
+  .mos-hold {
     position: relative;
     z-index: 2;
-    height: auto;
-    animation: mos-jump 1s var(--ease-out) 1;
   }
-  .halo {
-    position: absolute;
-    inset: 10% 6%;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(15, 111, 218, 0.18), transparent 66%);
-    filter: blur(14px);
-  }
-  @keyframes mos-jump {
-    0% {
-      transform: translateY(0) scale(1);
-    }
-    30% {
-      transform: translateY(-22px) scale(1.04);
-    }
-    55% {
-      transform: translateY(0) scale(0.98);
-    }
-    72% {
-      transform: translateY(-7px) scale(1.01);
-    }
-    100% {
-      transform: translateY(0) scale(1);
-    }
-  }
-  .confetti {
+
+  .joiners {
     position: absolute;
     inset: 0;
     pointer-events: none;
   }
-  .bit {
+  .mon-join {
     position: absolute;
-    top: 40%;
-    left: 50%;
-    width: 8px;
-    height: 8px;
-    border-radius: 2px;
-    opacity: 0;
-    animation: confetti 1.2s var(--ease-out) 0.1s 1;
+    display: block;
   }
-  .bit:nth-child(odd) {
-    border-radius: var(--radius-pill);
+  /* Placed around Mos rather than in a row — they're arriving, not queueing */
+  .j0 {
+    left: -2%;
+    top: 46%;
   }
-  .b0 {
-    --tx: -78px;
-    --tr: -120px;
-    background: var(--blue-core);
+  .j1 {
+    right: 0%;
+    top: 34%;
   }
-  .b1 {
-    --tx: -54px;
-    --tr: -150px;
-    background: var(--purple-pop);
-  }
-  .b2 {
-    --tx: -30px;
-    --tr: -132px;
-    background: var(--cyan-bright);
-  }
-  .b3 {
-    --tx: -10px;
-    --tr: -160px;
-    background: var(--blue-light);
-  }
-  .b4 {
-    --tx: 16px;
-    --tr: -150px;
-    background: var(--purple-pop);
-  }
-  .b5 {
-    --tx: 36px;
-    --tr: -134px;
-    background: var(--blue-core);
-  }
-  .b6 {
-    --tx: 60px;
-    --tr: -156px;
-    background: var(--cyan-bright);
-  }
-  .b7 {
-    --tx: 82px;
-    --tr: -122px;
-    background: var(--blue-light);
-  }
-  .b8 {
-    --tx: -66px;
-    --tr: -96px;
-    background: var(--cyan-bright);
-  }
-  .b9 {
-    --tx: 70px;
-    --tr: -98px;
-    background: var(--purple-pop);
-  }
-  .b10 {
-    --tx: -22px;
-    --tr: -176px;
-    background: var(--blue-core);
-  }
-  .b11 {
-    --tx: 26px;
-    --tr: -178px;
-    background: var(--blue-light);
-  }
-  @keyframes confetti {
-    0% {
-      opacity: 0;
-      transform: translate(0, 0) scale(0.6);
-    }
-    15% {
-      opacity: 1;
-    }
-    100% {
-      opacity: 0;
-      transform: translate(var(--tx, 0), var(--tr, -140px)) rotate(220deg) scale(1);
-    }
+  .j2 {
+    right: 16%;
+    bottom: 2%;
   }
 
+  /* ---- Copy ---- */
   .world-tagline {
     align-self: center;
-    margin: 0;
-    font-size: var(--fs-body-sm);
-    font-weight: var(--fw-semibold);
-    letter-spacing: var(--tracking-wide);
-    color: var(--color-secondary);
+    font-size: var(--font-size-caption-1);
+    letter-spacing: 0.04em;
+    color: var(--bright-cyan);
   }
   h2 {
-    font-size: var(--fs-h2);
-    line-height: var(--lh-h2);
-    color: var(--text-strong);
+    color: var(--label-strong);
   }
+
+  .mos-say {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    padding: 10px 15px;
+    border-radius: var(--radius-m) var(--radius-m) var(--radius-m) 6px;
+    background: rgba(35, 41, 47, 0.86);
+    border: 1px solid var(--line-normal-normal);
+    font-size: var(--font-size-body-2);
+    color: var(--label-normal);
+  }
+  .live {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--summon-green);
+    box-shadow: 0 0 8px var(--summon-green);
+  }
+
   .reward {
-    margin: 0;
-    font-weight: var(--fw-semibold);
-    color: var(--color-primary);
+    font-size: var(--font-size-body-2);
+    color: var(--summon-green);
   }
-  .care {
-    margin: 0;
-    color: var(--text-muted);
-    line-height: var(--lh-body);
-  }
+  .care,
   .next {
-    margin: 0;
-    font-size: var(--fs-caption);
-    color: var(--text-muted);
-    line-height: var(--lh-body);
+    font-size: var(--font-size-body-2);
+    line-height: var(--line-height-body-reading);
+    color: var(--label-assistive);
   }
   .done {
-    margin: var(--space-sm) 0 0;
-    font-size: var(--fs-subtitle);
-    color: var(--text-strong);
+    padding: var(--space-16);
+    border-radius: var(--radius-m);
+    border: 1px solid rgba(33, 237, 179, 0.34);
+    background: rgba(33, 237, 179, 0.08);
+    font-size: var(--font-size-body-2);
+    color: var(--label-normal);
   }
+
+  /* ---- Survey ---- */
   .survey {
     display: flex;
     flex-direction: column;
-    gap: var(--space-base);
+    gap: var(--space-16);
     width: 100%;
-    margin-top: var(--space-base);
-    padding: var(--space-lg);
-    background: var(--surface-subtle);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
-  }
-  /* 1/2 progress — "30초만 더" effort anchor; fills to half on entry. */
-  .progress .bar {
-    display: block;
-    height: 6px;
-    border-radius: var(--radius-pill);
-    background: var(--border-subtle);
-    overflow: hidden;
-  }
-  .progress .fill {
-    display: block;
-    height: 100%;
-    width: 50%;
-    border-radius: var(--radius-pill);
-    background: var(--gradient-brand);
-    transform-origin: left center;
-    animation: fill-half 0.9s var(--ease-out) 0.2s 1 backwards;
-  }
-  @keyframes fill-half {
-    from {
-      transform: scaleX(0);
-    }
-    to {
-      transform: scaleX(1);
-    }
-  }
-  .survey-intro {
-    margin: 0;
-    line-height: var(--lh-body);
-    color: var(--text-body);
+    margin-top: var(--space-12);
+    padding: var(--space-24) var(--space-20);
   }
   .step {
     align-self: flex-start;
-    font-size: var(--fs-caption);
-    font-weight: var(--fw-semibold);
-    color: var(--color-primary);
-    background: rgba(15, 111, 218, 0.1);
     padding: 3px 10px;
-    border-radius: var(--radius-pill);
+    border-radius: var(--radius-full);
+    background: rgba(31, 206, 206, 0.14);
+    color: var(--bright-cyan);
+    font-size: var(--font-size-caption-2);
+    font-weight: var(--weight-semibold);
   }
+  .survey-intro {
+    font-size: var(--font-size-body-2);
+    line-height: var(--line-height-body-reading);
+    color: var(--label-alternative);
+  }
+
   .tasks {
     margin: 0;
     padding: 0;
@@ -384,44 +349,32 @@
   }
   legend {
     padding: 0;
-    font-size: 14px;
-    font-weight: var(--fw-medium);
-    color: var(--text-strong);
+    font-size: var(--font-size-label-2);
+    font-weight: var(--weight-medium);
+    color: var(--label-alternative);
   }
   .hint {
-    margin: 4px 0 10px;
-    font-size: var(--fs-caption);
-    color: var(--text-muted);
+    margin-top: var(--space-4);
+    font-size: var(--font-size-caption-2);
+    color: var(--label-assistive);
   }
   .chips {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-md) var(--space-sm);
-  }
-  .actions {
-    display: flex;
-    gap: var(--space-sm);
-    margin-top: var(--space-xs);
-  }
-  @media (max-width: 480px) {
-    .survey {
-      padding: var(--space-base);
-    }
+    gap: var(--space-8);
+    margin-top: var(--space-12);
   }
 
-  /* Explicit static final frame for reduced motion (don't rely only on the global
-     duration override): Mos at rest, no confetti, progress already filled. */
-  @media (prefers-reduced-motion: reduce) {
-    .mascot {
-      animation: none;
-      transform: none;
-    }
-    .bit {
-      display: none;
-    }
-    .progress .fill {
-      animation: none;
-      transform: scaleX(1);
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+  }
+
+  @media (max-width: 480px) {
+    .scene {
+      width: 100%;
+      height: 190px;
     }
   }
 </style>

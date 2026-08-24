@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { animate, onScroll, stagger, utils } from 'animejs';
   import WaitlistForm from '$lib/components/WaitlistForm.svelte';
-  import { reveal } from '$lib/actions/reveal';
-  import { features } from '$lib/config/features';
   import { m } from '$lib/paraglide/messages.js';
+  import { prefersReduced, reveal, countUp } from '$lib/anime/motion';
+  import { features } from '$lib/config/features';
 
   interface Props {
     onSuccess: (result: { id: string; emailSent: boolean }) => void;
@@ -10,191 +12,196 @@
   }
   let { onSuccess, registrantCount }: Props = $props();
 
-  // Gates (§6/§8): both default OFF. Numbers are evidence — shown only when their gate opens.
+  // The counter is feature-flagged and its fetch can fail, so `null` means
+  // "no number to show" — the queue is hidden rather than counting up to zero.
   const showCount = $derived(features.registrantCounter && registrantCount !== null);
-  const showStat = features.surveyStatN45;
 
-  // Count-up on reveal (honest social proof). Static final value under reduced motion.
-  let display = $state(0);
-  function runCount() {
-    const target = registrantCount ?? 0;
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      display = target;
+  // The count is the only real number on the page, so it gets to arrive rather
+  // than just be present — and the motes behind it make it feel like people.
+  const MOTES = 14;
+
+  let queueEl = $state<HTMLDivElement | null>(null);
+  /** Rendered by Svelte; countUp only feeds it numbers. */
+  let shown = $state(0);
+
+  onMount(() => {
+    if (!queueEl) return;
+    const total = registrantCount ?? 0;
+
+    const motes = Array.from(queueEl.querySelectorAll<HTMLElement>('.mote'));
+    if (prefersReduced()) {
+      shown = total;
+      utils.set(motes, { opacity: 0.7 });
       return;
     }
-    const startTs = performance.now();
-    const dur = 1100;
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - startTs) / dur);
-      const eased = 1 - Math.pow(1 - t, 3);
-      display = Math.round(target * eased);
-      if (t < 1) requestAnimationFrame(tick);
+
+    utils.set(motes, { opacity: 0 });
+
+    const arrive = animate(motes, {
+      opacity: [0, 0.85],
+      translateX: [() => utils.random(-70, 70), 0],
+      translateY: [() => utils.random(18, 52), 0],
+      scale: [0.4, 1],
+      duration: 1100,
+      delay: stagger(70),
+      ease: 'out(3)',
+      autoplay: onScroll({
+        target: queueEl,
+        enter: 'bottom-=80 top',
+        repeat: false,
+        onEnter: () => countUp(total, (v) => (shown = v), 1500),
+      }),
+    });
+
+    // Once they've landed they keep breathing, so the queue reads as alive.
+    const drift = animate(motes, {
+      translateY: [0, -7],
+      duration: 3400,
+      loop: true,
+      alternate: true,
+      delay: stagger(180, { from: 'center' }),
+      ease: 'inOut(2)',
+    });
+
+    return () => {
+      arrive.revert();
+      drift.revert();
     };
-    requestAnimationFrame(tick);
-  }
+  });
 </script>
 
 <section class="section trust">
-  <div class="container grid">
-    <div class="note-col" use:reveal>
-      {#if showStat}
-        <p class="stat">{m.gated_stat_n45()}</p>
-      {/if}
+  <div class="container inner">
+    <blockquote class="note reveal glass" use:reveal>
+      <span class="eyebrow">{m.trust_eyebrow()}</span>
+      <p class="t-body-1-reading prewrap">{m.founder_note()}</p>
+      <footer>{m.founder_sign()}</footer>
+    </blockquote>
 
-      <figure class="note">
-        <blockquote>{m.founder_note()}</blockquote>
-        <figcaption>
-          <span class="sign">{m.founder_sign()}</span>
-          <svg class="underline" viewBox="0 0 120 8" preserveAspectRatio="none" aria-hidden="true">
-            <path
-              d="M2 5 Q 40 1 60 4 T 118 3"
-              pathLength="1"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            />
-          </svg>
-        </figcaption>
-      </figure>
-
-      <p class="care">{m.trust_care()}</p>
+    <div class="cta reveal" use:reveal={{ delay: 100 }}>
+      <h2 class="t-heading-2 title">{m.trust_cta_title()}</h2>
 
       {#if showCount}
-        <p class="count" use:reveal={{ onReveal: runCount }}>
-          <strong>{display.toLocaleString()}</strong>
-          <span>{m.social_count({ count: '' })}</span>
-        </p>
+        <div class="queue" bind:this={queueEl}>
+          {#each Array(MOTES) as _, i (i)}
+            <span class="mote" style="--i:{i}"></span>
+          {/each}
+          <!-- Split around the number so it can count up on its own. Each locale
+             owns both halves, because the counter word attaches differently:
+             "지금 N명이…" / "N people…" / "いまN名が…" -->
+          <p class="count">
+            <em class="pre">{m.social_count_pre()}</em>
+            <span>{shown.toLocaleString()}</span>
+            <em>{m.social_count_post()}</em>
+          </p>
+        </div>
       {/if}
-    </div>
 
-    <div class="cta-col" use:reveal style="--reveal-delay: 120ms">
-      <h2 class="cta-title">{m.trust_cta_title()}</h2>
-      <div class="form-wrap">
-        <WaitlistForm {onSuccess} />
-      </div>
+      <WaitlistForm {onSuccess} />
+
+      <p class="care">{m.trust_care()}</p>
     </div>
   </div>
 </section>
 
 <style>
   .trust {
-    background: var(--surface-page);
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: center;
-    gap: var(--space-3xl);
+    background:
+      radial-gradient(80% 70% at 20% 20%, rgba(15, 111, 218, 0.12), transparent 70%), var(--app-bg);
   }
 
-  .note-col {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-base);
-    max-width: 480px;
+  .inner {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-40);
+    align-items: start;
   }
-  .stat {
-    margin: 0;
-    padding: var(--space-md) var(--space-base);
-    font-size: var(--fs-body-sm);
-    line-height: var(--lh-body-sm);
-    color: var(--text-body);
-    background: var(--surface-subtle);
-    border-left: 3px solid var(--cyan-bright);
-    border-radius: var(--radius-sm);
+  @media (min-width: 940px) {
+    .inner {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: var(--space-64);
+      align-items: center;
+    }
   }
+
   .note {
     margin: 0;
-    padding: var(--space-lg);
-    background: var(--surface-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-e1);
-  }
-  blockquote {
-    margin: 0;
-    font-size: var(--fs-body);
-    line-height: var(--lh-body);
-    color: var(--text-body);
-  }
-  figcaption {
-    position: relative;
-    display: inline-block;
-    margin-top: var(--space-md);
-  }
-  .sign {
-    font-family: var(--font-display);
-    font-weight: var(--fw-bold);
-    color: var(--text-strong);
-  }
-  .underline {
-    display: block;
-    width: 120px;
-    height: 8px;
-    margin-top: 2px;
-    color: var(--color-primary);
-  }
-  .underline path {
-    stroke-dasharray: 1;
-    stroke-dashoffset: 1;
-  }
-  /* `is-in` is added at runtime by the reveal action — keep it global so the
-     scoper doesn't prune this signature draw. */
-  .note-col:global(.is-in) .underline path {
-    transition: stroke-dashoffset 0.9s var(--ease-out) 0.5s;
-    stroke-dashoffset: 0;
-  }
-  .care {
-    margin: 0;
-    font-size: var(--fs-body-sm);
-    color: var(--text-muted);
-    line-height: var(--lh-body);
-  }
-  .count {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-sm);
-    margin: 0;
-    color: var(--text-muted);
-    font-size: var(--fs-body-sm);
-  }
-  .count strong {
-    font-family: var(--font-display);
-    font-size: var(--fs-h3);
-    color: var(--color-primary);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .cta-col {
+    padding: var(--space-32) var(--space-24);
     display: flex;
     flex-direction: column;
-    gap: var(--space-base);
-    padding: var(--space-2xl);
-    background: var(--gradient-sky);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-xl);
+    gap: var(--space-16);
   }
-  .cta-title {
-    font-size: var(--fs-h2);
-    line-height: var(--lh-h2);
-    letter-spacing: var(--tracking-tight);
+  .note p {
+    color: var(--label-normal);
   }
-  .form-wrap {
-    border-radius: var(--radius-lg);
-    transition: box-shadow var(--dur-slow) var(--ease-out);
-  }
-  .form-wrap:focus-within {
-    box-shadow: 0 0 0 4px rgba(0, 160, 163, 0.16);
+  .note footer {
+    font-size: var(--font-size-caption-1);
+    color: var(--label-assistive);
   }
 
-  @media (max-width: 880px) {
-    .grid {
-      grid-template-columns: 1fr;
-      gap: var(--space-xl);
-    }
-    .cta-col {
-      padding: var(--space-lg);
-    }
+  .cta {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-20);
+  }
+  .title {
+    color: var(--label-strong);
+  }
+
+  /* The queue: motes drifting in, with the live number sitting among them */
+  .queue {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-6);
+    padding: var(--space-14) var(--space-16);
+    border-radius: var(--radius-m);
+    border: 1px solid var(--line-normal-normal);
+    background: rgba(20, 23, 27, 0.56);
+  }
+  .mote {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--summon-cyan);
+    box-shadow: 0 0 8px rgba(31, 206, 206, 0.7);
+    /* Alternating tint keeps a row of identical dots from reading as a chart */
+    opacity: 0.85;
+  }
+  .mote:nth-child(3n) {
+    background: var(--summon-green);
+    box-shadow: 0 0 8px rgba(33, 237, 179, 0.7);
+  }
+  .mote:nth-child(4n) {
+    background: var(--primary-bright);
+    box-shadow: 0 0 8px rgba(139, 190, 247, 0.6);
+  }
+
+  .count {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-6);
+    font-size: var(--font-size-body-2);
+    color: var(--label-alternative);
+  }
+  .count span {
+    font-size: var(--font-size-title-3);
+    font-weight: var(--weight-bold);
+    color: var(--label-strong);
+    font-variant-numeric: tabular-nums;
+  }
+  .count em {
+    font-style: normal;
+  }
+  /* Empty in English, so it must not leave a gap */
+  .count em.pre:empty {
+    display: none;
+  }
+
+  .care {
+    font-size: var(--font-size-caption-1);
+    color: var(--label-assistive);
   }
 </style>

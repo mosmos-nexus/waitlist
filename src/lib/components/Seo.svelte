@@ -19,7 +19,9 @@
     locales.map((locale) => ({ locale, href: origin + localizeHref(basePath, { locale }) })),
   );
   const xDefault = $derived(origin + localizeHref(basePath, { locale: 'ko' }));
-  const ogLocale = $derived(current === 'en' ? 'en_US' : 'ko_KR');
+  // og:locale wants a full language_TERRITORY tag, not the bare locale code.
+  const OG_LOCALE: Record<string, string> = { ko: 'ko_KR', en: 'en_US', ja: 'ja_JP' };
+  const ogLocale = $derived(OG_LOCALE[current] ?? 'ko_KR');
   const ogImage = $derived(`${origin}/og-${current}.png`);
 
   const orgJsonLd = $derived(

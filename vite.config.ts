@@ -16,8 +16,10 @@ export default defineConfig({
     paraglideVitePlugin({
       project: './project.inlang',
       outdir: './src/lib/paraglide',
-      // URL-first: KO at `/`, EN at `/en` (deterministic SSR per URL for hreflang + crawlers).
-      // Cookie persists the toggle choice; no forced Accept-Language redirect.
+      // URL-first: KO at `/`, EN at `/en`, JA at `/ja` (deterministic SSR per URL
+      // for hreflang + crawlers). Cookie persists the toggle choice; no forced
+      // Accept-Language redirect. The base locale's pattern must stay last — it
+      // matches everything, so any prefixed locale listed after it is shadowed.
       strategy: ['url', 'cookie', 'baseLocale'],
       cookieName: 'mosmos-locale',
       urlPatterns: [
@@ -25,6 +27,7 @@ export default defineConfig({
           pattern: '/:path(.*)?',
           localized: [
             ['en', '/en/:path(.*)?'],
+            ['ja', '/ja/:path(.*)?'],
             ['ko', '/:path(.*)?'],
           ],
         },

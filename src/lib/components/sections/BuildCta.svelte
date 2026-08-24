@@ -1,43 +1,33 @@
 <script lang="ts">
-  import { reveal } from '$lib/actions/reveal';
   import { m } from '$lib/paraglide/messages.js';
+  import { reveal } from '$lib/anime/motion';
 
-  // Secondary, intentionally lower-emphasis path for a different audience: people who
-  // want to help BUILD Mosmos as early teammates (domain experts, founding members,
-  // would-be colleagues) — framed as joining the early team, not as an investor pitch.
-  // Placed after the re-CTA so it reaches end-of-page, higher-intent readers without
-  // competing with the single primary waitlist CTA. Purple/outline marks it secondary.
+  // The recruit page lives outside the product, so it opens in its own tab and
+  // says so.
   const TEAM_URL =
     'https://mosmos-world.notion.site/mosmos-team-specialist-investor-building?pvs=74';
+
+  const ROLES = $derived([m.recruit_role1(), m.recruit_role2(), m.recruit_role3()]);
 </script>
 
-<section class="build">
+<section class="section build">
   <div class="container">
-    <div class="band" use:reveal>
-      <div class="art" aria-hidden="true">
-        <img src="/characters/mos-curious.webp" alt="" width={72} height={71} loading="lazy" />
-      </div>
-      <div class="copy">
-        <p class="eyebrow">{m.recruit_eyebrow()}</p>
-        <h2 class="title">{m.recruit_title()}</h2>
-        <ul class="roles">
-          <li>{m.recruit_role1()}</li>
-          <li>{m.recruit_role2()}</li>
-          <li>{m.recruit_role3()}</li>
-        </ul>
-        <p class="text">{m.recruit_text()}</p>
-      </div>
+    <div class="panel glass reveal" use:reveal={{ scale: true }}>
+      <span class="eyebrow">{m.recruit_eyebrow()}</span>
+      <h2 class="t-heading-2 title">{m.recruit_title()}</h2>
+
+      <ul class="roles">
+        {#each ROLES as role (role)}
+          <li>{role}</li>
+        {/each}
+      </ul>
+
+      <p class="text">{m.recruit_text()}</p>
+
       <a class="cta" href={TEAM_URL} target="_blank" rel="noopener noreferrer">
-        <span>{m.recruit_cta()}</span>
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path
-            d="M5 11l6-6m0 0H6m5 0v5"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
+        {m.recruit_cta()}
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M7 17 17 7M9 7h8v8" />
         </svg>
         <span class="visually-hidden">({m.recruit_new_tab()})</span>
       </a>
@@ -47,118 +37,82 @@
 
 <style>
   .build {
-    padding-block: var(--space-3xl);
-    background: var(--surface-page);
-    border-top: 1px solid var(--border-subtle);
+    background: var(--app-bg);
   }
-  .band {
-    display: flex;
-    align-items: center;
-    gap: var(--space-lg);
-    padding: var(--space-lg) var(--space-xl);
-    background: var(--surface-card);
-    border: 1px solid var(--border-subtle);
-    border-left: 3px solid var(--purple-pop);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-e1);
-  }
-  .art {
-    flex: none;
-    display: grid;
-    place-items: center;
-  }
-  .art img {
-    width: 72px;
-    height: auto;
-    animation: bob 5.5s var(--ease-in-out) infinite;
-  }
-  @keyframes bob {
-    0%,
-    100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-5px);
-    }
-  }
-  .copy {
-    flex: 1;
-    min-width: 0;
+
+  .panel {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    align-items: flex-start;
+    gap: var(--space-14);
+    padding: var(--space-40) var(--space-32);
+    /* A faint horizon behind the last panel, so the page ends on the world
+       rather than on a flat rectangle. */
+    background:
+      radial-gradient(90% 120% at 50% 130%, rgba(31, 206, 206, 0.12), transparent 70%),
+      linear-gradient(150deg, rgba(35, 41, 47, 0.72) 0%, rgba(20, 23, 27, 0.86) 100%);
   }
+
   .title {
-    font-size: var(--fs-h3);
-    line-height: var(--lh-h3);
-    color: var(--text-strong);
+    color: var(--label-strong);
+    max-width: 30ch;
   }
+
   .roles {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    list-style: none;
-    margin: 2px 0;
-    padding: 0;
+    gap: var(--space-8);
   }
   .roles li {
-    font-size: var(--fs-caption);
-    font-weight: var(--fw-medium);
-    color: var(--color-secondary);
-    background: rgba(155, 110, 239, 0.1);
-    padding: 2px 10px;
-    border-radius: var(--radius-pill);
+    padding: 5px 13px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--line-normal-normal);
+    background: var(--fill-weak);
+    font-size: var(--font-size-caption-1);
+    color: var(--label-alternative);
   }
+
   .text {
-    margin: 0;
-    font-size: var(--fs-body-sm);
-    line-height: var(--lh-body-sm);
-    color: var(--text-muted);
+    font-size: var(--font-size-body-2);
+    color: var(--label-assistive);
   }
+
   .cta {
-    flex: none;
     display: inline-flex;
     align-items: center;
-    gap: var(--space-sm);
-    height: var(--control-md);
-    padding-inline: var(--space-lg);
-    border: 1px solid var(--color-secondary);
-    border-radius: var(--radius-pill);
-    color: var(--color-secondary);
-    font-size: var(--fs-body-sm);
-    font-weight: var(--fw-semibold);
-    text-decoration: none;
-    transition:
-      background var(--dur-fast) var(--ease-out),
-      color var(--dur-fast) var(--ease-out),
-      transform var(--dur-fast) var(--ease-out);
+    gap: var(--space-8);
+    margin-top: var(--space-6);
+    min-height: var(--control-m);
+    padding: 0 var(--space-24);
+    border-radius: var(--radius-full);
+    border: 1px solid rgba(44, 137, 240, 0.46);
+    color: var(--primary-bright);
+    font-size: var(--font-size-label-1);
+    font-weight: var(--weight-semibold);
+    transition: var(--transition-base);
   }
   .cta:hover {
-    background: rgba(155, 110, 239, 0.1);
-    text-decoration: none;
-    transform: translateY(-1px);
+    background: rgba(44, 137, 240, 0.12);
+    border-color: var(--primary-light);
+    color: var(--primary-bright);
+  }
+  .cta:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
   }
   .cta svg {
-    width: 15px;
-    height: 15px;
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
-  @media (max-width: 720px) {
-    .band {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: var(--space-md);
-      padding: var(--space-lg);
-    }
-    .cta {
-      width: 100%;
-      justify-content: center;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .art img {
-      animation: none;
+  @media (max-width: 560px) {
+    .panel {
+      padding: var(--space-32) var(--space-20);
     }
   }
 </style>

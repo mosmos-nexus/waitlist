@@ -1,20 +1,29 @@
 import type { RequestHandler } from './$types';
+import { locales, baseLocale, localizeHref, type Locale } from '$lib/paraglide/runtime';
 
-// Localized URL set (KO at `/…`, EN at `/en/…`) with hreflang alternates.
+// Localized URL set with hreflang alternates. Both the locale list and each
+// locale's path shape come from the paraglide runtime, so adding a locale in
+// vite.config.ts is enough — this file needs no edit.
 const PATHS = ['/', '/privacy'];
 
 export const GET: RequestHandler = ({ url }) => {
   const origin = url.origin;
+
   const entries = PATHS.flatMap((path) => {
-    const ko = origin + path;
-    const en = origin + '/en' + (path === '/' ? '' : path);
-    const alternates = `    <xhtml:link rel="alternate" hreflang="ko" href="${ko}"/>
-    <xhtml:link rel="alternate" hreflang="en" href="${en}"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="${ko}"/>`;
-    return [
-      `  <url>\n    <loc>${ko}</loc>\n${alternates}\n  </url>`,
-      `  <url>\n    <loc>${en}</loc>\n${alternates}\n  </url>`,
-    ];
+    const hrefFor = (locale: Locale) => origin + localizeHref(path, { locale });
+
+    const alternates = [
+      ...locales.map(
+        (locale) =>
+          `    <xhtml:link rel="alternate" hreflang="${locale}" href="${hrefFor(locale)}"/>`,
+      ),
+      `    <xhtml:link rel="alternate" hreflang="x-default" href="${hrefFor(baseLocale)}"/>`,
+    ].join('\n');
+
+    // Every locale gets its own <url> entry, each carrying the full alternate set.
+    return locales.map(
+      (locale) => `  <url>\n    <loc>${hrefFor(locale)}</loc>\n${alternates}\n  </url>`,
+    );
   });
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>

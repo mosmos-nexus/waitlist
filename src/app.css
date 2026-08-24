@@ -1,236 +1,426 @@
 /* ============================================================
-   Mosmos · Global stylesheet
-   Ported from the Mosmos Web & Brand Design System (tokens +
-   base reset). "내 AI가 자라는 세계" — calm, cozy, pastel blue.
+   Mosmos · Waitlist global stylesheet
+   Ported from the Mosmos Design System token architecture:
+     primitive → semantic → typography/layout → base.
+   The waitlist runs the product's DARK deep-space chrome, so
+   `data-theme="dark"` is set on <html> and the dark roles are
+   the ones that matter here.
    ============================================================ */
 
-/* ---- Webfonts: Display = NanumSquare · Body/UI = Pretendard ---- */
-@font-face {
-  font-family: 'Pretendard Variable';
-  font-weight: 45 920;
-  font-style: normal;
-  font-display: swap;
-  src: url('https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/woff2/PretendardVariable.woff2')
-    format('woff2-variations');
-}
-@font-face {
-  font-family: 'NanumSquare';
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-  src:
-    url('https://cdn.jsdelivr.net/gh/moonspam/NanumSquare@2.0/NanumSquareR.woff2') format('woff2'),
-    url('https://cdn.jsdelivr.net/gh/moonspam/NanumSquare@2.0/NanumSquareR.woff') format('woff');
-}
-@font-face {
-  font-family: 'NanumSquare';
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-  src:
-    url('https://cdn.jsdelivr.net/gh/moonspam/NanumSquare@2.0/NanumSquareB.woff2') format('woff2'),
-    url('https://cdn.jsdelivr.net/gh/moonspam/NanumSquare@2.0/NanumSquareB.woff') format('woff');
-}
-@font-face {
-  font-family: 'NanumSquare';
-  font-weight: 800;
-  font-style: normal;
-  font-display: swap;
-  src:
-    url('https://cdn.jsdelivr.net/gh/moonspam/NanumSquare@2.0/NanumSquareEB.woff2') format('woff2'),
-    url('https://cdn.jsdelivr.net/gh/moonspam/NanumSquare@2.0/NanumSquareEB.woff') format('woff');
-}
+/* ---- Webfonts ----
+   Pretendard only; NanumSquare is retired.
 
-/* ---- Color tokens: base palette → semantic aliases → themes ---- */
+   Both families are loaded from their dynamic-subset stylesheets (linked in
+   app.html), not as single files. That matters most for Japanese: the whole
+   Pretendard JP variable font is 5.3 MB, while the subset build splits it by
+   `unicode-range` so a visitor downloads only the chunks holding characters
+   the page actually uses. Korean gets the same treatment for the same reason.
+   The @font-face rules therefore live in those stylesheets. */
+
+/* ============================================================
+   PRIMITIVE — raw ramps. Never referenced by components.
+   ============================================================ */
 :root {
-  /* Brand blues (the living "world" gradient) */
-  --blue-core: #0f6fda;
-  --blue-classic: #568bd8;
-  --blue-light: #9cbde9;
+  --color-common-0: rgb(0, 0, 0);
+  --color-common-100: rgb(255, 255, 255);
 
-  /* Secondary & accent */
-  --purple-pop: #9b6eef;
-  --cyan-bright: #00a0a3;
+  --color-blue-5: rgb(2, 14, 27);
+  --color-blue-10: rgb(3, 24, 48);
+  --color-blue-20: rgb(5, 38, 75);
+  --color-blue-30: rgb(8, 62, 123);
+  --color-blue-40: rgb(12, 87, 170);
+  --color-blue-50: rgb(15, 111, 218);
+  --color-blue-55: rgb(40, 135, 240);
+  --color-blue-60: rgb(44, 137, 240);
+  --color-blue-70: rgb(91, 163, 244);
+  --color-blue-80: rgb(139, 190, 247);
+  --color-blue-90: rgb(187, 217, 250);
+  --color-blue-99: rgb(234, 243, 254);
 
-  /* Mon identity colors — match the three sample Mon characters
-     (research = purple, organize = green, design = pink). Used for the
-     specialist rings + the color-coded result fragments in the demo/loop. */
-  --mon-research: #9b6eef;
-  --mon-organize: #25a87a;
-  --mon-design: #e96aa6;
+  --color-cyan-30: rgb(0, 85, 87);
+  --color-cyan-40: rgb(0, 160, 163);
+  --color-cyan-45: rgb(0, 200, 204);
+  --color-cyan-60: rgb(0, 240, 245);
+  --color-cyan-80: rgb(153, 253, 255);
 
-  /* Neutrals */
-  --clear-white: #f7f8f9;
-  --blue-black: #1d2026;
-  --pure-white: #ffffff;
+  --color-green-45: rgb(79, 161, 54);
+  --color-green-99: rgb(252, 254, 251);
 
-  /* Blue-gray text ramp */
-  --blue-gray-dark: #4f555f;
-  --blue-gray-medium: #666e7a;
-  --blue-gray-light: #aab4c2;
-  --blue-gray-white: #c8d0da;
+  --color-orange-40: rgb(199, 126, 0);
+  --color-orange-99: rgb(255, 253, 250);
 
-  /* Borders */
-  --border-light-subtle: #e8edf2;
-  --border-light-default: #d9dfe7;
-  --border-light-strong: #c2cbd7;
-  --border-dark-subtle: #2a313d;
-  --border-dark-default: #313846;
-  --border-dark-strong: #46505d;
+  --color-purple-40: rgb(77, 20, 184);
+  --color-purple-50: rgb(122, 62, 234);
+  --color-purple-60: rgb(155, 110, 239);
 
-  /* Status */
-  --status-success: #4fa136;
-  --status-error: #e95353;
-  --status-warning: #c77e00;
-  --status-info: #4689e9;
+  --color-red-50: rgb(226, 29, 29);
+  --color-red-60: rgb(233, 83, 83);
+  --color-red-99: rgb(254, 250, 250);
 
-  /* Brand gradients */
-  --gradient-brand: linear-gradient(135deg, var(--blue-core) 0%, var(--blue-light) 100%);
-  --gradient-sky: linear-gradient(180deg, #eaf2fc 0%, #f7f8f9 100%);
+  --color-light-blue-45: rgb(70, 137, 233);
 
-  /* Semantic aliases — light theme */
-  --color-primary: var(--blue-core);
-  --color-primary-hover: #0c5ebb;
-  --color-primary-active: #0a4f9e;
-  --color-secondary: var(--purple-pop);
-  --color-secondary-hover: #8855e6;
-  --color-accent: var(--cyan-bright);
-  --color-on-primary: var(--clear-white);
+  --color-blue-gray-5: rgb(5, 6, 7);
+  --color-blue-gray-7: rgb(15, 18, 20);
+  --color-blue-gray-10: rgb(20, 23, 27);
+  --color-blue-gray-15: rgb(29, 32, 38);
+  --color-blue-gray-20: rgb(35, 41, 47);
+  --color-blue-gray-25: rgb(51, 59, 67);
+  --color-blue-gray-30: rgb(66, 77, 88);
+  --color-blue-gray-50: rgb(97, 113, 128);
+  --color-blue-gray-75: rgb(154, 166, 179);
+  --color-blue-gray-97: rgb(241, 243, 245);
+  --color-blue-gray-99: rgb(247, 248, 249);
 
-  --surface-page: var(--pure-white);
-  --surface-card: var(--pure-white);
-  --surface-subtle: var(--clear-white);
-  --surface-sunken: #eef2f7;
-  --surface-inverse: var(--blue-black);
+  --color-cool-neutral-10: rgb(23, 23, 25);
+  --color-cool-neutral-22: rgb(46, 47, 51);
+  --color-cool-neutral-23: rgb(51, 52, 56);
+  --color-cool-neutral-25: rgb(55, 56, 60);
+  --color-cool-neutral-96: rgb(225, 226, 228);
+  --color-cool-neutral-97: rgb(234, 235, 236);
+  --color-cool-neutral-98: rgb(244, 244, 245);
 
-  --text-strong: var(--blue-black);
-  --text-body: #2a2f38;
-  --text-muted: var(--blue-gray-medium);
-  --text-faint: var(--blue-gray-light);
-  --text-on-dark: var(--clear-white);
-  --text-link: var(--blue-core);
+  /* Spacing scale (Figma: numbers/space) */
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-56: 56px;
+  --space-64: 64px;
+  --space-72: 72px;
+  --space-80: 80px;
 
-  --border-subtle: var(--border-light-subtle);
-  --border-default: var(--border-light-default);
-  --border-strong: var(--border-light-strong);
+  /* Radius — Mosmos rounds generously; capsule is the default button shape */
+  --radius-xs: 16px;
+  --radius-s: 18px;
+  --radius-m: 20px;
+  --radius-l: 24px;
+  --radius-full: 1000px;
+}
 
-  --focus-ring: var(--blue-core);
+/* ============================================================
+   SEMANTIC — the layer components consume.
+   ============================================================ */
+:root {
+  /* Brand constants (theme-independent) */
+  --core-blue: rgb(15, 111, 218);
+  --bright-cyan: rgb(49, 220, 220);
+  --clear-white: rgb(247, 248, 249);
+  --text-black: rgb(29, 32, 38);
+  --coral-red: rgb(233, 83, 83);
+  --summon-green: rgb(33, 237, 179);
+  --summon-cyan: rgb(31, 206, 206);
+  --static-white: var(--color-common-100);
+  --static-black: var(--color-common-0);
 
-  /* Typography */
-  --font-display:
-    'NanumSquare', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-body:
-    'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
-    sans-serif;
+  /* Mon identity tints — research/organize/design */
+  --mon-research: var(--color-purple-60);
+  --mon-organize: var(--summon-green);
+  --mon-design: rgb(233, 106, 166);
+
+  --primary-normal: var(--color-blue-50);
+  --primary-strong: var(--color-blue-40);
+  --primary-heavy: var(--color-blue-30);
+  --primary-bright: var(--color-blue-70);
+  --primary-light: var(--color-blue-55);
+
+  --background-normal-normal: var(--color-common-100);
+  --background-normal-alternative: var(--color-blue-gray-97);
+  --background-elevated-normal: var(--color-blue-gray-99);
+  --background-elevated-alternative: var(--color-blue-gray-97);
+  --background-elevated-strong: var(--color-blue-gray-25);
+  --background-elevated-heavy: var(--color-blue-gray-30);
+
+  --label-strong: var(--color-common-0);
+  --label-normal: var(--color-cool-neutral-10);
+  --label-alternative: rgba(55, 56, 60, 0.61);
+  --label-assistive: rgba(51, 59, 67, 0.35);
+  --label-disable: rgba(66, 77, 88, 0.25);
+
+  --line-normal-alternative: rgba(112, 115, 124, 0.08);
+  --line-normal-neutral: rgba(112, 115, 124, 0.16);
+  --line-normal-normal: rgba(112, 115, 124, 0.22);
+  --line-normal-strong: rgba(112, 115, 124, 0.52);
+  --line-solid-alternative: var(--color-cool-neutral-98);
+  --line-solid-neutral: var(--color-cool-neutral-97);
+  --line-solid-normal: var(--color-cool-neutral-96);
+
+  --fill-weak: rgba(133, 148, 163, 0.08);
+  --fill-normal: rgba(133, 148, 163, 0.15);
+  --fill-alternative: var(--color-blue-gray-50);
+
+  --button-primary-default: var(--primary-normal);
+  --button-primary-hovered: var(--primary-strong);
+  --button-primary-pressed: var(--primary-heavy);
+  --button-primary-disabled: var(--color-blue-gray-75);
+
+  --status-positive-fill: var(--color-green-45);
+  --status-negative: rgb(255, 66, 66);
+  --status-error-fill: var(--color-red-60);
+  --status-warning-fill: var(--color-orange-40);
+  --status-info-fill: var(--color-light-blue-45);
+
+  --gradient-brand: linear-gradient(135deg, var(--color-blue-50) 0%, var(--color-blue-80) 100%);
+  --gradient-sky: linear-gradient(180deg, rgb(234, 243, 254) 0%, rgb(247, 248, 249) 100%);
+
+  --focus-ring: var(--primary-normal);
+  color-scheme: light;
+}
+
+/* ---- DARK — what the waitlist actually runs ---- */
+:root[data-theme='dark'],
+[data-theme='dark'] {
+  --primary-normal: var(--color-blue-60);
+  --primary-strong: var(--color-blue-50);
+  --primary-heavy: var(--color-blue-40);
+  --primary-bright: var(--color-blue-80);
+  --primary-light: var(--color-blue-55);
+
+  --background-normal-normal: var(--color-blue-gray-15);
+  --background-normal-alternative: var(--color-blue-gray-10);
+  --background-elevated-normal: var(--color-blue-gray-20);
+  --background-elevated-alternative: var(--color-blue-gray-10);
+  --background-elevated-strong: var(--color-blue-gray-25);
+  --background-elevated-heavy: var(--color-blue-gray-30);
+
+  --label-strong: var(--color-common-100);
+  --label-normal: var(--color-blue-gray-97);
+  --label-alternative: rgba(174, 176, 182, 0.61);
+  --label-assistive: rgba(174, 184, 194, 0.6);
+  --label-disable: rgba(154, 166, 179, 0.15);
+
+  --line-normal-alternative: rgba(112, 115, 124, 0.22);
+  --line-normal-neutral: rgba(112, 115, 124, 0.28);
+  --line-normal-normal: rgba(112, 115, 124, 0.32);
+  --line-normal-strong: rgba(194, 196, 200, 0.52);
+  --line-solid-alternative: var(--color-cool-neutral-22);
+  --line-solid-neutral: var(--color-cool-neutral-23);
+  --line-solid-normal: var(--color-cool-neutral-25);
+
+  --fill-weak: rgba(113, 130, 148, 0.1);
+  --fill-normal: rgba(113, 130, 148, 0.16);
+  --fill-alternative: var(--color-blue-gray-50);
+
+  --status-negative: var(--color-red-60);
+  --gradient-sky: linear-gradient(180deg, rgb(29, 32, 38) 0%, rgb(20, 23, 27) 100%);
+
+  color-scheme: dark;
+}
+
+/* ============================================================
+   APP CHROME — the deep-space shell the world scene sits in.
+   ============================================================ */
+:root {
+  --app-bg: rgb(14, 14, 21);
+  --app-bg-hovered: rgba(70, 70, 86, 0.15);
+  --app-bg-selected: rgba(70, 70, 86, 0.4);
+
+  --gray1: rgb(236, 237, 246);
+  --gray2: rgb(222, 222, 240);
+  --gray3: rgb(154, 154, 175);
+  --gray4: rgb(70, 70, 86);
+  --gray5: rgb(38, 38, 46);
+  --gray6: rgb(29, 29, 35);
+  --gray9: rgb(15, 15, 22);
+
+  --gray1-15: rgba(236, 237, 246, 0.15);
+  --gray3-70: rgba(154, 154, 175, 0.7);
+  --summon-green-20: rgba(33, 237, 179, 0.2);
+  --summon-green-40: rgba(33, 237, 179, 0.4);
+  --summon-cyan-20: rgba(31, 206, 206, 0.2);
+
+  /* The sky the island floats in — reused by hero + section washes */
+  --sky-deep: radial-gradient(
+    120% 90% at 50% 118%,
+    #1b3a63 0%,
+    #12203a 34%,
+    #0c1020 62%,
+    #08090f 100%
+  );
+  --sky-bloom:
+    radial-gradient(38% 30% at 50% 66%, rgba(31, 206, 206, 0.16), transparent 70%),
+    radial-gradient(46% 34% at 22% 24%, rgba(15, 111, 218, 0.18), transparent 72%),
+    radial-gradient(40% 30% at 84% 30%, rgba(84, 54, 180, 0.16), transparent 70%);
+}
+
+/* ============================================================
+   TYPOGRAPHY
+   ============================================================ */
+:root {
+  --font-base:
+    'Pretendard Variable', 'Pretendard JP Variable', 'Pretendard', -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 
-  --fw-regular: 400;
-  --fw-medium: 500;
-  --fw-semibold: 600;
-  --fw-bold: 700;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
 
-  --fs-display: 64px;
-  --lh-display: 1.1;
-  --fs-h1: 40px;
-  --lh-h1: 1.2;
-  --fs-h2: 32px;
-  --lh-h2: 1.25;
-  --fs-h3: 24px;
-  --lh-h3: 1.3;
-  --fs-subtitle: 20px;
-  --lh-subtitle: 1.4;
-  --fs-body: 16px;
-  --lh-body: 1.6;
-  --fs-body-sm: 14px;
-  --lh-body-sm: 1.55;
-  --fs-caption: 13px;
-  --lh-caption: 1.5;
+  --font-size-display-1: 64px;
+  --font-size-display-2: 48px;
+  --font-size-display-3: 40px;
+  --font-size-heading-1: 36px;
+  --font-size-heading-2: 32px;
+  --font-size-title-1: 28px;
+  --font-size-title-2: 24px;
+  --font-size-title-3: 20px;
+  --font-size-subtitle-1: 18px;
+  --font-size-subtitle-2: 16px;
+  --font-size-body-1: 16px;
+  --font-size-body-2: 14px;
+  --font-size-label-1: 16px;
+  --font-size-label-2: 14px;
+  --font-size-caption-1: 13px;
+  --font-size-caption-2: 12px;
 
-  --tracking-tight: -0.02em;
-  --tracking-normal: 0;
-  --tracking-wide: 0.04em;
+  --line-height-display: 1.3;
+  --line-height-heading: 1.3;
+  --line-height-title: 1.3;
+  --line-height-body-normal: 1.5;
+  --line-height-body-reading: 1.6;
+  --line-height-label: 1.4;
+  --letter-spacing-tight: -0.02em;
+}
 
-  /* Spacing scale (4px base) */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 12px;
-  --space-base: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
-  --space-3xl: 64px;
-  --space-4xl: 96px;
-  --space-5xl: 128px;
+@media (max-width: 640px) {
+  :root {
+    --font-size-display-1: 44px;
+    --font-size-display-2: 34px;
+    --font-size-display-3: 30px;
+    --font-size-heading-1: 26px;
+    --font-size-heading-2: 23px;
+  }
+}
 
-  /* Radius (cozy rounding) */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-  --radius-pill: 999px;
+/* Type ramp helpers — mirror the tokens 1:1 */
+.t-display-1,
+.t-display-2,
+.t-display-3,
+.t-heading-1,
+.t-heading-2,
+.t-title-1,
+.t-title-2 {
+  font-weight: var(--weight-bold);
+  line-height: var(--line-height-display);
+  letter-spacing: var(--letter-spacing-tight);
+}
+.t-display-1 {
+  font-size: var(--font-size-display-1);
+}
+.t-display-2 {
+  font-size: var(--font-size-display-2);
+}
+.t-display-3 {
+  font-size: var(--font-size-display-3);
+}
+.t-heading-1 {
+  font-size: var(--font-size-heading-1);
+}
+.t-heading-2 {
+  font-size: var(--font-size-heading-2);
+}
+.t-title-1 {
+  font-size: var(--font-size-title-1);
+}
+.t-title-2 {
+  font-size: var(--font-size-title-2);
+}
+.t-title-3 {
+  font-size: var(--font-size-title-3);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-height-title);
+  letter-spacing: var(--letter-spacing-tight);
+}
+.t-subtitle-1 {
+  font-size: var(--font-size-subtitle-1);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-height-title);
+  letter-spacing: var(--letter-spacing-tight);
+}
+.t-subtitle-2 {
+  font-size: var(--font-size-subtitle-2);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-height-title);
+  letter-spacing: var(--letter-spacing-tight);
+}
+.t-body-1 {
+  font-size: var(--font-size-body-1);
+  line-height: var(--line-height-body-normal);
+}
+.t-body-1-reading {
+  font-size: var(--font-size-body-1);
+  line-height: var(--line-height-body-reading);
+}
+.t-body-2 {
+  font-size: var(--font-size-body-2);
+  line-height: var(--line-height-body-normal);
+}
+.t-body-2-reading {
+  font-size: var(--font-size-body-2);
+  line-height: var(--line-height-body-reading);
+}
+.t-label-2 {
+  font-size: var(--font-size-label-2);
+  font-weight: var(--weight-medium);
+  line-height: var(--line-height-label);
+}
+.t-caption-1 {
+  font-size: var(--font-size-caption-1);
+  line-height: var(--line-height-label);
+  color: var(--label-alternative);
+}
+.t-caption-2 {
+  font-size: var(--font-size-caption-2);
+  line-height: var(--line-height-label);
+  color: var(--label-alternative);
+}
 
-  /* Elevation (soft, low-contrast) */
-  --shadow-e1: 0 1px 2px rgba(29, 32, 38, 0.06), 0 1px 3px rgba(29, 32, 38, 0.08);
-  --shadow-e2: 0 4px 12px rgba(29, 32, 38, 0.08);
-  --shadow-e3: 0 12px 32px rgba(29, 32, 38, 0.12);
-  --shadow-focus: 0 0 0 3px rgba(15, 111, 218, 0.32);
-
-  /* Layout */
+/* ============================================================
+   LAYOUT · ELEVATION · MOTION
+   ============================================================ */
+:root {
   --width-reading: 720px;
   --width-content: 1200px;
   --width-wide: 1440px;
   --grid-gutter: 24px;
   --grid-gutter-mobile: 16px;
+
   --section-y-desktop: 120px;
   --section-y-tablet: 64px;
   --section-y-mobile: 48px;
 
-  /* Control heights */
-  --control-sm: 36px;
-  --control-md: 44px;
-  --control-lg: 52px;
+  --control-s: 36px;
+  --control-m: 44px;
+  --control-l: 52px;
 
-  /* Motion (subtle only) */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --dur-fast: 150ms;
-  --dur-base: 200ms;
-  --dur-slow: 250ms;
-  --transition-base: all var(--dur-base) var(--ease-out);
-
-  color-scheme: light;
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 250ms;
+  --transition-base: all var(--duration-base) var(--ease-out);
 }
 
+:root[data-theme='dark'],
 [data-theme='dark'] {
-  --color-primary-hover: #2e83e4;
-  --color-primary-active: #57a0ef;
-
-  --surface-page: var(--blue-black);
-  --surface-card: #242832;
-  --surface-subtle: #20242c;
-  --surface-sunken: #181b21;
-  --surface-inverse: var(--clear-white);
-
-  --text-strong: var(--clear-white);
-  --text-body: #e6eaf0;
-  --text-muted: var(--blue-gray-light);
-  --text-faint: var(--blue-gray-medium);
-  --text-on-dark: var(--clear-white);
-  --text-link: #5ea2f0;
-
-  --border-subtle: var(--border-dark-subtle);
-  --border-default: var(--border-dark-default);
-  --border-strong: var(--border-dark-strong);
-
-  --shadow-e1: 0 1px 2px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(70, 80, 93, 0.4);
-  --shadow-e2: 0 4px 14px rgba(0, 0, 0, 0.32);
-  --shadow-e3: 0 14px 36px rgba(0, 0, 0, 0.44);
-  --shadow-focus: 0 0 0 3px rgba(94, 162, 240, 0.4);
-
-  color-scheme: dark;
+  --shadow-e1: 0 1px 2px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(112, 115, 124, 0.22);
+  --shadow-e2: 0 4px 14px rgba(0, 0, 0, 0.4);
+  --shadow-e3: 0 14px 36px rgba(0, 0, 0, 0.52);
+  --shadow-focus: 0 0 0 3px rgba(44, 137, 240, 0.4);
 }
 
-/* ---- Base / reset ---- */
+/* ============================================================
+   BASE RESET
+   ============================================================ */
 *,
 *::before,
 *::after {
@@ -244,177 +434,181 @@ html {
 
 body {
   margin: 0;
-  font-family: var(--font-body);
-  font-size: var(--fs-body);
-  line-height: var(--lh-body);
-  color: var(--text-body);
-  background-color: var(--surface-page);
+  min-height: 100svh;
+  background: var(--app-bg);
+  color: var(--label-normal);
+  font-family: var(--font-base);
+  font-size: var(--font-size-body-1);
+  line-height: var(--line-height-body-normal);
+  font-weight: var(--weight-regular);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-  word-break: keep-all;
+  overflow-x: hidden;
 }
 
 h1,
 h2,
 h3,
-h4 {
-  font-family: var(--font-display);
-  font-weight: var(--fw-bold);
-  color: var(--text-strong);
+h4,
+p,
+figure,
+blockquote {
   margin: 0;
-  text-wrap: balance;
 }
 
-p {
-  text-wrap: pretty;
-}
-
-a {
-  color: var(--text-link);
-  text-decoration: none;
-  transition: color var(--dur-fast) var(--ease-out);
-}
-a:hover {
-  text-decoration: underline;
-}
-
-button {
-  font-family: inherit;
-}
-
-:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 img,
-svg {
+svg,
+video {
   display: block;
   max-width: 100%;
 }
 
-::selection {
-  background: rgba(15, 111, 218, 0.18);
+a {
+  color: var(--primary-bright);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--bright-cyan);
 }
 
-/* Mobile: scale display / H1 down ~20% (per DS typography) */
-@media (max-width: 640px) {
-  :root {
-    --fs-display: 40px;
-    --fs-h1: 32px;
-    --fs-h2: 26px;
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary-light);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(31, 206, 206, 0.28);
+  color: var(--label-strong);
+}
+
+/* ============================================================
+   SHARED PRIMITIVES
+   ============================================================ */
+.container {
+  width: 100%;
+  max-width: var(--width-content);
+  margin-inline: auto;
+  padding-inline: var(--grid-gutter-mobile);
+}
+@media (min-width: 768px) {
+  .container {
+    padding-inline: var(--grid-gutter);
   }
+}
+
+.reading {
+  max-width: var(--width-reading);
+}
+
+/* Every marketing section shares this rhythm */
+.section {
+  position: relative;
+  padding-block: var(--section-y-mobile);
+}
+@media (min-width: 768px) {
+  .section {
+    padding-block: var(--section-y-tablet);
+  }
+}
+@media (min-width: 1024px) {
+  .section {
+    padding-block: var(--section-y-desktop);
+  }
+}
+
+/* Glass panel — the recurring surface for content over the sky */
+.glass {
+  background: linear-gradient(150deg, rgba(35, 41, 47, 0.72) 0%, rgba(20, 23, 27, 0.82) 100%);
+  border: 1px solid var(--line-normal-normal);
+  border-radius: var(--radius-l);
+  backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: var(--shadow-e2);
+}
+
+/* Small uppercase kicker above section titles */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--font-size-caption-1);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+  color: var(--summon-cyan);
+  text-transform: none;
+}
+.eyebrow::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--summon-cyan);
+  box-shadow: 0 0 10px rgba(31, 206, 206, 0.9);
+}
+
+/* Copy authored with intentional line breaks keeps them */
+.prewrap {
+  white-space: pre-line;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ============================================================
+   CUSTOM CURSOR — the Mana cursor hides the native pointer on
+   devices that actually have one. Touch keeps its native
+   behaviour, and reduced-motion users keep the system cursor.
+   ============================================================ */
+@media (hover: hover) and (pointer: fine) {
+  :root:not(.reduced-motion) body.mana-cursor,
+  :root:not(.reduced-motion) body.mana-cursor * {
+    cursor: none;
+  }
+}
+
+/* Scroll-reveal initial state. JS clears it; without JS the
+   `no-js` guard keeps content visible. */
+.reveal {
+  opacity: 0;
+  will-change: opacity, transform;
+}
+:root.no-js .reveal,
+:root.reduced-motion .reveal {
+  opacity: 1;
+  transform: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001ms !important;
-    transition-duration: 0.001ms !important;
-  }
-}
-
-/* ---- Shared layout helpers ---- */
-.container {
-  width: 100%;
-  max-width: var(--width-content);
-  margin-inline: auto;
-  padding-inline: var(--space-lg);
-}
-@media (max-width: 640px) {
-  .container {
-    padding-inline: var(--space-base);
-  }
-}
-
-.section {
-  padding-block: var(--section-y-desktop);
-}
-@media (max-width: 1024px) {
-  .section {
-    padding-block: var(--section-y-tablet);
-  }
-}
-@media (max-width: 640px) {
-  .section {
-    padding-block: var(--section-y-mobile);
-  }
-}
-
-/* Accessible visually-hidden (screen-reader only) */
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-/* ---- Scroll-reveal (progressive enhancement; see $lib/actions/reveal.ts) ----
-   The hidden initial state applies ONLY when JS is active AND motion is welcome,
-   so SSR HTML, no-JS, and prefers-reduced-motion visitors always render the final
-   frame (DoD §5). transform/opacity only — compositor-friendly. */
-@media (prefers-reduced-motion: no-preference) {
-  html.js [data-reveal] {
-    opacity: 0;
-    transform: translateY(20px);
-    transition:
-      opacity 0.6s var(--ease-out),
-      transform 0.6s var(--ease-out);
-    transition-delay: var(--reveal-delay, 0ms);
-  }
-  html.js [data-reveal].is-in {
+  .reveal {
     opacity: 1;
     transform: none;
   }
-}
-
-/* ---- Shared section scaffolding (new IA, §6) ---- */
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-sm);
-  margin: 0;
-  font-size: var(--fs-body-sm);
-  font-weight: var(--fw-semibold);
-  color: var(--color-primary);
-}
-.eyebrow::before {
-  content: '';
-  width: 18px;
-  height: 2px;
-  border-radius: 2px;
-  background: currentColor;
-  opacity: 0.55;
-}
-.section-head {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  max-width: var(--width-reading);
-}
-.section-head.center {
-  margin-inline: auto;
-  align-items: center;
-  text-align: center;
-}
-.section-title {
-  font-size: var(--fs-h2);
-  line-height: var(--lh-h2);
-  letter-spacing: var(--tracking-tight);
-}
-.section-lead {
-  margin: 0;
-  font-size: var(--fs-subtitle);
-  line-height: var(--lh-subtitle);
-  color: var(--text-muted);
 }

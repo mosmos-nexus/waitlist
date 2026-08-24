@@ -2,10 +2,10 @@
   import type { PageProps } from './$types';
   import Seo from '$lib/components/Seo.svelte';
   import Hero from '$lib/components/sections/Hero.svelte';
-  import EmpathyCut from '$lib/components/sections/EmpathyCut.svelte';
-  import InteractiveDemo from '$lib/components/sections/InteractiveDemo.svelte';
-  import MosTeaser from '$lib/components/sections/MosTeaser.svelte';
-  import GrowthLoop from '$lib/components/sections/GrowthLoop.svelte';
+  import TaskDrift from '$lib/components/sections/TaskDrift.svelte';
+  import SummonStage from '$lib/components/sections/SummonStage.svelte';
+  import MosSheet from '$lib/components/sections/MosSheet.svelte';
+  import GrowthOrbit from '$lib/components/sections/GrowthOrbit.svelte';
   import TrustCta from '$lib/components/sections/TrustCta.svelte';
   import BuildCta from '$lib/components/sections/BuildCta.svelte';
   import Confirmation from '$lib/components/Confirmation.svelte';
@@ -13,8 +13,8 @@
 
   let { data }: PageProps = $props();
 
-  // Page-level signup state: both the hero (§1) and the re-CTA (§6) feed it, and
-  // success swaps the whole marketing flow for the confirmation screen (§7).
+  // Page-level signup state: the hero and the re-CTA both feed it, and success
+  // swaps the whole marketing flow for the arrival screen.
   let result = $state<{ id: string; emailSent: boolean } | null>(null);
   function onSuccess(r: { id: string; emailSent: boolean }) {
     result = r;
@@ -25,31 +25,34 @@
 <Seo title={m.meta_title()} description={m.meta_description()} includeOrganization />
 
 {#if result}
-  <section class="confirm-screen">
+  <section class="arrival">
     <div class="container">
       <Confirmation pageId={result.id} emailSent={result.emailSent} />
     </div>
   </section>
 {:else}
   <Hero {onSuccess} />
-  <EmpathyCut />
-  <InteractiveDemo />
-  <MosTeaser />
-  <GrowthLoop />
+  <TaskDrift />
+  <SummonStage />
+  <MosSheet />
+  <GrowthOrbit />
   <TrustCta {onSuccess} registrantCount={data.registrantCount} />
   <BuildCta />
 {/if}
 
 <style>
-  .confirm-screen {
+  .arrival {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: calc(100svh - 64px);
+    min-height: 100svh;
     padding-block: var(--section-y-tablet);
-    background: var(--gradient-sky);
+    /* The same sky the hero opens on, so arriving doesn't leave the world */
+    background:
+      radial-gradient(70% 60% at 50% 22%, rgba(33, 237, 179, 0.12), transparent 68%),
+      var(--sky-deep);
   }
-  .confirm-screen .container {
+  .arrival .container {
     display: flex;
     justify-content: center;
   }
