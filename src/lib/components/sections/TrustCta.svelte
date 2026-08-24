@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { animate, onScroll, stagger, utils } from 'animejs';
   import WaitlistForm from '$lib/components/WaitlistForm.svelte';
-  import { m } from '$lib/paraglide/messages.js';
+  import { m } from '$lib/locale.svelte';
   import { prefersReduced, reveal, countUp } from '$lib/anime/motion';
   import { features } from '$lib/config/features';
 

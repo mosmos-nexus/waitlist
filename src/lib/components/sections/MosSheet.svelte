@@ -2,7 +2,7 @@
   import { animate } from 'animejs';
   import MosBlob from '$lib/components/world/MosBlob.svelte';
   import type { MosMood } from '$lib/anime/mos';
-  import { m } from '$lib/paraglide/messages.js';
+  import { m } from '$lib/locale.svelte';
   import { prefersReduced, reveal } from '$lib/anime/motion';
 
   /**

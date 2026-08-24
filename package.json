@@ -14,7 +14,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test:browser": "node e2e/smoke.mjs && node e2e/extra.mjs && node e2e/regress.mjs"
   },
   "lint-staged": {
     "*.{js,mjs,cjs,ts,jsx,svelte}": [
@@ -40,6 +41,7 @@
     "globals": "^17.6.0",
     "husky": "^9.1.7",
     "lint-staged": "^15.5.2",
+    "playwright-core": "^1.62.1",
     "prettier": "^3.8.3",
     "prettier-plugin-svelte": "^4.1.0",
     "sharp": "^0.35.1",

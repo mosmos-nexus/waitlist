@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { getLocale, localizeHref, deLocalizeHref, locales } from '$lib/paraglide/runtime';
+  import { deLocalizeHref, locales } from '$lib/paraglide/runtime';
+  import { getLocale, localizeHref } from '$lib/locale.svelte';
   import type { AppLocale } from '$lib/i18n';
 
   interface Props {

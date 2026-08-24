@@ -3,7 +3,7 @@
   import { createTimeline, createTimer, onScroll, stagger, utils } from 'animejs';
   import MonBlob from '$lib/components/world/MonBlob.svelte';
   import type { MonRole } from '$lib/anime/mon';
-  import { m } from '$lib/paraglide/messages.js';
+  import { m } from '$lib/locale.svelte';
   import { prefersReduced, reveal } from '$lib/anime/motion';
 
   /**

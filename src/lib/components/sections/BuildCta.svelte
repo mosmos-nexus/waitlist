@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { m } from '$lib/paraglide/messages.js';
+  import { m } from '$lib/locale.svelte';
   import { reveal } from '$lib/anime/motion';
 
   // The recruit page lives outside the product, so it opens in its own tab and

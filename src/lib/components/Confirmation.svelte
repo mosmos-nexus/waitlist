@@ -7,8 +7,8 @@
   import Input from '$lib/components/ui/Input.svelte';
   import MosBlob from '$lib/components/world/MosBlob.svelte';
   import MonBlob from '$lib/components/world/MonBlob.svelte';
-  import { m } from '$lib/paraglide/messages.js';
-  import { getLocale } from '$lib/paraglide/runtime';
+  import { m } from '$lib/locale.svelte';
+  import { getLocale } from '$lib/locale.svelte';
   import { JOB_OPTIONS, AI_TASK_OPTIONS, OTHER_VALUE, optionLabel } from '$lib/data/survey-options';
   import type { AppLocale } from '$lib/i18n';
   import { prefersReduced } from '$lib/anime/motion';

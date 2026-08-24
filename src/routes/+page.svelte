@@ -9,7 +9,7 @@
   import TrustCta from '$lib/components/sections/TrustCta.svelte';
   import BuildCta from '$lib/components/sections/BuildCta.svelte';
   import Confirmation from '$lib/components/Confirmation.svelte';
-  import { m } from '$lib/paraglide/messages.js';
+  import { m } from '$lib/locale.svelte';
 
   let { data }: PageProps = $props();
 

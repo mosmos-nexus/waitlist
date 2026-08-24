@@ -5,7 +5,7 @@
   import MosBlob from '$lib/components/world/MosBlob.svelte';
   import MonBlob from '$lib/components/world/MonBlob.svelte';
   import WaitlistForm from '$lib/components/WaitlistForm.svelte';
-  import { m } from '$lib/paraglide/messages.js';
+  import { m } from '$lib/locale.svelte';
   import { prefersReduced } from '$lib/anime/motion';
 
   interface Props {

@@ -58,6 +58,8 @@ export interface BlobHandle {
   setEnergy: (energy: number, duration?: number) => void;
   /** Squash toward a point (SVG user units) — the poke reaction. */
   squish: (dx: number, dy: number, strength?: number) => void;
+  /** Hold a resting aspect — how tall or wide the body sits in a given mood. */
+  setAspect: (x: number, y: number, duration?: number) => void;
   destroy: () => void;
 }
 
@@ -162,18 +164,21 @@ export function createBlob(options: BlobOptions): BlobHandle {
   // Every animated scalar lives on one plain object so animejs can drive it and
   // the frame loop can read it without touching the DOM.
   //
-  // `sx`/`sy` carry the ambient drift and `qx`/`qy` the poke reaction, kept
-  // apart on purpose. animejs composes with `replace` by default, and when a
-  // one-shot tween overlaps a *looping* one on the same target+property it
-  // overrides the loop permanently — see `overrideTween` in
-  // animation/composition.js, whose own TODO notes it cannot yet window the
-  // override to the overlapping iterations. Driving the reaction through its
-  // own pair and multiplying both in `paint()` keeps one writer per property.
+  // `sx`/`sy` carry the ambient drift, `qx`/`qy` the poke reaction and
+  // `ax`/`ay` the mood aspect, kept apart on purpose. animejs composes with
+  // `replace` by default, and when a one-shot tween overlaps a *looping* one on
+  // the same target+property it overrides the loop permanently — see
+  // `overrideTween` in animation/composition.js, whose own TODO notes it cannot
+  // yet window the override to the overlapping iterations. Giving each writer
+  // its own pair and multiplying all three in `paint()` keeps one writer per
+  // property.
   const p: Record<string, number> = {
     sx: 1,
     sy: 1,
     qx: 1,
     qy: 1,
+    ax: 1,
+    ay: 1,
     amp: 1,
     ripple2: ripple[0],
     ripple3: ripple[1],
@@ -257,7 +262,10 @@ export function createBlob(options: BlobOptions): BlobHandle {
       if (cut > 0.42) cut = 0.42;
       const wave = Math.cos(a * 2 + p.phase2) * p.ripple2 + Math.cos(a * 3 + p.phase3) * p.ripple3;
       const r = radius * (1 + wave - cut * k);
-      ring.push([cx + Math.cos(a) * r * p.sx * p.qx, cy + Math.sin(a) * r * p.sy * p.qy]);
+      ring.push([
+        cx + Math.cos(a) * r * p.sx * p.qx * p.ax,
+        cy + Math.sin(a) * r * p.sy * p.qy * p.ay,
+      ]);
     }
     const d = closedCurve(ring);
     for (const t of targets) t.setAttribute('d', d);
@@ -276,6 +284,10 @@ export function createBlob(options: BlobOptions): BlobHandle {
     instances,
     setEnergy(energy, duration = 900) {
       animate(p, { amp: energy, duration, ease: 'out(3)' });
+    },
+    setAspect(x, y, duration = 620) {
+      if (duration <= 0) utils.set(p, { ax: x, ay: y });
+      else animate(p, { ax: x, ay: y, duration, ease: 'out(3)' });
     },
     squish(dx, dy, strength = 1) {
       // Poke direction decides which axis gives; the spring supplies the wobble.

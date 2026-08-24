@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { animate, createAnimatable, createTimeline, stagger } from 'animejs';
-  import { m } from '$lib/paraglide/messages.js';
+  import { m } from '$lib/locale.svelte';
   import { prefersReduced, hasFinePointer, reveal } from '$lib/anime/motion';
 
   /**

@@ -1,12 +1,33 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import { getLocale, localizeHref, deLocalizeHref, locales } from '$lib/paraglide/runtime';
+  import { deLocalizeHref, locales } from '$lib/paraglide/runtime';
+  import { getLocale, localizeHref, rememberLocale } from '$lib/locale.svelte';
   import type { AppLocale } from '$lib/i18n';
 
   const current = $derived(getLocale());
   // De-localize the current path, then build each locale's variant so the toggle
   // keeps the visitor on the same page in the other language.
   const basePath = $derived(deLocalizeHref(page.url.pathname));
+
+  /**
+   * Switch in the client instead of reloading the document.
+   *
+   * The anchors keep working without JS — that is what SSR and crawlers see.
+   * With JS, `goto` moves the URL — which is what paraglide resolves the locale
+   * from — and the layout's `afterNavigate` then invalidates every reactive
+   * message read so the copy re-renders in place. Nothing remounts, so the
+   * island and the cursor keep running through the switch.
+   */
+  function switchTo(event: MouseEvent, loc: string, href: string) {
+    // Let modified clicks and non-primary buttons behave like real links.
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)
+      return;
+    event.preventDefault();
+    if (loc === current) return;
+    rememberLocale(loc as AppLocale);
+    goto(href, { keepFocus: true, noScroll: true });
+  }
 
   // Endonyms, not codes: readers pick their own language faster from its own
   // name than from an ISO abbreviation.
@@ -20,13 +41,14 @@
 
 <div class="lang" role="group" aria-label="Language / 언어 / 言語">
   {#each locales as loc (loc)}
+    {@const href = localizeHref(basePath, { locale: loc })}
     <a
-      href={localizeHref(basePath, { locale: loc })}
+      {href}
       hreflang={loc}
       lang={loc}
       aria-current={loc === current ? 'true' : undefined}
       class:active={loc === current}
-      data-sveltekit-reload>{label(loc)}</a
+      onclick={(event) => switchTo(event, loc, href)}>{label(loc)}</a
     >
   {/each}
 </div>

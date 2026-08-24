@@ -2,8 +2,8 @@
   import Input from '$lib/components/ui/Input.svelte';
   import Checkbox from '$lib/components/ui/Checkbox.svelte';
   import Button from '$lib/components/ui/Button.svelte';
-  import { m } from '$lib/paraglide/messages.js';
-  import { getLocale, localizeHref } from '$lib/paraglide/runtime';
+  import { m } from '$lib/locale.svelte';
+  import { getLocale, localizeHref } from '$lib/locale.svelte';
 
   type ErrorKey = 'invalid_email' | 'no_consent' | 'duplicate' | 'ratelimit' | 'generic';
 

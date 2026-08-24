@@ -1,7 +1,7 @@
 <script lang="ts">
   import Seo from '$lib/components/Seo.svelte';
-  import { m } from '$lib/paraglide/messages.js';
-  import { localizeHref } from '$lib/paraglide/runtime';
+  import { m } from '$lib/locale.svelte';
+  import { localizeHref } from '$lib/locale.svelte';
 </script>
 
 <Seo title="{m.privacy_title()} — Mosmos" description={m.privacy_intro()} />

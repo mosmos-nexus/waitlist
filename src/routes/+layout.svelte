@@ -7,8 +7,8 @@
   import Logo from '$lib/components/ui/Logo.svelte';
   import LanguageToggle from '$lib/components/ui/LanguageToggle.svelte';
   import ManaCursor from '$lib/components/world/ManaCursor.svelte';
-  import { m } from '$lib/paraglide/messages.js';
-  import { localizeHref } from '$lib/paraglide/runtime';
+  import { afterNavigate } from '$app/navigation';
+  import { m, localizeHref, syncLocale } from '$lib/locale.svelte';
 
   injectAnalytics({ mode: dev ? 'development' : 'production' });
   injectSpeedInsights();
@@ -17,6 +17,10 @@
 
   const year = new Date().getFullYear();
   const contactEmail = 'hello@mosmos.world';
+
+  // The URL is what paraglide resolves the locale from, so every landed
+  // navigation is the moment to re-read it. See `syncLocale`.
+  afterNavigate(syncLocale);
 </script>
 
 <svelte:head>

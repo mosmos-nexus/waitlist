@@ -2,8 +2,8 @@
   import { onMount } from 'svelte';
   import { animate, spring, utils, stagger } from 'animejs';
   import { createBlob, type BlobHandle } from '$lib/anime/blob';
-  import type { MosMood } from '$lib/anime/mos';
-  import { MOS_MOOD } from '$lib/anime/mos';
+  import type { MosMood, MosFace } from '$lib/anime/mos';
+  import { MOS_MOOD, MOS_FACES } from '$lib/anime/mos';
   import {
     prefersReduced,
     hasFinePointer,
@@ -15,11 +15,11 @@
     /** Rendered width in px; height follows the viewBox ratio. */
     size?: number;
     /**
-     * Body energy, aura tint and resting expression:
-     *   idle    — calm face, cyan aura
-     *   working — busier body, Summon Green aura, green glob lit
-     *   resting — slow, dim, half-lidded
-     *   happy   — calm energy but holding the ^^ face
+     * Body energy, resting aspect, aura tint and expression:
+     *   idle    — round, calm eyes, cyan aura
+     *   working — leaner and taller, narrowed eyes, Summon Green aura
+     *   resting — settled wide and low, lids closed, dim
+     *   happy   — puffed up, ^^ eyes, open smile
      */
     mood?: MosMood;
     /** Fires after a poke, so the hero can swap its speech line. */
@@ -58,9 +58,23 @@
   const qRoot = <T extends Element>(sel: string): T[] =>
     rootEl ? Array.from(rootEl.querySelectorAll<T>(sel)) : [];
 
+  /**
+   * Show exactly one face group. Every mood owns both its eyes and its mouth, so
+   * a single opacity swap changes the whole expression rather than only the eyes
+   * — which is what made three of the four moods look identical before.
+   */
+  function setFace(face: MosFace, duration = 300) {
+    for (const name of MOS_FACES) {
+      const els = q(`[data-face="${name}"]`);
+      const opacity = name === face ? 1 : 0;
+      if (duration <= 0) utils.set(els, { opacity });
+      else animate(els, { opacity, duration, ease: 'out(3)' });
+    }
+  }
+
   let pokeTimer: ReturnType<typeof setTimeout> | undefined;
 
-  function poke(event?: MouseEvent | KeyboardEvent) {
+  function poke(event?: MouseEvent) {
     if (!svgEl || !blob) return;
     onpoke?.();
     if (prefersReduced()) return;
@@ -68,9 +82,13 @@
     clearTimeout(pokeTimer);
 
     // Screen point → SVG user units, so the reaction lands under the finger.
+    // `detail` counts real clicks: activating the button with Enter or Space
+    // still delivers a MouseEvent, but with `detail: 0` and `clientX: 0`, which
+    // would otherwise poke the viewport origin instead of the body. Keyboard
+    // activation falls through to the centre, which is what it should mean.
     let px = CX;
     let py = CY;
-    if (event && 'clientX' in event && svgEl.getScreenCTM) {
+    if (event && event.detail > 0 && svgEl.getScreenCTM) {
       const m = svgEl.getScreenCTM();
       if (m) {
         const p = svgEl.createSVGPoint();
@@ -180,32 +198,14 @@
 
     blob.squish(px - CX, py - CY, dist);
 
-    // Face: calm → happy → calm.
-    animate(q('[data-anim="mos-calm"]'), { opacity: [1, 0], duration: 110, ease: 'out(2)' });
-    animate(q('[data-anim="mos-happy"]'), { opacity: [0, 1], duration: 240, ease: 'out(3)' });
+    // Face: whatever it was → happy → back to the mood's own face. A poke is
+    // always a delighted reaction, even from `resting`.
+    setFace('happy', 200);
     pokeTimer = setTimeout(() => {
-      // Return to whatever the current mood rests on, not unconditionally to
-      // calm — `happy` moods hold the ^^ face and the mood effect only re-runs
-      // when `mood` itself changes.
-      const restsHappy = MOS_MOOD[mood].happyFace;
-      animate(q('[data-anim="mos-happy"]'), {
-        opacity: restsHappy ? 1 : 0,
-        duration: 220,
-        ease: 'in(2)',
-      });
-      animate(q('[data-anim="mos-calm"]'), {
-        opacity: restsHappy ? 0 : 1,
-        duration: 260,
-        ease: 'out(2)',
-      });
+      // Read the mood at fire time, not capture time — `mood` is a `$props()`
+      // getter, so a mid-poke mood change still lands on the right face.
+      setFace(MOS_MOOD[mood].face, 260);
     }, 1500);
-  }
-
-  function onKey(event: KeyboardEvent) {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      poke(event);
-    }
   }
 
   onMount(() => {
@@ -377,11 +377,17 @@
     };
   });
 
-  // Mood drives energy, aura tint and resting face. Reactive so a parent can
-  // flip it mid-scene and the same body reads as a different state.
+  // Mood drives energy, silhouette aspect, aura tint and face. Reactive so a
+  // parent can flip it mid-scene and the same body reads as a different state.
   $effect(() => {
     const spec = MOS_MOOD[mood];
-    if (blob && !prefersReduced()) blob.setEnergy(spec.energy);
+    const reduced = prefersReduced();
+    if (blob) {
+      // Aspect still applies under reduced motion — it is a resting posture,
+      // not an animation, and it is the strongest of the four mood signals.
+      blob.setAspect(spec.aspect[0], spec.aspect[1], reduced ? 0 : 620);
+      if (!reduced) blob.setEnergy(spec.energy);
+    }
     if (auraEl) auraEl.style.background = spec.aura;
     if (!svgEl) return;
 
@@ -389,23 +395,8 @@
       opacity: spec.greenGlob,
     });
 
-    // `happy` holds the ^^ face; every other mood rests on the calm one. A
-    // poke still overrides this for its own 1.5s window.
-    if (prefersReduced()) {
-      utils.set(q('[data-anim="mos-happy"]'), { opacity: spec.happyFace ? 1 : 0 });
-      utils.set(q('[data-anim="mos-calm"]'), { opacity: spec.happyFace ? 0 : 1 });
-    } else {
-      animate(q('[data-anim="mos-happy"]'), {
-        opacity: spec.happyFace ? 1 : 0,
-        duration: 300,
-        ease: 'out(3)',
-      });
-      animate(q('[data-anim="mos-calm"]'), {
-        opacity: spec.happyFace ? 0 : 1,
-        duration: 300,
-        ease: 'out(3)',
-      });
-    }
+    // A poke still overrides the face for its own 1.5s window.
+    setFace(spec.face, reduced ? 0 : 300);
   });
 </script>
 
@@ -418,249 +409,267 @@
     <div class="recoil" bind:this={recoilEl}>
       <div class="aura" bind:this={auraEl}></div>
 
-      <svg
-        bind:this={svgEl}
-        viewBox="216 220 476 406"
-        role="button"
-        tabindex="0"
-        aria-label={label}
-        data-cursor="poke"
-        onclick={poke}
-        onkeydown={onKey}
-      >
-        <defs>
-          <clipPath id={g('mos-clip')}>
+      <!--
+        A real button, not a `role="button"` svg. The native element brings its
+        own keyboard semantics — and its focus ring can be a round glow that
+        traces the body, instead of the rectangle a focused svg draws.
+      -->
+      <button type="button" class="hit" aria-label={label} data-cursor="poke" onclick={poke}>
+        <svg bind:this={svgEl} viewBox="216 220 476 406" aria-hidden="true">
+          <defs>
+            <clipPath id={g('mos-clip')}>
+              <path
+                data-anim="mos-clip-path"
+                d="M{CX - R},{CY}a{R},{R} 0 1,0 {R * 2},0a{R},{R} 0 1,0 -{R * 2},0"
+              />
+            </clipPath>
+            <linearGradient id={g('mos-base')} x1="0.15" y1="0" x2="0.85" y2="1">
+              <stop offset="0" stop-color="#2E6FC8" />
+              <stop offset="1" stop-color="#0F2F5E" />
+            </linearGradient>
+            <linearGradient id={g('mos-rim')} x1="0.1" y1="0" x2="0.9" y2="1">
+              <stop offset="0" stop-color="#ECEDF6" stop-opacity="0.8" />
+              <stop offset="0.55" stop-color="#31DCDC" stop-opacity="0.42" />
+              <stop offset="1" stop-color="#0F6FDA" stop-opacity="0.28" />
+            </linearGradient>
+            <radialGradient id={g('glob-1')}>
+              <stop offset="0" stop-color="#1B7BE8" stop-opacity="0.95" />
+              <stop offset="0.5" stop-color="#1B7BE8" stop-opacity="0.6" />
+              <stop offset="1" stop-color="#1B7BE8" stop-opacity="0" />
+            </radialGradient>
+            <radialGradient id={g('glob-2')}>
+              <stop offset="0" stop-color="#3D8BEE" stop-opacity="0.9" />
+              <stop offset="0.5" stop-color="#3D8BEE" stop-opacity="0.5" />
+              <stop offset="1" stop-color="#3D8BEE" stop-opacity="0" />
+            </radialGradient>
+            <radialGradient id={g('glob-3')}>
+              <stop offset="0" stop-color="#31DCDC" stop-opacity="0.85" />
+              <stop offset="0.5" stop-color="#31DCDC" stop-opacity="0.42" />
+              <stop offset="1" stop-color="#31DCDC" stop-opacity="0" />
+            </radialGradient>
+            <radialGradient id={g('glob-4')}>
+              <stop offset="0" stop-color="#6D4BD8" stop-opacity="0.8" />
+              <stop offset="0.5" stop-color="#6D4BD8" stop-opacity="0.36" />
+              <stop offset="1" stop-color="#6D4BD8" stop-opacity="0" />
+            </radialGradient>
+            <radialGradient id={g('glob-5')}>
+              <stop offset="0" stop-color="#21EDB3" stop-opacity="0.8" />
+              <stop offset="0.5" stop-color="#21EDB3" stop-opacity="0.34" />
+              <stop offset="1" stop-color="#21EDB3" stop-opacity="0" />
+            </radialGradient>
+            <radialGradient id={g('gloss')}>
+              <stop offset="0" stop-color="#F7F8F9" stop-opacity="0.34" />
+              <stop offset="0.6" stop-color="#F7F8F9" stop-opacity="0.12" />
+              <stop offset="1" stop-color="#F7F8F9" stop-opacity="0" />
+            </radialGradient>
+            <radialGradient id={g('shade')}>
+              <stop offset="0" stop-color="#06101F" stop-opacity="0.5" />
+              <stop offset="0.6" stop-color="#06101F" stop-opacity="0.2" />
+              <stop offset="1" stop-color="#06101F" stop-opacity="0" />
+            </radialGradient>
+            <radialGradient id={g('poke-press')}>
+              <stop offset="0" stop-color="#0B3A6B" stop-opacity="0.4" />
+              <stop offset="0.66" stop-color="#0B3A6B" stop-opacity="0.16" />
+              <stop offset="1" stop-color="#0B3A6B" stop-opacity="0" />
+            </radialGradient>
+            <radialGradient id={g('poke-lift')}>
+              <stop offset="0" stop-color="#8FD8FF" stop-opacity="0.34" />
+              <stop offset="0.72" stop-color="#8FD8FF" stop-opacity="0.08" />
+              <stop offset="1" stop-color="#8FD8FF" stop-opacity="0" />
+            </radialGradient>
+            <radialGradient id={g('band-1')}>
+              <stop offset="0" stop-color="#7FC4FF" stop-opacity="0" />
+              <stop offset="0.58" stop-color="#7FC4FF" stop-opacity="0.06" />
+              <stop offset="0.84" stop-color="#AEE4FF" stop-opacity="0.5" />
+              <stop offset="1" stop-color="#AEE4FF" stop-opacity="0" />
+            </radialGradient>
+            <radialGradient id={g('band-2')}>
+              <stop offset="0" stop-color="#31DCDC" stop-opacity="0" />
+              <stop offset="0.62" stop-color="#31DCDC" stop-opacity="0.05" />
+              <stop offset="0.86" stop-color="#5FE6E6" stop-opacity="0.36" />
+              <stop offset="1" stop-color="#5FE6E6" stop-opacity="0" />
+            </radialGradient>
+            <radialGradient id={g('band-3')}>
+              <stop offset="0" stop-color="#3D8BEE" stop-opacity="0" />
+              <stop offset="0.68" stop-color="#3D8BEE" stop-opacity="0.04" />
+              <stop offset="0.9" stop-color="#79B6FF" stop-opacity="0.24" />
+              <stop offset="1" stop-color="#79B6FF" stop-opacity="0" />
+            </radialGradient>
+          </defs>
+
+          <g data-anim="mos-body">
+            <path data-anim="mos-fill" fill="url(#{g('mos-base')})" d="" />
+
+            <g data-anim="mos-flow" clip-path="url(#{g('mos-clip')})" style="pointer-events:none">
+              <circle
+                data-anim="mos-glob"
+                data-tone="blue"
+                data-orbit="30"
+                data-phase="0"
+                data-dur="14000"
+                data-dir="1"
+                cx={CX}
+                cy={CY}
+                r="176"
+                fill="url(#{g('glob-1')})"
+                opacity="0.95"
+              />
+              <circle
+                data-anim="mos-glob"
+                data-tone="light"
+                data-orbit="78"
+                data-phase="40"
+                data-dur="9200"
+                data-dir="1"
+                cx={CX}
+                cy={CY}
+                r="140"
+                fill="url(#{g('glob-2')})"
+                opacity="0.9"
+              />
+              <circle
+                data-anim="mos-glob"
+                data-tone="cyan"
+                data-orbit="62"
+                data-phase="130"
+                data-dur="7600"
+                data-dir="-1"
+                cx={CX}
+                cy={CY}
+                r="126"
+                fill="url(#{g('glob-3')})"
+                opacity="0.8"
+              />
+              <circle
+                data-anim="mos-glob"
+                data-tone="purple"
+                data-orbit="92"
+                data-phase="215"
+                data-dur="11800"
+                data-dir="-1"
+                cx={CX}
+                cy={CY}
+                r="118"
+                fill="url(#{g('glob-4')})"
+                opacity="0.7"
+              />
+              <circle
+                data-anim="mos-glob"
+                data-tone="green"
+                data-orbit="50"
+                data-phase="300"
+                data-dur="8400"
+                data-dir="1"
+                cx={CX}
+                cy={CY}
+                r="104"
+                fill="url(#{g('glob-5')})"
+                opacity="0.42"
+              />
+              <ellipse cx="368" cy="318" rx="132" ry="96" fill="url(#{g('gloss')})" />
+              <ellipse cx="536" cy="566" rx="150" ry="104" fill="url(#{g('shade')})" />
+            </g>
+
             <path
-              data-anim="mos-clip-path"
-              d="M{CX - R},{CY}a{R},{R} 0 1,0 {R * 2},0a{R},{R} 0 1,0 -{R * 2},0"
+              data-anim="mos-rim"
+              style="pointer-events:none"
+              fill="none"
+              stroke="url(#{g('mos-rim')})"
+              stroke-width="3.4"
+              d=""
             />
-          </clipPath>
-          <linearGradient id={g('mos-base')} x1="0.15" y1="0" x2="0.85" y2="1">
-            <stop offset="0" stop-color="#2E6FC8" />
-            <stop offset="1" stop-color="#0F2F5E" />
-          </linearGradient>
-          <linearGradient id={g('mos-rim')} x1="0.1" y1="0" x2="0.9" y2="1">
-            <stop offset="0" stop-color="#ECEDF6" stop-opacity="0.8" />
-            <stop offset="0.55" stop-color="#31DCDC" stop-opacity="0.42" />
-            <stop offset="1" stop-color="#0F6FDA" stop-opacity="0.28" />
-          </linearGradient>
-          <radialGradient id={g('glob-1')}>
-            <stop offset="0" stop-color="#1B7BE8" stop-opacity="0.95" />
-            <stop offset="0.5" stop-color="#1B7BE8" stop-opacity="0.6" />
-            <stop offset="1" stop-color="#1B7BE8" stop-opacity="0" />
-          </radialGradient>
-          <radialGradient id={g('glob-2')}>
-            <stop offset="0" stop-color="#3D8BEE" stop-opacity="0.9" />
-            <stop offset="0.5" stop-color="#3D8BEE" stop-opacity="0.5" />
-            <stop offset="1" stop-color="#3D8BEE" stop-opacity="0" />
-          </radialGradient>
-          <radialGradient id={g('glob-3')}>
-            <stop offset="0" stop-color="#31DCDC" stop-opacity="0.85" />
-            <stop offset="0.5" stop-color="#31DCDC" stop-opacity="0.42" />
-            <stop offset="1" stop-color="#31DCDC" stop-opacity="0" />
-          </radialGradient>
-          <radialGradient id={g('glob-4')}>
-            <stop offset="0" stop-color="#6D4BD8" stop-opacity="0.8" />
-            <stop offset="0.5" stop-color="#6D4BD8" stop-opacity="0.36" />
-            <stop offset="1" stop-color="#6D4BD8" stop-opacity="0" />
-          </radialGradient>
-          <radialGradient id={g('glob-5')}>
-            <stop offset="0" stop-color="#21EDB3" stop-opacity="0.8" />
-            <stop offset="0.5" stop-color="#21EDB3" stop-opacity="0.34" />
-            <stop offset="1" stop-color="#21EDB3" stop-opacity="0" />
-          </radialGradient>
-          <radialGradient id={g('gloss')}>
-            <stop offset="0" stop-color="#F7F8F9" stop-opacity="0.34" />
-            <stop offset="0.6" stop-color="#F7F8F9" stop-opacity="0.12" />
-            <stop offset="1" stop-color="#F7F8F9" stop-opacity="0" />
-          </radialGradient>
-          <radialGradient id={g('shade')}>
-            <stop offset="0" stop-color="#06101F" stop-opacity="0.5" />
-            <stop offset="0.6" stop-color="#06101F" stop-opacity="0.2" />
-            <stop offset="1" stop-color="#06101F" stop-opacity="0" />
-          </radialGradient>
-          <radialGradient id={g('poke-press')}>
-            <stop offset="0" stop-color="#0B3A6B" stop-opacity="0.4" />
-            <stop offset="0.66" stop-color="#0B3A6B" stop-opacity="0.16" />
-            <stop offset="1" stop-color="#0B3A6B" stop-opacity="0" />
-          </radialGradient>
-          <radialGradient id={g('poke-lift')}>
-            <stop offset="0" stop-color="#8FD8FF" stop-opacity="0.34" />
-            <stop offset="0.72" stop-color="#8FD8FF" stop-opacity="0.08" />
-            <stop offset="1" stop-color="#8FD8FF" stop-opacity="0" />
-          </radialGradient>
-          <radialGradient id={g('band-1')}>
-            <stop offset="0" stop-color="#7FC4FF" stop-opacity="0" />
-            <stop offset="0.58" stop-color="#7FC4FF" stop-opacity="0.06" />
-            <stop offset="0.84" stop-color="#AEE4FF" stop-opacity="0.5" />
-            <stop offset="1" stop-color="#AEE4FF" stop-opacity="0" />
-          </radialGradient>
-          <radialGradient id={g('band-2')}>
-            <stop offset="0" stop-color="#31DCDC" stop-opacity="0" />
-            <stop offset="0.62" stop-color="#31DCDC" stop-opacity="0.05" />
-            <stop offset="0.86" stop-color="#5FE6E6" stop-opacity="0.36" />
-            <stop offset="1" stop-color="#5FE6E6" stop-opacity="0" />
-          </radialGradient>
-          <radialGradient id={g('band-3')}>
-            <stop offset="0" stop-color="#3D8BEE" stop-opacity="0" />
-            <stop offset="0.68" stop-color="#3D8BEE" stop-opacity="0.04" />
-            <stop offset="0.9" stop-color="#79B6FF" stop-opacity="0.24" />
-            <stop offset="1" stop-color="#79B6FF" stop-opacity="0" />
-          </radialGradient>
-        </defs>
-
-        <g data-anim="mos-body">
-          <path data-anim="mos-fill" fill="url(#{g('mos-base')})" d="" />
-
-          <g data-anim="mos-flow" clip-path="url(#{g('mos-clip')})" style="pointer-events:none">
-            <circle
-              data-anim="mos-glob"
-              data-tone="blue"
-              data-orbit="30"
-              data-phase="0"
-              data-dur="14000"
-              data-dir="1"
-              cx={CX}
-              cy={CY}
-              r="176"
-              fill="url(#{g('glob-1')})"
-              opacity="0.95"
-            />
-            <circle
-              data-anim="mos-glob"
-              data-tone="light"
-              data-orbit="78"
-              data-phase="40"
-              data-dur="9200"
-              data-dir="1"
-              cx={CX}
-              cy={CY}
-              r="140"
-              fill="url(#{g('glob-2')})"
-              opacity="0.9"
-            />
-            <circle
-              data-anim="mos-glob"
-              data-tone="cyan"
-              data-orbit="62"
-              data-phase="130"
-              data-dur="7600"
-              data-dir="-1"
-              cx={CX}
-              cy={CY}
-              r="126"
-              fill="url(#{g('glob-3')})"
-              opacity="0.8"
-            />
-            <circle
-              data-anim="mos-glob"
-              data-tone="purple"
-              data-orbit="92"
-              data-phase="215"
-              data-dur="11800"
-              data-dir="-1"
-              cx={CX}
-              cy={CY}
-              r="118"
-              fill="url(#{g('glob-4')})"
-              opacity="0.7"
-            />
-            <circle
-              data-anim="mos-glob"
-              data-tone="green"
-              data-orbit="50"
-              data-phase="300"
-              data-dur="8400"
-              data-dir="1"
-              cx={CX}
-              cy={CY}
-              r="104"
-              fill="url(#{g('glob-5')})"
-              opacity="0.42"
-            />
-            <ellipse cx="368" cy="318" rx="132" ry="96" fill="url(#{g('gloss')})" />
-            <ellipse cx="536" cy="566" rx="150" ry="104" fill="url(#{g('shade')})" />
           </g>
 
-          <path
-            data-anim="mos-rim"
-            style="pointer-events:none"
+          <g data-anim="poke-fx" clip-path="url(#{g('mos-clip')})" style="pointer-events:none">
+            <circle
+              data-anim="press-dip"
+              cx={CX}
+              cy={CY}
+              r="40"
+              fill="url(#{g('poke-press')})"
+              opacity="0"
+            />
+            <circle
+              data-anim="press-bloom"
+              cx={CX}
+              cy={CY}
+              r="34"
+              fill="url(#{g('poke-lift')})"
+              opacity="0"
+            />
+            <circle
+              data-anim="poke-wave"
+              cx={CX}
+              cy={CY}
+              r="90"
+              fill="url(#{g('band-1')})"
+              opacity="0"
+            />
+            <circle
+              data-anim="poke-wave"
+              cx={CX}
+              cy={CY}
+              r="90"
+              fill="url(#{g('band-2')})"
+              opacity="0"
+            />
+            <circle
+              data-anim="poke-wave"
+              cx={CX}
+              cy={CY}
+              r="90"
+              fill="url(#{g('band-3')})"
+              opacity="0"
+            />
+          </g>
+
+          <!--
+          Four faces, one shown at a time via `setFace`. Each group carries its
+          own eyes *and* mouth: swapping only the eyes left every mood reading
+          the same, which is the whole complaint this answers.
+        -->
+          <g
+            data-anim="mos-face"
             fill="none"
-            stroke="url(#{g('mos-rim')})"
-            stroke-width="3.4"
-            d=""
-          />
-        </g>
-
-        <g data-anim="poke-fx" clip-path="url(#{g('mos-clip')})" style="pointer-events:none">
-          <circle
-            data-anim="press-dip"
-            cx={CX}
-            cy={CY}
-            r="40"
-            fill="url(#{g('poke-press')})"
-            opacity="0"
-          />
-          <circle
-            data-anim="press-bloom"
-            cx={CX}
-            cy={CY}
-            r="34"
-            fill="url(#{g('poke-lift')})"
-            opacity="0"
-          />
-          <circle
-            data-anim="poke-wave"
-            cx={CX}
-            cy={CY}
-            r="90"
-            fill="url(#{g('band-1')})"
-            opacity="0"
-          />
-          <circle
-            data-anim="poke-wave"
-            cx={CX}
-            cy={CY}
-            r="90"
-            fill="url(#{g('band-2')})"
-            opacity="0"
-          />
-          <circle
-            data-anim="poke-wave"
-            cx={CX}
-            cy={CY}
-            r="90"
-            fill="url(#{g('band-3')})"
-            opacity="0"
-          />
-        </g>
-
-        <g data-anim="mos-face" style="pointer-events:none">
-          <g fill="none" stroke="#0B1B33" stroke-linecap="round" opacity="0.88">
-            <g data-anim="mos-calm">
+            stroke="#0B1B33"
+            stroke-linecap="round"
+            opacity="0.88"
+            style="pointer-events:none"
+          >
+            <g data-face="calm">
               <g data-anim="mos-eye">
                 <line x1="423.5" y1="399.07" x2="423.5" y2="420.32" stroke-width="8" />
               </g>
               <g data-anim="mos-eye">
                 <line x1="496.61" y1="399.07" x2="496.61" y2="420.32" stroke-width="8" />
               </g>
+              <path d="M460.25,427.67c1.6,9.93,11.76,16.53,22.72,14.76" stroke-width="6" />
+              <path d="M460.25,427.67c-1.6,9.93-11.76,16.53-22.72,14.76" stroke-width="6" />
             </g>
-            <path d="M460.25,427.67c1.6,9.93,11.76,16.53,22.72,14.76" stroke-width="6" />
-            <path d="M460.25,427.67c-1.6,9.93-11.76,16.53-22.72,14.76" stroke-width="6" />
+
+            <!-- happy — ^^ eyes over an open smile -->
+            <g data-face="happy" stroke-width="7.5" opacity="0">
+              <path d="M414,398l13,11l-13,11" />
+              <path d="M506,398l-13,11l13,11" />
+              <path d="M434,424q26.25,26 52.5,0" stroke-width="6.5" />
+            </g>
+
+            <!-- working — lids narrowed inward, mouth set straight -->
+            <g data-face="focus" stroke-width="8" opacity="0">
+              <path d="M410,401l24,8" />
+              <path d="M510,401l-24,8" />
+              <path d="M441,437h38" stroke-width="6.5" />
+            </g>
+
+            <!-- resting — lids shut and drooping, mouth barely there -->
+            <g data-face="sleepy" stroke-width="7" opacity="0">
+              <path d="M411,406q12.5,13 25,0" />
+              <path d="M485,406q12.5,13 25,0" />
+              <path d="M451,430q9.25,9 18.5,0" stroke-width="5.5" />
+            </g>
           </g>
-          <g
-            data-anim="mos-happy"
-            fill="none"
-            stroke="#0B1B33"
-            stroke-linecap="round"
-            stroke-width="7.5"
-            opacity="0"
-          >
-            <path d="M414,398l13,11l-13,11" />
-            <path d="M506,398l-13,11l13,11" />
-          </g>
-        </g>
-      </svg>
+        </svg>
+      </button>
     </div>
   </div>
 </div>
@@ -684,19 +693,53 @@
     height: 100%;
   }
 
-  svg {
+  /* Transparent hit surface — the svg keeps every visual */
+  .hit {
     position: relative;
     z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    cursor: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .hit:focus {
+    outline: none;
+  }
+  /* A soft ellipse that traces the body, not the rectangle a focused svg draws.
+     Sized off both axes rather than as a circle: the viewBox is wider than it is
+     tall, so a circle would cut the silhouette at the sides while leaving a gap
+     above and below. */
+  .hit:focus-visible::after {
+    content: '';
+    position: absolute;
+    /* Above the svg: both are positioned with no z-index of their own, so tree
+       order would otherwise paint the body over the ring. */
+    z-index: 3;
+    left: 50%;
+    top: 52%;
+    width: 98%;
+    height: 96%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    box-shadow:
+      0 0 0 2px var(--bright-cyan),
+      0 0 22px 4px rgba(31, 206, 206, 0.4);
+    pointer-events: none;
+  }
+
+  svg {
+    position: relative;
     width: 100%;
     height: 100%;
     overflow: visible;
     transform-box: fill-box;
     transform-origin: center;
-  }
-  svg:focus-visible {
-    outline: 2px solid var(--bright-cyan);
-    outline-offset: 8px;
-    border-radius: var(--radius-l);
   }
 
   .aura {
