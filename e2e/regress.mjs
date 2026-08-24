@@ -8,6 +8,18 @@ const ok = (l, c, e = '') => {
   if (!c) fail++;
 };
 
+/** Which Mos face is currently held in a given section. */
+const mosFace = (p, root) =>
+  p
+    .locator(`${root} .mos svg`)
+    .first()
+    .evaluate((svg) => {
+      const on = [...svg.querySelectorAll('[data-face]')].find(
+        (el) => Number(getComputedStyle(el).opacity) > 0.5,
+      );
+      return on?.dataset.face ?? 'none';
+    });
+
 const page = async (o = {}) => {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...o });
   const p = await ctx.newPage();
@@ -364,6 +376,186 @@ const page = async (o = {}) => {
   });
   ok('hero copy lines measured', hits.lines >= 3, `${hits.lines} lines`);
   ok('no Mon overlaps the hero copy', hits.clash.length === 0, hits.clash.join(' ') || 'clear');
+  await ctx.close();
+}
+
+// --- the demo must show Mos doing the delegating, not Mon appearing alone ---
+{
+  const { ctx, p } = await page();
+  await p.locator('.summon .stage').scrollIntoViewIfNeeded();
+  await p.waitForTimeout(600);
+
+  ok('Mos is on the stage', (await p.locator('.summon .mos-node .mos').count()) === 1);
+  ok('a wire per leg per Mon', (await p.locator('.summon .wire').count()) === 6);
+
+  // Geometry is measured from the laid-out nodes, so an undrawn wire means the
+  // measurement never ran — the topology would silently vanish.
+  const wires = await p
+    .locator('.summon .wire')
+    .evaluateAll((els) => els.map((e) => e.getAttribute('d') || ''));
+  ok(
+    'every wire is drawn',
+    wires.every((d) => /^M[\d.]+,[\d.]+C/.test(d)),
+    `${wires.filter(Boolean).length}/6`,
+  );
+  // Endpoints must differ per Mon; a single shared line means the fan collapsed.
+  const ends = new Set(wires.map((d) => d.split('C')[1]?.split(' ').pop()));
+  ok('the fan is not collapsed onto one line', ends.size >= 3, `${ends.size} distinct ends`);
+
+  const dash = await p
+    .locator('.summon .pulse')
+    .first()
+    .evaluate((e) => e.style.strokeDasharray);
+  // Chromium reports the pattern comma-separated.
+  ok('pulses carry a measured dash', /^\d+(\.\d+)?,? \d/.test(dash), dash || 'none');
+
+  await p.waitForTimeout(7000);
+  const arts = await p
+    .locator('.summon .art')
+    .evaluateAll((els) => els.map((e) => Number(getComputedStyle(e).opacity)));
+  ok(
+    'every artifact reaches Storage',
+    arts.length === 3 && arts.every((o) => o > 0.9),
+    arts.join(' '),
+  );
+  ok(
+    'Mos ends the run pleased',
+    (await mosFace(p, '.summon')) === 'happy',
+    await mosFace(p, '.summon'),
+  );
+  await ctx.close();
+}
+
+// --- a parallel delegation must actually look parallel ---
+{
+  const { ctx, p } = await page();
+  await p.locator('.summon .stage').scrollIntoViewIfNeeded();
+  await p.waitForTimeout(400);
+
+  /** When each Mon slot first becomes visible, in sample ticks. */
+  const arrivals = async (chip) => {
+    await p.locator('.summon .chip').nth(chip).click();
+    const seen = [];
+    for (let t = 0; t < 60; t++) {
+      const now = await p
+        .locator('.summon .mon-slot')
+        .evaluateAll((els) => els.map((e) => Number(getComputedStyle(e).opacity)));
+      now.forEach((o, i) => {
+        if (o > 0.5 && seen[i] === undefined) seen[i] = t;
+      });
+      if (seen.filter((v) => v !== undefined).length === now.length) break;
+      await p.waitForTimeout(60);
+    }
+    return seen;
+  };
+
+  const serial = await arrivals(0);
+  const spread = (a) => Math.max(...a) - Math.min(...a);
+  ok('a sequential call queues its Mon', spread(serial) >= 5, `ticks ${serial.join(',')}`);
+
+  const parallel = await arrivals(1);
+  ok('a parallel call answers together', spread(parallel) <= 2, `ticks ${parallel.join(',')}`);
+  await ctx.close();
+}
+
+// --- the circulation must name real surfaces and keep their theme split ---
+{
+  const { ctx, p } = await page();
+  await p.locator('.growth .scene').scrollIntoViewIfNeeded();
+  await p.waitForTimeout(700);
+
+  const names = await p.locator('.growth .card-name').allInnerTexts();
+  ok(
+    'the ring is the four product surfaces',
+    names.join(',') === 'Monitor,Hub,Inventory,Studio',
+    names.join(','),
+  );
+  const plates = await p
+    .locator('.growth .card')
+    .evaluateAll((els) => els.map((e) => e.dataset.plate));
+  ok(
+    'Monitor is dark, the workshop is light',
+    plates.filter((t) => t === 'dark').length === 1 &&
+      plates.filter((t) => t === 'light').length === 3,
+    plates.join(','),
+  );
+  ok('no step descriptions left', (await p.locator('.growth .step-desc').count()) === 0);
+
+  // The reveal animates element `opacity`; if the base tone lived there too, a
+  // light plate would end up covered in full-strength marks and read as dark.
+  await p.locator('.growth .controls button').last().click();
+  await p.waitForTimeout(900);
+  const tone = await p
+    .locator('.growth .node.on .mini .fill-soft')
+    .first()
+    .evaluate((e) => ({
+      opacity: Number(getComputedStyle(e).opacity),
+      fill: Number(getComputedStyle(e).fillOpacity),
+    }));
+  ok(
+    'thumbnail marks keep their tone after the reveal',
+    tone.fill < 0.6,
+    `fill-opacity ${tone.fill}`,
+  );
+  ok('the reveal finished', tone.opacity > 0.9, `opacity ${tone.opacity}`);
+
+  // The meter sits under the ring; pinned inside the scene it covered a card.
+  const clash = await p.locator('.growth').evaluate((g) => {
+    const meter = g.querySelector('.meter').getBoundingClientRect();
+    return [...g.querySelectorAll('.card')].filter((c) => {
+      const r = c.getBoundingClientRect();
+      return (
+        r.right > meter.left && r.left < meter.right && r.bottom > meter.top && r.top < meter.bottom
+      );
+    }).length;
+  });
+  ok('the meter clears the surface cards', clash === 0, `${clash} overlapping`);
+  await ctx.close();
+}
+
+// --- a phone must not be able to scroll sideways ---
+{
+  const ctx = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const p = await ctx.newPage();
+  await p.goto('http://localhost:5199/', { waitUntil: 'networkidle' });
+  await p.waitForTimeout(1600);
+
+  // `scrollWidth` against the requested viewport is the wrong measure — under
+  // mobile emulation `innerWidth` is the layout viewport and differs from
+  // `clientWidth` on its own. Whether the page actually pans is the symptom.
+  const pans = async () => {
+    await p.evaluate(() => window.scrollTo(9999, window.scrollY));
+    const x = await p.evaluate(() => window.scrollX || document.documentElement.scrollLeft);
+    await p.evaluate(() => window.scrollTo(0, window.scrollY));
+    return x;
+  };
+  ok('hero does not pan sideways', (await pans()) === 0);
+
+  // A surface card straddles the rim, so the ring plus one card has to fit.
+  await p.locator('.growth .scene').scrollIntoViewIfNeeded();
+  await p.waitForTimeout(900);
+  const bounds = await p.locator('.growth .card').evaluateAll((els) => {
+    const r = els.map((e) => e.getBoundingClientRect());
+    return [Math.min(...r.map((b) => b.left)), Math.max(...r.map((b) => b.right))];
+  });
+  ok(
+    'surface cards stay on screen',
+    bounds[0] >= 0 && bounds[1] <= 390,
+    `${Math.round(bounds[0])}..${Math.round(bounds[1])}`,
+  );
+  ok('circulation does not pan sideways', (await pans()) === 0);
+
+  await p.locator('.summon .stage').scrollIntoViewIfNeeded();
+  await p.waitForTimeout(900);
+  const drawn = await p
+    .locator('.summon .wire')
+    .evaluateAll((els) => els.filter((e) => (e.getAttribute('d') || '').length > 6).length);
+  ok('wires re-measure in the stacked layout', drawn === 6, `${drawn}/6`);
+  ok('demo does not pan sideways', (await pans()) === 0);
   await ctx.close();
 }
 

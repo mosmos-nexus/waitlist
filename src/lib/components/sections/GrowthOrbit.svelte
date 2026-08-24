@@ -1,26 +1,34 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { animate, spring, createTimer, utils } from 'animejs';
+  import { animate, spring, createTimer, stagger, utils } from 'animejs';
   import { m } from '$lib/locale.svelte';
   import { prefersReduced, reveal, bindActivity } from '$lib/anime/motion';
 
   /**
-   * The growth loop, as something you turn.
+   * The circulation, as something you turn.
    *
-   * Four nodes ride a tilted ring. Drag the ring and it spins with you, then
-   * springs to the nearest node when you let go. Every full turn is one cycle,
-   * and each cycle visibly grows the Mos in the middle: bigger body, more
-   * inner light, one more Mon along for the ride. The claim of the section is
-   * "the more you use it, the more it grows" — so the section only grows if
-   * you use it.
+   * The four nodes are the product's own surfaces, in the order a person
+   * actually moves through them: you run work on Monitor, find you are short a
+   * capability and fetch one from Hub, it lands in Inventory, you open Studio to
+   * adapt or build one, and back to Monitor. Drag the ring and it spins with
+   * you, then springs to the nearest surface when you let go. Every full turn is
+   * one cycle, and each cycle visibly grows the Mos in the middle.
+   *
+   * The nodes used to be four abstract words with a sentence of explanation
+   * each. A thumbnail of the surface says more in less space, and the light/dark
+   * split is real: Monitor is the world where work runs, the other three are the
+   * workshop and the market.
    */
 
-  const STEPS = $derived([
-    { name: m.loop_step1_name(), desc: m.loop_step1_desc() },
-    { name: m.loop_step2_name(), desc: m.loop_step2_desc() },
-    { name: m.loop_step3_name(), desc: m.loop_step3_desc() },
-    { name: m.loop_step4_name(), desc: m.loop_step4_desc() },
-  ]);
+  type Surface = { key: string; name: string; theme: 'dark' | 'light' };
+
+  /** Product surface names — proper nouns, identical in every locale. */
+  const SURFACES: Surface[] = [
+    { key: 'monitor', name: 'Monitor', theme: 'dark' },
+    { key: 'hub', name: 'Hub', theme: 'light' },
+    { key: 'inventory', name: 'Inventory', theme: 'light' },
+    { key: 'studio', name: 'Studio', theme: 'light' },
+  ];
 
   const MAX_CYCLES = 4;
   const STEP_DEG = 90;
@@ -49,7 +57,7 @@
     touched ? Math.min(MAX_CYCLES, Math.floor(Math.abs(turn - idleBase) / 360)) : 0,
   );
   const growth = $derived(cycles / MAX_CYCLES);
-  const activeStep = $derived(STEPS[stepIndex]);
+  const activeSurface = $derived(SURFACES[stepIndex]);
 
   const cycleLabel = $derived(
     cycles >= MAX_CYCLES ? m.orbit_maxed() : cycles > 0 ? m.orbit_cycle({ count: cycles }) : '',
@@ -62,8 +70,32 @@
 
   let idleTimer: ReturnType<typeof createTimer> | null = null;
 
+  // Each surface redraws itself when it becomes the active one.
+  $effect(() => {
+    const surface = SURFACES[stepIndex];
+    if (!sceneEl || prefersReduced()) return;
+    const marks = Array.from(
+      sceneEl.querySelectorAll<SVGElement>(`.card[data-surface="${surface.key}"] .mini [data-k]`),
+    );
+    if (!marks.length) return;
+    // Sorted by the authored order so a table fills top-down and a canvas wires
+    // itself up from the first node, rather than in DOM-query order.
+    marks.sort((a, b) => Number(a.dataset.k) - Number(b.dataset.k));
+    animate(marks, {
+      opacity: [0.15, 1],
+      duration: 420,
+      delay: stagger(70),
+      ease: 'out(3)',
+    });
+  });
+
   function applyTurn() {
-    if (ringEl) utils.set(ringEl, { rotate: turn });
+    if (!ringEl) return;
+    utils.set(ringEl, { rotate: turn });
+    // The cards have to stay upright while the ring under them turns, so each
+    // one cancels the ring's own rotation. animejs owns `transform` on the ring
+    // itself, hence a custom property rather than a second transform.
+    ringEl.style.setProperty('--turn', `${turn}deg`);
   }
 
   onMount(() => {
@@ -241,66 +273,157 @@
 </script>
 
 <section class="section growth">
-  <div class="container">
-    <div class="head reveal" use:reveal>
-      <span class="eyebrow">{m.loop_eyebrow()}</span>
-      <h2 class="t-heading-1 title">{m.loop_title()}</h2>
-      <p class="t-body-1-reading lead prewrap">{m.loop_lead()}</p>
+  <div class="container inner">
+    <div class="copy">
+      <div class="head reveal" use:reveal>
+        <span class="eyebrow">{m.loop_eyebrow()}</span>
+        <h2 class="t-heading-1 title">{m.loop_title()}</h2>
+        <p class="t-body-1-reading lead prewrap">{m.loop_lead()}</p>
+      </div>
+      <p class="kicker reveal" use:reveal={{ delay: 120 }}>{m.loop_kicker()}</p>
     </div>
 
-    <div class="scene reveal" bind:this={sceneEl} use:reveal={{ delay: 80, scale: true }}>
-      <div class="stack">
-        <div class="plane">
-          <!-- The ring itself is the control -->
-          <div
-            class="ring"
-            bind:this={ringEl}
-            role="slider"
-            tabindex="0"
-            aria-label={m.orbit_aria()}
-            aria-valuemin="1"
-            aria-valuemax="4"
-            aria-valuenow={stepIndex + 1}
-            aria-valuetext={cycleLabel ? `${activeStep.name} · ${cycleLabel}` : activeStep.name}
-            class:dragging
-            onkeydown={onKey}
-          >
-            <span class="track"></span>
-            {#each STEPS as s, i (s.name)}
-              <span class="node" class:on={stepIndex === i} style="--a:{i * 90}deg">
-                <i class="pip"></i>
-              </span>
-            {/each}
+    <div class="stage-col">
+      <div class="scene reveal" bind:this={sceneEl} use:reveal={{ delay: 80, scale: true }}>
+        <div class="stack">
+          <div class="plane">
+            <!-- The ring itself is the control -->
+            <div
+              class="ring"
+              bind:this={ringEl}
+              role="slider"
+              tabindex="0"
+              aria-label={m.orbit_aria()}
+              aria-valuemin="1"
+              aria-valuemax="4"
+              aria-valuenow={stepIndex + 1}
+              aria-valuetext={cycleLabel
+                ? `${activeSurface.name} · ${cycleLabel}`
+                : activeSurface.name}
+              class:dragging
+              onkeydown={onKey}
+            >
+              <!-- Direction is drawn, not stated: four arcs with heads, so the
+                 ring reads as a circulation even before anyone turns it. -->
+              <svg class="track" viewBox="0 0 200 200" aria-hidden="true">
+                <circle cx="100" cy="100" r="99" class="rim" />
+                {#each SURFACES as s, i (s.key)}
+                  <g transform="rotate({i * 90} 100 100)">
+                    <path class="arc" d="M118,101A99,99 0 0 1 172,159" />
+                    <path class="head" d="M166,150l8,10l-13,2" />
+                  </g>
+                {/each}
+              </svg>
+
+              {#each SURFACES as s, i (s.key)}
+                <span class="node" class:on={stepIndex === i} style="--a:{i * 90}deg">
+                  <span class="card" data-plate={s.theme} data-surface={s.key}>
+                    <svg class="mini" viewBox="0 0 96 56" aria-hidden="true">
+                      {#if s.key === 'monitor'}
+                        <!-- the island, Mos on it, two Mon beside -->
+                        <path class="fill-soft" d="M27,33q21,-8 42,0q-21,8 -42,0z" data-k="0" />
+                        <path class="fill-deep" d="M30,34L48,52L66,34q-18,7 -36,0z" data-k="1" />
+                        <circle class="fill-key" cx="48" cy="24" r="7.5" data-k="2" />
+                        <circle class="fill-soft" cx="33" cy="31" r="3" data-k="3" />
+                        <circle class="fill-soft" cx="63" cy="31" r="3" data-k="4" />
+                        <rect
+                          class="fill-key"
+                          x="34"
+                          y="45"
+                          width="28"
+                          height="2.4"
+                          rx="1.2"
+                          data-k="5"
+                        />
+                      {:else if s.key === 'hub'}
+                        <!-- a registry of cards, one carrying a verified badge -->
+                        {#each [0, 1, 2, 3, 4, 5] as n (n)}
+                          <rect
+                            class="fill-soft"
+                            x={9 + (n % 3) * 27}
+                            y={8 + Math.floor(n / 3) * 24}
+                            width="22"
+                            height="17"
+                            rx="3"
+                            data-k={n}
+                          />
+                        {/each}
+                        <path class="stroke-key" d="M13,15l3,3l5,-6" data-k="6" />
+                      {:else if s.key === 'inventory'}
+                        <!-- what you hold, as rows in a table -->
+                        <rect
+                          class="fill-soft"
+                          x="9"
+                          y="8"
+                          width="78"
+                          height="3"
+                          rx="1.5"
+                          data-k="0"
+                        />
+                        {#each [0, 1, 2] as n (n)}
+                          <circle
+                            class="fill-key"
+                            cx="14"
+                            cy={22 + n * 12}
+                            r="3.4"
+                            data-k={n + 1}
+                          />
+                          <rect
+                            class="fill-soft"
+                            x="23"
+                            y={20 + n * 12}
+                            width={58 - n * 14}
+                            height="4"
+                            rx="2"
+                            data-k={n + 1}
+                          />
+                        {/each}
+                      {:else}
+                        <!-- a canvas of wired nodes, and the Skill that is a document -->
+                        <path class="stroke-soft" d="M23,36L46,20L69,34" data-k="0" />
+                        <circle class="fill-key" cx="23" cy="36" r="5" data-k="1" />
+                        <circle class="fill-key" cx="46" cy="20" r="6.5" data-k="2" />
+                        <circle class="fill-key" cx="69" cy="34" r="5" data-k="3" />
+                        <rect
+                          class="fill-soft"
+                          x="36"
+                          y="41"
+                          width="24"
+                          height="10"
+                          rx="2"
+                          data-k="4"
+                        />
+                        <path class="stroke-soft" d="M40,45h16M40,48h11" data-k="5" />
+                      {/if}
+                    </svg>
+                    <span class="card-name">{s.name}</span>
+                  </span>
+                </span>
+              {/each}
+            </div>
+          </div>
+
+          <!-- Mos in the middle, growing with each completed turn -->
+          <div class="core" bind:this={coreEl}>
+            <span class="core-aura" style="opacity:{0.4 + growth * 0.5}"></span>
+            <span class="core-body">
+              {#each Array(globCount) as _, i (i)}
+                <i class="glob" style="--i:{i}; --n:{globCount}"></i>
+              {/each}
+              <svg class="face" viewBox="0 0 100 100" aria-hidden="true">
+                <line x1="36" y1="42" x2="36" y2="52" />
+                <line x1="64" y1="42" x2="64" y2="52" />
+                <path d="M50,58c1,5,7,8,14,7" />
+                <path d="M50,58c-1,5-7,8-14,7" />
+              </svg>
+            </span>
+            <span class="mons">
+              {#each Array(monCount) as _, i (i)}
+                <i class="mon m{i}"></i>
+              {/each}
+            </span>
           </div>
         </div>
-
-        <!-- Mos in the middle, growing with each completed turn -->
-        <div class="core" bind:this={coreEl}>
-          <span class="core-aura" style="opacity:{0.4 + growth * 0.5}"></span>
-          <span class="core-body">
-            {#each Array(globCount) as _, i (i)}
-              <i class="glob" style="--i:{i}; --n:{globCount}"></i>
-            {/each}
-            <svg class="face" viewBox="0 0 100 100" aria-hidden="true">
-              <line x1="36" y1="42" x2="36" y2="52" />
-              <line x1="64" y1="42" x2="64" y2="52" />
-              <path d="M50,58c1,5,7,8,14,7" />
-              <path d="M50,58c-1,5-7,8-14,7" />
-            </svg>
-          </span>
-          <span class="mons">
-            {#each Array(monCount) as _, i (i)}
-              <i class="mon m{i}"></i>
-            {/each}
-          </span>
-        </div>
-      </div>
-
-      <!-- Readout. Live, because the growth it reports is the section's payoff
-           and is otherwise conveyed only by the animation. -->
-      <div class="readout" aria-live="polite">
-        <span class="step-name">{activeStep.name}</span>
-        <p class="step-desc">{activeStep.desc}</p>
       </div>
 
       <div class="meter">
@@ -319,8 +442,6 @@
         <span class="hint" class:faded={touched}>{m.orbit_hint()}</span>
       </div>
     </div>
-
-    <p class="kicker reveal" use:reveal={{ delay: 120 }}>{m.loop_kicker()}</p>
   </div>
 </section>
 
@@ -343,10 +464,35 @@
     color: var(--label-alternative);
   }
 
+  /* Copy on one side, the ring on the other. Centred in a full-width container
+     the ring left half the section empty on both flanks. */
+  .inner {
+    display: grid;
+    gap: var(--space-32);
+  }
+  @media (min-width: 1040px) {
+    .inner {
+      grid-template-columns: minmax(0, 1fr) minmax(440px, 560px);
+      gap: var(--space-64);
+      align-items: center;
+    }
+  }
+  .copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-24);
+  }
+  .stage-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-16);
+  }
+
   .scene {
     position: relative;
-    height: clamp(420px, 56vh, 520px);
-    margin-top: var(--space-40);
+    width: 100%;
+    height: clamp(400px, 52vh, 500px);
     display: grid;
     place-items: center;
   }
@@ -360,8 +506,9 @@
     perspective: 900px;
   }
   .ring {
+    --ring-d: min(376px, 74vw);
     position: relative;
-    width: min(440px, 82vw);
+    width: var(--ring-d);
     aspect-ratio: 1;
     transform-style: preserve-3d;
     rotate: 0deg;
@@ -379,35 +526,113 @@
   .track {
     position: absolute;
     inset: 0;
-    border-radius: 50%;
-    border: 1px dashed rgba(49, 220, 220, 0.22);
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    fill: none;
+  }
+  .track .rim {
+    stroke: rgba(49, 220, 220, 0.16);
+    stroke-width: 1;
+    stroke-dasharray: 3 5;
+  }
+  .track .arc {
+    stroke: rgba(49, 220, 220, 0.3);
+    stroke-width: 1.4;
+    stroke-linecap: round;
+  }
+  .track .head {
+    stroke: rgba(49, 220, 220, 0.55);
+    stroke-width: 1.6;
+    stroke-linejoin: round;
+    stroke-linecap: round;
   }
 
-  /* Each node rides the rim at its own angle. The pips are circles, so they
-     need no counter-rotation as the ring turns. */
+  /* Each node rides the rim at its own angle, then cancels both its own angle
+     and the ring's live rotation so the card stays upright and readable. */
   .node {
     position: absolute;
     left: 50%;
     top: 50%;
     width: 0;
     height: 0;
-    transform: rotate(var(--a)) translateY(calc(min(440px, 82vw) / -2));
+    transform: rotate(var(--a)) translateY(calc(var(--ring-d) / -2))
+      rotate(calc(-1 * (var(--a) + var(--turn, 0deg))));
   }
-  .pip {
+  .card {
     position: absolute;
     translate: -50% -50%;
-    width: 13px;
-    height: 13px;
-    border-radius: 50%;
-    background: var(--gray5);
-    border: 1px solid var(--line-normal-strong);
-    transition: var(--transition-base);
+    width: 118px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 8px 8px 7px;
+    border-radius: var(--radius-m);
+    border: 1px solid var(--line-normal-normal);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.44);
+    transition:
+      scale var(--duration-base) var(--ease-out),
+      border-color var(--duration-base) var(--ease-out),
+      box-shadow var(--duration-base) var(--ease-out);
   }
-  .node.on .pip {
-    background: var(--summon-cyan);
+  /* Monitor is the world work runs in; the other three are workshop and market.
+     The product splits them by theme, so the thumbnails do too. */
+  .card[data-plate='dark'] {
+    background: #0a1120;
+    color: #dfe8f7;
+  }
+  .card[data-plate='light'] {
+    background: #eef2f8;
+    color: #16324f;
+  }
+  .node.on .card {
+    scale: 1.14;
     border-color: var(--summon-cyan);
-    box-shadow: 0 0 16px rgba(31, 206, 206, 0.9);
-    scale: 1.35;
+    box-shadow:
+      0 0 0 1px var(--summon-cyan),
+      0 14px 34px rgba(0, 0, 0, 0.5),
+      0 0 26px rgba(31, 206, 206, 0.34);
+  }
+  .mini {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+  }
+  /* Base tone on `fill-opacity`, not `opacity`: the reveal animates element
+     `opacity` inline, which would otherwise overwrite this and leave every mark
+     at full strength — the light plates ended up reading as dark ones. The two
+     channels multiply, so the final tone is the one declared here. */
+  .mini .fill-soft {
+    fill: currentColor;
+    fill-opacity: 0.28;
+  }
+  .mini .fill-deep {
+    fill: currentColor;
+    fill-opacity: 0.5;
+  }
+  .mini .fill-key {
+    fill: var(--summon-cyan);
+  }
+  .mini .stroke-soft {
+    fill: none;
+    stroke: currentColor;
+    stroke-opacity: 0.42;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  .mini .stroke-key {
+    fill: none;
+    stroke: var(--summon-cyan);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .card-name {
+    font-size: var(--font-size-caption-2);
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0.01em;
+    text-align: center;
   }
 
   /* ---- Mos core ---- */
@@ -523,39 +748,13 @@
     box-shadow: 0 0 12px var(--mon-design);
   }
 
-  /* ---- Readout + meter ---- */
-  .readout {
-    position: absolute;
-    left: 0;
-    top: 0;
-    max-width: 24ch;
-  }
-  .step-name {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: var(--radius-full);
-    background: rgba(31, 206, 206, 0.14);
-    border: 1px solid rgba(31, 206, 206, 0.34);
-    color: var(--bright-cyan);
-    font-size: var(--font-size-caption-1);
-    font-weight: var(--weight-semibold);
-  }
-  .step-desc {
-    margin-top: var(--space-8);
-    font-size: var(--font-size-body-2);
-    line-height: var(--line-height-body-reading);
-    color: var(--label-alternative);
-  }
-
+  /* ---- Meter ---- */
   .meter {
-    position: absolute;
-    right: 0;
-    bottom: 0;
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: center;
     gap: var(--space-8);
-    width: min(240px, 60%);
+    width: min(260px, 76%);
   }
   .controls {
     display: flex;
@@ -605,8 +804,10 @@
     color: var(--summon-green);
   }
   .bar {
-    width: 100%;
-    height: 3px;
+    /* Narrower than the control row: stretched to full width the empty track
+       reads as a divider rule rather than a meter. */
+    width: 156px;
+    height: 4px;
     border-radius: var(--radius-full);
     background: var(--fill-normal);
     overflow: hidden;
@@ -628,7 +829,6 @@
   }
 
   .kicker {
-    margin-top: var(--space-32);
     max-width: 52ch;
     font-size: var(--font-size-body-2);
     color: var(--label-assistive);
@@ -642,12 +842,6 @@
       justify-content: space-between;
       height: auto;
       gap: var(--space-24);
-    }
-    .readout {
-      position: static;
-      order: 1;
-      max-width: 100%;
-      text-align: center;
     }
     /* The ring and the core share one stacking context in the middle row */
     .stack {
@@ -663,11 +857,22 @@
       inset: 0;
     }
     .meter {
-      position: static;
-      order: 3;
       align-items: center;
       width: 100%;
       max-width: 320px;
+    }
+  }
+
+  /* A card straddles the rim, so the scene is as wide as the ring plus one
+     card. At 390px the default sizes put the left card off-screen and gave the
+     document a horizontal scroll. */
+  @media (max-width: 560px) {
+    .ring {
+      --ring-d: min(376px, 56vw);
+    }
+    .card {
+      width: 98px;
+      padding: 6px 6px 5px;
     }
   }
 </style>

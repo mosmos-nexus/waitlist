@@ -746,7 +746,10 @@
     position: absolute;
     left: 50%;
     top: 52%;
-    transform: translate(-50%, -50%);
+    /* `translate`, not `transform`: the breathing loop animates `scale`, which
+       writes the whole `transform` property and would drop the centring —
+       leaving the glow hanging off Mos's lower right. */
+    translate: -50% -50%;
     width: 92%;
     aspect-ratio: 1;
     border-radius: 50%;
@@ -764,7 +767,8 @@
     position: absolute;
     left: 50%;
     bottom: -6%;
-    transform: translateX(-50%);
+    /* Animated on `scale` — see the note on `.aura`. */
+    translate: -50% 0;
     width: 68%;
     height: 16%;
     border-radius: 50%;
