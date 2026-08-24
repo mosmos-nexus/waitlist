@@ -651,6 +651,60 @@ const page = async (o = {}) => {
   await ctx.close();
 }
 
+// --- every locale must fit its own copy ---
+for (const [path, locale] of [
+  ['/', 'ko'],
+  ['/en', 'en'],
+  ['/ja', 'ja'],
+]) {
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const p = await ctx.newPage();
+  await p.goto('http://localhost:5199' + path, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(1600);
+
+  // The submit label is a different length in each locale and shares the row
+  // with the field, so the field can end up narrower than its own prompt. A
+  // clipped placeholder does not widen `scrollWidth`, so measure the text.
+  const ph = await p.locator('.hero input[type="email"]').evaluate((inp) => {
+    const cs = getComputedStyle(inp);
+    const probe = document.createElement('span');
+    probe.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font:${cs.font};letter-spacing:${cs.letterSpacing}`;
+    probe.textContent = inp.placeholder;
+    document.body.appendChild(probe);
+    const need = probe.getBoundingClientRect().width;
+    probe.remove();
+    const pad =
+      parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) * 2;
+    return { need: Math.ceil(need + pad), have: Math.round(inp.getBoundingClientRect().width) };
+  });
+  ok(
+    `${locale}: the email prompt is not clipped`,
+    ph.have >= ph.need,
+    `${ph.have} of ${ph.need}px`,
+  );
+
+  // The lead runs to a different width and a different number of lines in each
+  // locale; the Japanese third line used to sit under the leftmost Mon.
+  const clash = await p.locator('.hero').evaluate((hero) => {
+    const lines = [];
+    for (const el of hero.querySelectorAll('.copy h1, .copy .sub, .copy .eyebrow'))
+      for (const node of el.childNodes) {
+        if (node.nodeType !== 3) continue;
+        const r = document.createRange();
+        r.selectNodeContents(node);
+        lines.push(...[...r.getClientRects()].map((b) => b.toJSON()));
+      }
+    const hits = [];
+    for (const m of [...hero.querySelectorAll('.mon')].map((e) => e.getBoundingClientRect()))
+      for (const l of lines)
+        if (m.right > l.left && m.left < l.right && m.bottom > l.top && m.top < l.bottom)
+          hits.push(`${Math.round(l.left)},${Math.round(l.top)}`);
+    return hits;
+  });
+  ok(`${locale}: no Mon on the copy`, clash.length === 0, clash.join(' ') || 'clear');
+  await ctx.close();
+}
+
 await browser.close();
 console.log(fail ? `\n${fail} FAILED` : '\nall regression guards pass');
 process.exit(fail ? 1 : 0);

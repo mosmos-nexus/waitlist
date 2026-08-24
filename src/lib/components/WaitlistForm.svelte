@@ -123,14 +123,23 @@
     width: 100%;
     max-width: 520px;
   }
+  /* Wraps rather than crushing the field. The submit label is a different
+     length in every locale — Japanese and English both squeezed the input below
+     the width its own placeholder needs, so the prompt was cut off mid-word. */
   .row {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--space-10);
     align-items: stretch;
   }
   .email {
-    flex: 1;
+    /* 300px is the widest placeholder plus its padding — Japanese needs 296.
+       Below that the row wraps and the field takes the full width instead. */
+    flex: 1 1 300px;
     min-width: 0;
+  }
+  .row :global(button) {
+    flex: 0 0 auto;
   }
   .microcopy {
     margin: 0;

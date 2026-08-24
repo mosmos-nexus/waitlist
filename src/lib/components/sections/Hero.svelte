@@ -257,19 +257,30 @@
     pointer-events: auto;
   }
   /* Placed by hand against the island's ellipse so each Mon sits on the rim
-     rather than floating over the void. */
+     rather than floating over the void — and all three on the island's right,
+     clear of the copy column. The leftmost used to sit at 6%, which put it on
+     top of the third line of the Japanese lead and inside the English one. */
   .mon.left {
-    left: 6%;
-    top: 26px;
+    left: 42%;
+    top: 30px;
   }
   .mon.mid {
-    left: 50%;
-    top: 96px;
-    translate: -50% 0;
+    left: 63%;
+    top: 100px;
   }
   .mon.right {
-    right: 6%;
-    top: 14px;
+    right: 8%;
+    top: 16px;
+  }
+  /* Below the phone breakpoint the copy is full width and the characters sit
+     under it, so the spread can use the whole rim again. */
+  @media (max-width: 860px) {
+    .mon.left {
+      left: 8%;
+    }
+    .mon.mid {
+      left: 46%;
+    }
   }
 
   .scroll-hint {
