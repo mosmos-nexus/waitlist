@@ -1,11 +1,7 @@
 <script lang="ts">
   import type { PageProps } from './$types';
   import Seo from '$lib/components/Seo.svelte';
-  import Hero from '$lib/components/sections/Hero.svelte';
-  import TaskDrift from '$lib/components/sections/TaskDrift.svelte';
-  import SummonStage from '$lib/components/sections/SummonStage.svelte';
-  import MosSheet from '$lib/components/sections/MosSheet.svelte';
-  import GrowthOrbit from '$lib/components/sections/GrowthOrbit.svelte';
+  import Journey from '$lib/components/journey/Journey.svelte';
   import TrustCta from '$lib/components/sections/TrustCta.svelte';
   import BuildCta from '$lib/components/sections/BuildCta.svelte';
   import Confirmation from '$lib/components/Confirmation.svelte';
@@ -31,11 +27,7 @@
     </div>
   </section>
 {:else}
-  <Hero {onSuccess} />
-  <TaskDrift />
-  <SummonStage />
-  <MosSheet />
-  <GrowthOrbit />
+  <Journey {onSuccess} />
   <TrustCta {onSuccess} registrantCount={data.registrantCount} />
   <BuildCta />
 {/if}

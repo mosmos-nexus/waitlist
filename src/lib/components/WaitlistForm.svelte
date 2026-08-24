@@ -161,5 +161,11 @@
     .row {
       flex-direction: column;
     }
+    /* `flex-basis` measures the main axis, so the 300px that keeps the field
+       wide enough for its placeholder in a row becomes a 300px minimum *height*
+       once the row turns into a column. */
+    .email {
+      flex: 0 0 auto;
+    }
   }
 </style>
