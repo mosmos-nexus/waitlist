@@ -53,27 +53,49 @@ interface Copy {
 }
 
 // Mos speaks in the first person — warm, low-pressure, identity-affirming (§5 tone).
-function copyFor(locale: AppLocale): Copy {
-  if (locale === 'en') {
-    return {
-      subject: 'Welcome — I’m Mos',
-      preheader: 'Thanks for joining the front of the line. I’ll be the first to come find you.',
-      heading: 'Hi, I’m Mos',
-      paragraphs: [
-        'Thanks for joining the front of the line. I’m Mos — the AI companion that grows up alongside you. From here on, there’s no picking the right tools or wrestling with prompts: just tell me the goal, and I’ll do the moving and bring back the result.',
-        'We’re still getting ready. The moment everything’s in place, I’ll be the very first to bring your invite. We start small, just a few people at a time, because we want to listen closely to your story.',
-        'Until then, I’ll share how we’re growing — honestly — now and then.',
-      ],
-      ctaLabel: 'Take a look around Mosmos',
-      spamNote:
-        'If this landed in spam, marking it “not spam” keeps my next note from getting lost.',
-      signoff: '— Mos',
-      heroAlt: 'Mos, your AI companion, waving hello',
-      tagline: 'Mosmos — a world where your AI grows up',
-      optout: 'Not curious anymore? Just tell us at hello@mosmos.world and we’ll stop right away.',
-    };
-  }
-  return {
+//
+// Keyed by locale as a total Record rather than an if/else chain: widening
+// `AppLocale` then has to be answered here, instead of silently falling through
+// to Korean the way `ja` did when it was added.
+const COPY: Record<AppLocale, Copy> = {
+  en: {
+    subject: 'Welcome — I’m Mos',
+    preheader: 'Thanks for joining the front of the line. I’ll be the first to come find you.',
+    heading: 'Hi, I’m Mos',
+    paragraphs: [
+      'Thanks for joining the front of the line. I’m Mos — the AI companion that grows up alongside you. From here on, there’s no picking the right tools or wrestling with prompts: just tell me the goal, and I’ll do the moving and bring back the result.',
+      'We’re still getting ready. The moment everything’s in place, I’ll be the very first to bring your invite. We start small, just a few people at a time, because we want to listen closely to your story.',
+      'Until then, I’ll share how we’re growing — honestly — now and then.',
+    ],
+    ctaLabel: 'Take a look around Mosmos',
+    spamNote: 'If this landed in spam, marking it “not spam” keeps my next note from getting lost.',
+    signoff: '— Mos',
+    heroAlt: 'Mos, your AI companion, waving hello',
+    tagline: 'Mosmos — a world where your AI grows up',
+    optout: 'Not curious anymore? Just tell us at hello@mosmos.world and we’ll stop right away.',
+  },
+
+  ja: {
+    subject: 'ようこそ — わたしはMosです',
+    preheader:
+      '前の列にご一緒いただき、ありがとうございます。準備ができたら、いちばん最初にお迎えにあがります。',
+    heading: 'はじめまして、わたしはMosです',
+    paragraphs: [
+      '前の列にご一緒いただき、ありがとうございます。わたしはMos — あなたと一緒に育っていくAIの相棒です。これからは、どの道具を選ぶか迷ったり、プロンプトを整えたりする必要はありません。目標だけ伝えてください。動くのはわたしがやって、結果までお届けします。',
+      'いまはまだ準備中です。すべて整い次第、いちばん最初にご招待をお持ちします。はじめは少ない人数から、ゆっくりお迎えします — お一人ずつのお話を、きちんと聞きたいからです。',
+      'それまでは、わたしたちがどう育っているかを、ときどき正直にお伝えします。',
+    ],
+    ctaLabel: 'Mosmosをのぞいてみる',
+    spamNote:
+      'このメールが迷惑メールに入っていたら、「迷惑メールではない」と設定してください。次のお知らせを見逃さずに受け取れます。',
+    signoff: '— Mos',
+    heroAlt: 'あいさつをしているAIの相棒、Mos',
+    tagline: 'わたしのAIが育つ世界、Mosmos',
+    optout:
+      'もう興味がなくなったら、hello@mosmos.world までお知らせください。すぐに配信を止めます。',
+  },
+
+  ko: {
     subject: '환영해요 — 저는 Mos예요',
     preheader: '앞줄에 함께해 주셔서 고마워요. 준비되는 대로 제가 가장 먼저 찾아올게요.',
     heading: '안녕하세요, 저는 Mos예요',
@@ -89,7 +111,11 @@ function copyFor(locale: AppLocale): Copy {
     heroAlt: '인사하는 AI 동반자 Mos',
     tagline: '내 AI가 자라는 세계, Mosmos',
     optout: '이 소식이 더는 궁금하지 않다면 hello@mosmos.world로 알려주세요. 바로 멈출게요.',
-  };
+  },
+};
+
+function copyFor(locale: AppLocale): Copy {
+  return COPY[locale];
 }
 
 function welcomeContent(locale: AppLocale): MailContent {

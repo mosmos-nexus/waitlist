@@ -15,6 +15,7 @@
 
 - [Waitlist (KO)](https://waitlist.mosmos.world/): join and get invited first.
 - [Waitlist (EN)](https://waitlist.mosmos.world/en): English version.
+- [Waitlist (JA)](https://waitlist.mosmos.world/ja): Japanese version.
 - [Privacy policy](https://waitlist.mosmos.world/privacy): what we collect and why.
 
 ## Notes

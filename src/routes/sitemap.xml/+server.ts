@@ -10,7 +10,14 @@ export const GET: RequestHandler = ({ url }) => {
   const origin = url.origin;
 
   const entries = PATHS.flatMap((path) => {
-    const hrefFor = (locale: Locale) => origin + localizeHref(path, { locale });
+    // `localizeHref('/', …)` yields `/en/` and `/ja/`, both of which 308 to the
+    // slashless form. A sitemap (and its hreflang cluster) must list the URL
+    // that actually returns 200, so the trailing slash is trimmed off
+    // everything except the bare root.
+    const hrefFor = (locale: Locale) => {
+      const localized = localizeHref(path, { locale });
+      return origin + (localized.length > 1 ? localized.replace(/\/$/, '') : localized);
+    };
 
     const alternates = [
       ...locales.map(

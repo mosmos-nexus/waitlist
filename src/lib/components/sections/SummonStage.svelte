@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { createTimeline, createTimer, onScroll, stagger, utils } from 'animejs';
   import MonBlob from '$lib/components/world/MonBlob.svelte';
   import type { MonRole } from '$lib/anime/mon';
@@ -81,7 +81,13 @@
     utils.set(q('.done-say'), { opacity: 0, translateY: 8 });
   }
 
-  function run() {
+  async function run() {
+    if (!stageEl) return;
+    // Svelte flushes DOM effects in a microtask, so a run kicked off straight
+    // from a chip click would still see the *previous* request's slots — the
+    // extra Mon would get no reset and no timeline entry, appearing instantly
+    // at full opacity beside two that drop in.
+    await tick();
     if (!stageEl) return;
     timeline?.revert();
     resetStage();
@@ -102,9 +108,12 @@
     phase = 'running';
     const slots = q<HTMLElement>('.mon-slot');
 
+    // Targets come from q(), scoped to this stage. Bare selector strings would
+    // resolve against the whole document and could animate another component's
+    // node — Confirmation also has a `.mos-say`.
     timeline = createTimeline({ defaults: { ease: 'out(3)' } })
-      .add('.ask', { opacity: 1, translateY: 0, duration: 460 }, 0)
-      .add('.mos-say', { opacity: 1, translateY: 0, duration: 460 }, 420);
+      .add(q('.ask'), { opacity: 1, translateY: 0, duration: 460 }, 0)
+      .add(q('.mos-say'), { opacity: 1, translateY: 0, duration: 460 }, 420);
 
     // Each Mon drops in from its slot on the orbit ring above the disc.
     slots.forEach((slot, i) => {
@@ -131,14 +140,14 @@
     const settle = 860 + slots.length * 240 + 1600;
 
     timeline!
-      .add('.result', { opacity: 1, translateY: 0, scale: 1, duration: 700 }, settle)
+      .add(q('.result'), { opacity: 1, translateY: 0, scale: 1, duration: 700 }, settle)
       .add(
-        '.result-line',
+        q('.result-line'),
         { opacity: 1, translateX: 0, duration: 420, delay: stagger(130) },
         settle + 220,
       )
       .add(
-        '.done-say',
+        q('.done-say'),
         {
           opacity: 1,
           translateY: 0,
@@ -153,7 +162,7 @@
 
   function pick(index: number) {
     picked = index;
-    run();
+    void run();
   }
 
   onMount(() => {
@@ -167,7 +176,7 @@
         target: stageEl!,
         enter: 'bottom-=120 top',
         repeat: false,
-        onEnter: () => run(),
+        onEnter: () => void run(),
       }),
     });
     return () => {

@@ -182,9 +182,14 @@
     margin-left: auto;
     display: inline-flex;
     align-items: baseline;
-    gap: var(--space-6);
     font-size: var(--font-size-body-2);
     color: var(--label-alternative);
+  }
+  /* No gap around the numeral: Korean 명 and Japanese 名 attach directly to it,
+     so "1,234 명" reads wrong. The leading word does need separating, and it is
+     empty in English. */
+  .count em.pre {
+    margin-right: 0.25em;
   }
   .count span {
     font-size: var(--font-size-title-3);

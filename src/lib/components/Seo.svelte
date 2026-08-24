@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { getLocale, localizeHref, deLocalizeHref, locales } from '$lib/paraglide/runtime';
+  import type { AppLocale } from '$lib/i18n';
 
   interface Props {
     title: string;
@@ -20,8 +21,10 @@
   );
   const xDefault = $derived(origin + localizeHref(basePath, { locale: 'ko' }));
   // og:locale wants a full language_TERRITORY tag, not the bare locale code.
-  const OG_LOCALE: Record<string, string> = { ko: 'ko_KR', en: 'en_US', ja: 'ja_JP' };
-  const ogLocale = $derived(OG_LOCALE[current] ?? 'ko_KR');
+  // Typed against AppLocale so a new locale is a compile error, not a silent
+  // ko_KR fallback.
+  const OG_LOCALE: Record<AppLocale, string> = { ko: 'ko_KR', en: 'en_US', ja: 'ja_JP' };
+  const ogLocale = $derived(OG_LOCALE[current as AppLocale] ?? 'ko_KR');
   const ogImage = $derived(`${origin}/og-${current}.png`);
 
   const orgJsonLd = $derived(

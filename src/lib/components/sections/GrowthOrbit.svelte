@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { animate, spring, createTimer, utils } from 'animejs';
   import { m } from '$lib/paraglide/messages.js';
-  import { prefersReduced, reveal, bindViewport } from '$lib/anime/motion';
+  import { prefersReduced, reveal, bindActivity } from '$lib/anime/motion';
 
   /**
    * The growth loop, as something you turn.
@@ -33,11 +33,27 @@
   let turn = $state(0);
   let dragging = $state(false);
   let touched = $state(false);
+  /**
+   * Rotation already on the clock when the visitor first took hold.
+   *
+   * The ring drifts on its own before anyone touches it, and that drift shares
+   * the `turn` accumulator — so counting cycles straight off `turn` would hand
+   * out growth for merely leaving the section on screen (a full turn arrives in
+   * about 75 seconds of dwell). Growth is measured from the moment of the first
+   * real input, which is what the section actually claims.
+   */
+  let idleBase = $state(0);
 
   const stepIndex = $derived(((Math.round(turn / STEP_DEG) % 4) + 4) % 4);
-  const cycles = $derived(Math.min(MAX_CYCLES, Math.floor(Math.abs(turn) / 360)));
+  const cycles = $derived(
+    touched ? Math.min(MAX_CYCLES, Math.floor(Math.abs(turn - idleBase) / 360)) : 0,
+  );
   const growth = $derived(cycles / MAX_CYCLES);
   const activeStep = $derived(STEPS[stepIndex]);
+
+  const cycleLabel = $derived(
+    cycles >= MAX_CYCLES ? m.orbit_maxed() : cycles > 0 ? m.orbit_cycle({ count: cycles }) : '',
+  );
 
   // Mana motes and Mon companions are earned, not decorative — they appear as
   // cycles complete.
@@ -69,7 +85,7 @@
           applyTurn();
         },
       });
-      cleanups.push(bindViewport(sceneEl, [idleTimer]));
+      cleanups.push(bindActivity(sceneEl, [idleTimer]));
       cleanups.push(() => idleTimer?.revert());
     }
 
@@ -90,6 +106,7 @@
     const onDown = (event: PointerEvent) => {
       pointerId = event.pointerId;
       dragging = true;
+      if (!touched) idleBase = turn;
       touched = true;
       lastAngle = angleAt(event.clientX, event.clientY);
       ringEl!.setPointerCapture(event.pointerId);
@@ -149,23 +166,43 @@
     };
   });
 
-  /** Keyboard and the step buttons both advance by exactly one node. */
-  function step(direction: 1 | -1) {
+  // The in-flight step animation, so a second click retargets it instead of
+  // racing it. Two concurrent tweens both writing `turn` would each read the
+  // same stale index and advance a single node between them.
+  let stepAnim: ReturnType<typeof animate> | null = null;
+  let stepTarget: number | null = null;
+
+  /** Advance by `direction` nodes — ±1 for the buttons and arrows, more for Home/End. */
+  function step(direction: number) {
+    if (direction === 0) return;
+    if (!touched) idleBase = turn;
     touched = true;
-    const target = (Math.round(turn / STEP_DEG) + direction) * STEP_DEG;
+
+    // Count from the pending target when one exists, so clicks queue up.
+    const from = stepTarget ?? turn;
+    const target = (Math.round(from / STEP_DEG) + direction) * STEP_DEG;
+    stepTarget = target;
+
     if (prefersReduced()) {
       turn = target;
+      stepTarget = null;
       applyTurn();
       return;
     }
+
+    stepAnim?.revert();
     const box = { value: turn };
-    animate(box, {
+    stepAnim = animate(box, {
       value: target,
       duration: 760,
       ease: 'out(3)',
       onUpdate: () => {
         turn = box.value;
         applyTurn();
+      },
+      onComplete: () => {
+        stepAnim = null;
+        stepTarget = null;
       },
     });
   }
@@ -177,6 +214,12 @@
     } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
       event.preventDefault();
       step(-1);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      step(-stepIndex || -4);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      step(4 - stepIndex);
     }
   }
 
@@ -218,7 +261,7 @@
             aria-valuemin="1"
             aria-valuemax="4"
             aria-valuenow={stepIndex + 1}
-            aria-valuetext={activeStep.name}
+            aria-valuetext={cycleLabel ? `${activeStep.name} · ${cycleLabel}` : activeStep.name}
             class:dragging
             onkeydown={onKey}
           >
@@ -253,8 +296,9 @@
         </div>
       </div>
 
-      <!-- Readout -->
-      <div class="readout">
+      <!-- Readout. Live, because the growth it reports is the section's payoff
+           and is otherwise conveyed only by the animation. -->
+      <div class="readout" aria-live="polite">
         <span class="step-name">{activeStep.name}</span>
         <p class="step-desc">{activeStep.desc}</p>
       </div>
@@ -265,7 +309,7 @@
             <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" /></svg>
           </button>
           <span class="cycle" class:maxed={cycles >= MAX_CYCLES}>
-            {cycles >= MAX_CYCLES ? m.orbit_maxed() : m.orbit_cycle({ count: cycles })}
+            {cycleLabel}
           </span>
           <button type="button" onclick={() => step(1)} aria-label={m.orbit_next()}>
             <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
@@ -545,6 +589,11 @@
     stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
+  }
+  /* Empty until the first cycle lands — the hint below carries the invitation,
+     and "cycle 0" has no grammatical form in Korean or Japanese. */
+  .cycle:empty {
+    display: none;
   }
   .cycle {
     font-size: var(--font-size-caption-1);

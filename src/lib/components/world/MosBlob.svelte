@@ -7,8 +7,7 @@
   import {
     prefersReduced,
     hasFinePointer,
-    bindVisibility,
-    bindViewport,
+    bindActivity,
     isCompactViewport,
   } from '$lib/anime/motion';
 
@@ -43,6 +42,11 @@
   let rootEl = $state<HTMLDivElement | null>(null);
   let svgEl = $state<SVGSVGElement | null>(null);
   let wrapEl = $state<HTMLDivElement | null>(null);
+  // The poke recoil gets its own element. animejs composes with `replace`, and a
+  // one-shot tween overlapping a *looping* one on the same target+property kills
+  // the loop for good — so the recoil must not touch wrapEl, which carries the
+  // float loop's translateY.
+  let recoilEl = $state<HTMLDivElement | null>(null);
   let auraEl = $state<HTMLDivElement | null>(null);
   let shadowEl = $state<HTMLDivElement | null>(null);
   let blob: BlobHandle | null = null;
@@ -148,8 +152,13 @@
       ease: spring({ stiffness: 38, damping: 6 }),
     });
 
-    if (wrapEl) {
-      animate(wrapEl, {
+    // On recoilEl, never wrapEl: `y` normalises to `translateY`, which is what
+    // the float loop animates on the wrapper. animejs composes with `replace`,
+    // and a one-shot tween overlapping a looping one on the same
+    // target+property overrides the loop permanently — the float would stop
+    // for good on the first poke while the shadow kept breathing under it.
+    if (recoilEl) {
+      animate(recoilEl, {
         x: [
           { to: Math.cos(angle) * 6 * dist, duration: 240 },
           { to: 0, duration: 1800 },
@@ -160,7 +169,7 @@
         ],
         ease: spring({ stiffness: 30, damping: 5.5 }),
       });
-      animate(wrapEl, {
+      animate(recoilEl, {
         rotate: [
           { to: Math.cos(angle) * 2.4 * dist, duration: 300 },
           { to: 0, duration: 1900 },
@@ -175,8 +184,20 @@
     animate(q('[data-anim="mos-calm"]'), { opacity: [1, 0], duration: 110, ease: 'out(2)' });
     animate(q('[data-anim="mos-happy"]'), { opacity: [0, 1], duration: 240, ease: 'out(3)' });
     pokeTimer = setTimeout(() => {
-      animate(q('[data-anim="mos-happy"]'), { opacity: 0, duration: 220, ease: 'in(2)' });
-      animate(q('[data-anim="mos-calm"]'), { opacity: 1, duration: 260, ease: 'out(2)' });
+      // Return to whatever the current mood rests on, not unconditionally to
+      // calm — `happy` moods hold the ^^ face and the mood effect only re-runs
+      // when `mood` itself changes.
+      const restsHappy = MOS_MOOD[mood].happyFace;
+      animate(q('[data-anim="mos-happy"]'), {
+        opacity: restsHappy ? 1 : 0,
+        duration: 220,
+        ease: 'in(2)',
+      });
+      animate(q('[data-anim="mos-calm"]'), {
+        opacity: restsHappy ? 0 : 1,
+        duration: 260,
+        ease: 'out(2)',
+      });
     }, 1500);
   }
 
@@ -346,8 +367,7 @@
       cleanups.push(() => window.removeEventListener('pointermove', onMove));
     }
 
-    cleanups.push(bindVisibility(loops));
-    if (wrapEl) cleanups.push(bindViewport(wrapEl, loops));
+    if (wrapEl) cleanups.push(bindActivity(wrapEl, loops));
 
     return () => {
       clearTimeout(pokeTimer);
@@ -395,251 +415,253 @@
   <div class="ring ring-green" data-anim="ring-pulse"></div>
 
   <div class="wrap" bind:this={wrapEl}>
-    <div class="aura" bind:this={auraEl}></div>
+    <div class="recoil" bind:this={recoilEl}>
+      <div class="aura" bind:this={auraEl}></div>
 
-    <svg
-      bind:this={svgEl}
-      viewBox="216 220 476 406"
-      role="button"
-      tabindex="0"
-      aria-label={label}
-      data-cursor="poke"
-      onclick={poke}
-      onkeydown={onKey}
-    >
-      <defs>
-        <clipPath id={g('mos-clip')}>
-          <path
-            data-anim="mos-clip-path"
-            d="M{CX - R},{CY}a{R},{R} 0 1,0 {R * 2},0a{R},{R} 0 1,0 -{R * 2},0"
-          />
-        </clipPath>
-        <linearGradient id={g('mos-base')} x1="0.15" y1="0" x2="0.85" y2="1">
-          <stop offset="0" stop-color="#2E6FC8" />
-          <stop offset="1" stop-color="#0F2F5E" />
-        </linearGradient>
-        <linearGradient id={g('mos-rim')} x1="0.1" y1="0" x2="0.9" y2="1">
-          <stop offset="0" stop-color="#ECEDF6" stop-opacity="0.8" />
-          <stop offset="0.55" stop-color="#31DCDC" stop-opacity="0.42" />
-          <stop offset="1" stop-color="#0F6FDA" stop-opacity="0.28" />
-        </linearGradient>
-        <radialGradient id={g('glob-1')}>
-          <stop offset="0" stop-color="#1B7BE8" stop-opacity="0.95" />
-          <stop offset="0.5" stop-color="#1B7BE8" stop-opacity="0.6" />
-          <stop offset="1" stop-color="#1B7BE8" stop-opacity="0" />
-        </radialGradient>
-        <radialGradient id={g('glob-2')}>
-          <stop offset="0" stop-color="#3D8BEE" stop-opacity="0.9" />
-          <stop offset="0.5" stop-color="#3D8BEE" stop-opacity="0.5" />
-          <stop offset="1" stop-color="#3D8BEE" stop-opacity="0" />
-        </radialGradient>
-        <radialGradient id={g('glob-3')}>
-          <stop offset="0" stop-color="#31DCDC" stop-opacity="0.85" />
-          <stop offset="0.5" stop-color="#31DCDC" stop-opacity="0.42" />
-          <stop offset="1" stop-color="#31DCDC" stop-opacity="0" />
-        </radialGradient>
-        <radialGradient id={g('glob-4')}>
-          <stop offset="0" stop-color="#6D4BD8" stop-opacity="0.8" />
-          <stop offset="0.5" stop-color="#6D4BD8" stop-opacity="0.36" />
-          <stop offset="1" stop-color="#6D4BD8" stop-opacity="0" />
-        </radialGradient>
-        <radialGradient id={g('glob-5')}>
-          <stop offset="0" stop-color="#21EDB3" stop-opacity="0.8" />
-          <stop offset="0.5" stop-color="#21EDB3" stop-opacity="0.34" />
-          <stop offset="1" stop-color="#21EDB3" stop-opacity="0" />
-        </radialGradient>
-        <radialGradient id={g('gloss')}>
-          <stop offset="0" stop-color="#F7F8F9" stop-opacity="0.34" />
-          <stop offset="0.6" stop-color="#F7F8F9" stop-opacity="0.12" />
-          <stop offset="1" stop-color="#F7F8F9" stop-opacity="0" />
-        </radialGradient>
-        <radialGradient id={g('shade')}>
-          <stop offset="0" stop-color="#06101F" stop-opacity="0.5" />
-          <stop offset="0.6" stop-color="#06101F" stop-opacity="0.2" />
-          <stop offset="1" stop-color="#06101F" stop-opacity="0" />
-        </radialGradient>
-        <radialGradient id={g('poke-press')}>
-          <stop offset="0" stop-color="#0B3A6B" stop-opacity="0.4" />
-          <stop offset="0.66" stop-color="#0B3A6B" stop-opacity="0.16" />
-          <stop offset="1" stop-color="#0B3A6B" stop-opacity="0" />
-        </radialGradient>
-        <radialGradient id={g('poke-lift')}>
-          <stop offset="0" stop-color="#8FD8FF" stop-opacity="0.34" />
-          <stop offset="0.72" stop-color="#8FD8FF" stop-opacity="0.08" />
-          <stop offset="1" stop-color="#8FD8FF" stop-opacity="0" />
-        </radialGradient>
-        <radialGradient id={g('band-1')}>
-          <stop offset="0" stop-color="#7FC4FF" stop-opacity="0" />
-          <stop offset="0.58" stop-color="#7FC4FF" stop-opacity="0.06" />
-          <stop offset="0.84" stop-color="#AEE4FF" stop-opacity="0.5" />
-          <stop offset="1" stop-color="#AEE4FF" stop-opacity="0" />
-        </radialGradient>
-        <radialGradient id={g('band-2')}>
-          <stop offset="0" stop-color="#31DCDC" stop-opacity="0" />
-          <stop offset="0.62" stop-color="#31DCDC" stop-opacity="0.05" />
-          <stop offset="0.86" stop-color="#5FE6E6" stop-opacity="0.36" />
-          <stop offset="1" stop-color="#5FE6E6" stop-opacity="0" />
-        </radialGradient>
-        <radialGradient id={g('band-3')}>
-          <stop offset="0" stop-color="#3D8BEE" stop-opacity="0" />
-          <stop offset="0.68" stop-color="#3D8BEE" stop-opacity="0.04" />
-          <stop offset="0.9" stop-color="#79B6FF" stop-opacity="0.24" />
-          <stop offset="1" stop-color="#79B6FF" stop-opacity="0" />
-        </radialGradient>
-      </defs>
+      <svg
+        bind:this={svgEl}
+        viewBox="216 220 476 406"
+        role="button"
+        tabindex="0"
+        aria-label={label}
+        data-cursor="poke"
+        onclick={poke}
+        onkeydown={onKey}
+      >
+        <defs>
+          <clipPath id={g('mos-clip')}>
+            <path
+              data-anim="mos-clip-path"
+              d="M{CX - R},{CY}a{R},{R} 0 1,0 {R * 2},0a{R},{R} 0 1,0 -{R * 2},0"
+            />
+          </clipPath>
+          <linearGradient id={g('mos-base')} x1="0.15" y1="0" x2="0.85" y2="1">
+            <stop offset="0" stop-color="#2E6FC8" />
+            <stop offset="1" stop-color="#0F2F5E" />
+          </linearGradient>
+          <linearGradient id={g('mos-rim')} x1="0.1" y1="0" x2="0.9" y2="1">
+            <stop offset="0" stop-color="#ECEDF6" stop-opacity="0.8" />
+            <stop offset="0.55" stop-color="#31DCDC" stop-opacity="0.42" />
+            <stop offset="1" stop-color="#0F6FDA" stop-opacity="0.28" />
+          </linearGradient>
+          <radialGradient id={g('glob-1')}>
+            <stop offset="0" stop-color="#1B7BE8" stop-opacity="0.95" />
+            <stop offset="0.5" stop-color="#1B7BE8" stop-opacity="0.6" />
+            <stop offset="1" stop-color="#1B7BE8" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id={g('glob-2')}>
+            <stop offset="0" stop-color="#3D8BEE" stop-opacity="0.9" />
+            <stop offset="0.5" stop-color="#3D8BEE" stop-opacity="0.5" />
+            <stop offset="1" stop-color="#3D8BEE" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id={g('glob-3')}>
+            <stop offset="0" stop-color="#31DCDC" stop-opacity="0.85" />
+            <stop offset="0.5" stop-color="#31DCDC" stop-opacity="0.42" />
+            <stop offset="1" stop-color="#31DCDC" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id={g('glob-4')}>
+            <stop offset="0" stop-color="#6D4BD8" stop-opacity="0.8" />
+            <stop offset="0.5" stop-color="#6D4BD8" stop-opacity="0.36" />
+            <stop offset="1" stop-color="#6D4BD8" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id={g('glob-5')}>
+            <stop offset="0" stop-color="#21EDB3" stop-opacity="0.8" />
+            <stop offset="0.5" stop-color="#21EDB3" stop-opacity="0.34" />
+            <stop offset="1" stop-color="#21EDB3" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id={g('gloss')}>
+            <stop offset="0" stop-color="#F7F8F9" stop-opacity="0.34" />
+            <stop offset="0.6" stop-color="#F7F8F9" stop-opacity="0.12" />
+            <stop offset="1" stop-color="#F7F8F9" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id={g('shade')}>
+            <stop offset="0" stop-color="#06101F" stop-opacity="0.5" />
+            <stop offset="0.6" stop-color="#06101F" stop-opacity="0.2" />
+            <stop offset="1" stop-color="#06101F" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id={g('poke-press')}>
+            <stop offset="0" stop-color="#0B3A6B" stop-opacity="0.4" />
+            <stop offset="0.66" stop-color="#0B3A6B" stop-opacity="0.16" />
+            <stop offset="1" stop-color="#0B3A6B" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id={g('poke-lift')}>
+            <stop offset="0" stop-color="#8FD8FF" stop-opacity="0.34" />
+            <stop offset="0.72" stop-color="#8FD8FF" stop-opacity="0.08" />
+            <stop offset="1" stop-color="#8FD8FF" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id={g('band-1')}>
+            <stop offset="0" stop-color="#7FC4FF" stop-opacity="0" />
+            <stop offset="0.58" stop-color="#7FC4FF" stop-opacity="0.06" />
+            <stop offset="0.84" stop-color="#AEE4FF" stop-opacity="0.5" />
+            <stop offset="1" stop-color="#AEE4FF" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id={g('band-2')}>
+            <stop offset="0" stop-color="#31DCDC" stop-opacity="0" />
+            <stop offset="0.62" stop-color="#31DCDC" stop-opacity="0.05" />
+            <stop offset="0.86" stop-color="#5FE6E6" stop-opacity="0.36" />
+            <stop offset="1" stop-color="#5FE6E6" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id={g('band-3')}>
+            <stop offset="0" stop-color="#3D8BEE" stop-opacity="0" />
+            <stop offset="0.68" stop-color="#3D8BEE" stop-opacity="0.04" />
+            <stop offset="0.9" stop-color="#79B6FF" stop-opacity="0.24" />
+            <stop offset="1" stop-color="#79B6FF" stop-opacity="0" />
+          </radialGradient>
+        </defs>
 
-      <g data-anim="mos-body">
-        <path data-anim="mos-fill" fill="url(#{g('mos-base')})" d="" />
+        <g data-anim="mos-body">
+          <path data-anim="mos-fill" fill="url(#{g('mos-base')})" d="" />
 
-        <g data-anim="mos-flow" clip-path="url(#{g('mos-clip')})" style="pointer-events:none">
-          <circle
-            data-anim="mos-glob"
-            data-tone="blue"
-            data-orbit="30"
-            data-phase="0"
-            data-dur="14000"
-            data-dir="1"
-            cx={CX}
-            cy={CY}
-            r="176"
-            fill="url(#{g('glob-1')})"
-            opacity="0.95"
-          />
-          <circle
-            data-anim="mos-glob"
-            data-tone="light"
-            data-orbit="78"
-            data-phase="40"
-            data-dur="9200"
-            data-dir="1"
-            cx={CX}
-            cy={CY}
-            r="140"
-            fill="url(#{g('glob-2')})"
-            opacity="0.9"
-          />
-          <circle
-            data-anim="mos-glob"
-            data-tone="cyan"
-            data-orbit="62"
-            data-phase="130"
-            data-dur="7600"
-            data-dir="-1"
-            cx={CX}
-            cy={CY}
-            r="126"
-            fill="url(#{g('glob-3')})"
-            opacity="0.8"
-          />
-          <circle
-            data-anim="mos-glob"
-            data-tone="purple"
-            data-orbit="92"
-            data-phase="215"
-            data-dur="11800"
-            data-dir="-1"
-            cx={CX}
-            cy={CY}
-            r="118"
-            fill="url(#{g('glob-4')})"
-            opacity="0.7"
-          />
-          <circle
-            data-anim="mos-glob"
-            data-tone="green"
-            data-orbit="50"
-            data-phase="300"
-            data-dur="8400"
-            data-dir="1"
-            cx={CX}
-            cy={CY}
-            r="104"
-            fill="url(#{g('glob-5')})"
-            opacity="0.42"
-          />
-          <ellipse cx="368" cy="318" rx="132" ry="96" fill="url(#{g('gloss')})" />
-          <ellipse cx="536" cy="566" rx="150" ry="104" fill="url(#{g('shade')})" />
-        </g>
-
-        <path
-          data-anim="mos-rim"
-          style="pointer-events:none"
-          fill="none"
-          stroke="url(#{g('mos-rim')})"
-          stroke-width="3.4"
-          d=""
-        />
-      </g>
-
-      <g data-anim="poke-fx" clip-path="url(#{g('mos-clip')})" style="pointer-events:none">
-        <circle
-          data-anim="press-dip"
-          cx={CX}
-          cy={CY}
-          r="40"
-          fill="url(#{g('poke-press')})"
-          opacity="0"
-        />
-        <circle
-          data-anim="press-bloom"
-          cx={CX}
-          cy={CY}
-          r="34"
-          fill="url(#{g('poke-lift')})"
-          opacity="0"
-        />
-        <circle
-          data-anim="poke-wave"
-          cx={CX}
-          cy={CY}
-          r="90"
-          fill="url(#{g('band-1')})"
-          opacity="0"
-        />
-        <circle
-          data-anim="poke-wave"
-          cx={CX}
-          cy={CY}
-          r="90"
-          fill="url(#{g('band-2')})"
-          opacity="0"
-        />
-        <circle
-          data-anim="poke-wave"
-          cx={CX}
-          cy={CY}
-          r="90"
-          fill="url(#{g('band-3')})"
-          opacity="0"
-        />
-      </g>
-
-      <g data-anim="mos-face" style="pointer-events:none">
-        <g fill="none" stroke="#0B1B33" stroke-linecap="round" opacity="0.88">
-          <g data-anim="mos-calm">
-            <g data-anim="mos-eye">
-              <line x1="423.5" y1="399.07" x2="423.5" y2="420.32" stroke-width="8" />
-            </g>
-            <g data-anim="mos-eye">
-              <line x1="496.61" y1="399.07" x2="496.61" y2="420.32" stroke-width="8" />
-            </g>
+          <g data-anim="mos-flow" clip-path="url(#{g('mos-clip')})" style="pointer-events:none">
+            <circle
+              data-anim="mos-glob"
+              data-tone="blue"
+              data-orbit="30"
+              data-phase="0"
+              data-dur="14000"
+              data-dir="1"
+              cx={CX}
+              cy={CY}
+              r="176"
+              fill="url(#{g('glob-1')})"
+              opacity="0.95"
+            />
+            <circle
+              data-anim="mos-glob"
+              data-tone="light"
+              data-orbit="78"
+              data-phase="40"
+              data-dur="9200"
+              data-dir="1"
+              cx={CX}
+              cy={CY}
+              r="140"
+              fill="url(#{g('glob-2')})"
+              opacity="0.9"
+            />
+            <circle
+              data-anim="mos-glob"
+              data-tone="cyan"
+              data-orbit="62"
+              data-phase="130"
+              data-dur="7600"
+              data-dir="-1"
+              cx={CX}
+              cy={CY}
+              r="126"
+              fill="url(#{g('glob-3')})"
+              opacity="0.8"
+            />
+            <circle
+              data-anim="mos-glob"
+              data-tone="purple"
+              data-orbit="92"
+              data-phase="215"
+              data-dur="11800"
+              data-dir="-1"
+              cx={CX}
+              cy={CY}
+              r="118"
+              fill="url(#{g('glob-4')})"
+              opacity="0.7"
+            />
+            <circle
+              data-anim="mos-glob"
+              data-tone="green"
+              data-orbit="50"
+              data-phase="300"
+              data-dur="8400"
+              data-dir="1"
+              cx={CX}
+              cy={CY}
+              r="104"
+              fill="url(#{g('glob-5')})"
+              opacity="0.42"
+            />
+            <ellipse cx="368" cy="318" rx="132" ry="96" fill="url(#{g('gloss')})" />
+            <ellipse cx="536" cy="566" rx="150" ry="104" fill="url(#{g('shade')})" />
           </g>
-          <path d="M460.25,427.67c1.6,9.93,11.76,16.53,22.72,14.76" stroke-width="6" />
-          <path d="M460.25,427.67c-1.6,9.93-11.76,16.53-22.72,14.76" stroke-width="6" />
+
+          <path
+            data-anim="mos-rim"
+            style="pointer-events:none"
+            fill="none"
+            stroke="url(#{g('mos-rim')})"
+            stroke-width="3.4"
+            d=""
+          />
         </g>
-        <g
-          data-anim="mos-happy"
-          fill="none"
-          stroke="#0B1B33"
-          stroke-linecap="round"
-          stroke-width="7.5"
-          opacity="0"
-        >
-          <path d="M414,398l13,11l-13,11" />
-          <path d="M506,398l-13,11l13,11" />
+
+        <g data-anim="poke-fx" clip-path="url(#{g('mos-clip')})" style="pointer-events:none">
+          <circle
+            data-anim="press-dip"
+            cx={CX}
+            cy={CY}
+            r="40"
+            fill="url(#{g('poke-press')})"
+            opacity="0"
+          />
+          <circle
+            data-anim="press-bloom"
+            cx={CX}
+            cy={CY}
+            r="34"
+            fill="url(#{g('poke-lift')})"
+            opacity="0"
+          />
+          <circle
+            data-anim="poke-wave"
+            cx={CX}
+            cy={CY}
+            r="90"
+            fill="url(#{g('band-1')})"
+            opacity="0"
+          />
+          <circle
+            data-anim="poke-wave"
+            cx={CX}
+            cy={CY}
+            r="90"
+            fill="url(#{g('band-2')})"
+            opacity="0"
+          />
+          <circle
+            data-anim="poke-wave"
+            cx={CX}
+            cy={CY}
+            r="90"
+            fill="url(#{g('band-3')})"
+            opacity="0"
+          />
         </g>
-      </g>
-    </svg>
+
+        <g data-anim="mos-face" style="pointer-events:none">
+          <g fill="none" stroke="#0B1B33" stroke-linecap="round" opacity="0.88">
+            <g data-anim="mos-calm">
+              <g data-anim="mos-eye">
+                <line x1="423.5" y1="399.07" x2="423.5" y2="420.32" stroke-width="8" />
+              </g>
+              <g data-anim="mos-eye">
+                <line x1="496.61" y1="399.07" x2="496.61" y2="420.32" stroke-width="8" />
+              </g>
+            </g>
+            <path d="M460.25,427.67c1.6,9.93,11.76,16.53,22.72,14.76" stroke-width="6" />
+            <path d="M460.25,427.67c-1.6,9.93-11.76,16.53-22.72,14.76" stroke-width="6" />
+          </g>
+          <g
+            data-anim="mos-happy"
+            fill="none"
+            stroke="#0B1B33"
+            stroke-linecap="round"
+            stroke-width="7.5"
+            opacity="0"
+          >
+            <path d="M414,398l13,11l-13,11" />
+            <path d="M506,398l-13,11l13,11" />
+          </g>
+        </g>
+      </svg>
+    </div>
   </div>
 </div>
 
@@ -653,7 +675,8 @@
     isolation: isolate;
   }
 
-  .wrap {
+  .wrap,
+  .recoil {
     position: relative;
     display: grid;
     place-items: center;

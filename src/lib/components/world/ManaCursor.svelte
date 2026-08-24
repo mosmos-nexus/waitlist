@@ -95,7 +95,12 @@
 
     // Click scatters a few Mana motes — small, cheap, and it makes every press
     // feel like it landed.
-    const onDown = () => {
+    const onDown = (event: PointerEvent) => {
+      // Take the position from the event: a click with no prior pointermove
+      // (the page loaded under a stationary cursor) would otherwise burst from
+      // the top-left corner.
+      px = event.clientX;
+      py = event.clientY;
       animate(ringEl!, {
         scale: [
           { to: 0.72, duration: 120 },

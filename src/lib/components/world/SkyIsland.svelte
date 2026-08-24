@@ -4,7 +4,7 @@
   import {
     prefersReduced,
     attachPointerParallax,
-    bindVisibility,
+    bindActivity,
     isCompactViewport,
   } from '$lib/anime/motion';
 
@@ -130,9 +130,13 @@
     // nodes stay in the DOM (CSS hides them) — it's the running animation that
     // costs, not the element.
     const compact = isCompactViewport();
+    // Keeps floor(n/2), matching the `nth-*(n+…)` rules in the compact media
+    // query exactly. Ceil left one rock and one spark animating behind
+    // `display: none` — no visual defect, but precisely the waste the trim
+    // exists to avoid.
     const q = <T extends Element>(sel: string) => {
       const all = Array.from(frameEl!.querySelectorAll<T>(sel));
-      return compact ? all.slice(0, Math.max(1, Math.ceil(all.length / 2))) : all;
+      return compact ? all.slice(0, Math.max(1, Math.floor(all.length / 2))) : all;
     };
     const loops: { play: () => void; pause: () => void }[] = [];
     const keep = <T extends { play: () => void; pause: () => void }>(a: T) => {
@@ -209,18 +213,21 @@
     }
 
     const stopParallax = attachPointerParallax(frameEl, { x: 34, y: 20 });
-    const stopVis = bindVisibility(loops);
+    const stopActivity = bindActivity(frameEl, loops);
 
     return () => {
       window.removeEventListener('resize', fit);
       stopParallax();
-      stopVis();
+      stopActivity();
       for (const l of loops) (l as unknown as { revert?: () => void }).revert?.();
     };
   });
 </script>
 
-<div class="frame" bind:this={frameEl} role="img" aria-label={label}>
+<!-- No role on the frame: `img` is Children-Presentational, so it would
+     prune everything inside — including Mos (a real button) and the hero's
+     live region. The label goes on the decorative island svg instead. -->
+<div class="frame" bind:this={frameEl}>
   <!-- Sky + starfield sit outside the scaled world so they always cover the
        viewport, whatever scale the island itself lands on. -->
   <div class="fill sky" data-depth="0.15">
@@ -265,7 +272,8 @@
         class="isle"
         viewBox="0 0 1440 900"
         preserveAspectRatio="xMidYMid meet"
-        aria-hidden="true"
+        role="img"
+        aria-label={label}
       >
         <defs>
           <radialGradient id="isle-halo">

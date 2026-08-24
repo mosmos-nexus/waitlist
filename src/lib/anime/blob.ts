@@ -161,9 +161,19 @@ export function createBlob(options: BlobOptions): BlobHandle {
 
   // Every animated scalar lives on one plain object so animejs can drive it and
   // the frame loop can read it without touching the DOM.
+  //
+  // `sx`/`sy` carry the ambient drift and `qx`/`qy` the poke reaction, kept
+  // apart on purpose. animejs composes with `replace` by default, and when a
+  // one-shot tween overlaps a *looping* one on the same target+property it
+  // overrides the loop permanently — see `overrideTween` in
+  // animation/composition.js, whose own TODO notes it cannot yet window the
+  // override to the overlapping iterations. Driving the reaction through its
+  // own pair and multiplying both in `paint()` keeps one writer per property.
   const p: Record<string, number> = {
     sx: 1,
     sy: 1,
+    qx: 1,
+    qy: 1,
     amp: 1,
     ripple2: ripple[0],
     ripple3: ripple[1],
@@ -247,7 +257,7 @@ export function createBlob(options: BlobOptions): BlobHandle {
       if (cut > 0.42) cut = 0.42;
       const wave = Math.cos(a * 2 + p.phase2) * p.ripple2 + Math.cos(a * 3 + p.phase3) * p.ripple3;
       const r = radius * (1 + wave - cut * k);
-      ring.push([cx + Math.cos(a) * r * p.sx, cy + Math.sin(a) * r * p.sy]);
+      ring.push([cx + Math.cos(a) * r * p.sx * p.qx, cy + Math.sin(a) * r * p.sy * p.qy]);
     }
     const d = closedCurve(ring);
     for (const t of targets) t.setAttribute('d', d);
@@ -269,15 +279,16 @@ export function createBlob(options: BlobOptions): BlobHandle {
     },
     squish(dx, dy, strength = 1) {
       // Poke direction decides which axis gives; the spring supplies the wobble.
+      // Writes qx/qy, never sx/sy — see the note on `p` above.
       const angle = Math.atan2(dy, dx);
       const push = 0.1 * strength;
       utils.set(p, {
-        sx: 1 + Math.cos(angle) * push,
-        sy: 1 + Math.sin(angle) * push,
+        qx: 1 + Math.cos(angle) * push,
+        qy: 1 + Math.sin(angle) * push,
       });
       animate(p, {
-        sx: 1,
-        sy: 1,
+        qx: 1,
+        qy: 1,
         ease: spring({ stiffness: 34, damping: 7 }),
       });
     },

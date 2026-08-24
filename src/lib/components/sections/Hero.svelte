@@ -37,7 +37,12 @@
   }
 
   onMount(() => {
-    if (!copyEl || prefersReduced()) return;
+    // A poke still arms the reset timer under reduced motion (MosBlob fires
+    // onpoke before its own motion guard), so the teardown has to be registered
+    // on this path too.
+    if (!copyEl || prefersReduced()) {
+      return () => clearTimeout(resetTimer);
+    }
     // The hero is above the fold, so it plays on mount rather than on scroll.
     const rows = Array.from(copyEl.querySelectorAll<HTMLElement>('[data-enter]'));
     const anim = animate(rows, {

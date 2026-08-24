@@ -25,7 +25,10 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
   }
 
   const email = normalizeEmail(parsed.data.email);
-  const locale: AppLocale = parsed.data.locale === 'en' ? 'en' : 'ko';
+  // Narrow against the locale set itself rather than testing one value, so
+  // adding a locale cannot silently route it to the Korean copy.
+  const requested = parsed.data.locale;
+  const locale: AppLocale = requested === 'en' || requested === 'ja' ? requested : 'ko';
 
   if (!EMAIL_RE.test(email)) {
     return json({ error: 'invalid_email' }, { status: 400 });

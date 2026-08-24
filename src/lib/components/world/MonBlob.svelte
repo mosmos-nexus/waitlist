@@ -3,7 +3,7 @@
   import { animate, spring, utils } from 'animejs';
   import { createBlob, type BlobHandle, type BlobDent } from '$lib/anime/blob';
   import { MON_TINT, type MonRole } from '$lib/anime/mon';
-  import { prefersReduced, bindVisibility, bindViewport } from '$lib/anime/motion';
+  import { prefersReduced, bindActivity } from '$lib/anime/motion';
 
   interface Props {
     role: MonRole;
@@ -147,12 +147,10 @@
     );
 
     wrapEl!.addEventListener('pointerenter', nudge);
-    const stopVis = bindVisibility(loops);
-    const stopViewport = bindViewport(wrapEl!, loops);
+    const stopActivity = bindActivity(wrapEl!, loops);
     return () => {
       wrapEl?.removeEventListener('pointerenter', nudge);
-      stopVis();
-      stopViewport();
+      stopActivity();
       blob?.destroy();
       blob = null;
     };
@@ -175,7 +173,10 @@
 >
   <div class="wrap" bind:this={wrapEl}>
     <div class="halo"></div>
-    <svg bind:this={svgEl} viewBox="0 0 400 400" role="img" aria-label={name ?? role}>
+    <!-- Named Mon are labelled by their visible tag, so the svg itself is
+           always decorative — labelling it too would announce each Mon twice,
+           and an unnamed one would be announced by its untranslated role slug. -->
+    <svg bind:this={svgEl} viewBox="0 0 400 400" aria-hidden="true">
       <defs>
         <clipPath id={g('mon-clip')}>
           <path

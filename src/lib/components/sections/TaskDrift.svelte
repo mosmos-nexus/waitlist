@@ -25,9 +25,18 @@
   let fieldEl = $state<HTMLDivElement | null>(null);
   let sinkEl = $state<HTMLDivElement | null>(null);
   let gathered = $state(false);
+  // The hint invites a cursor interaction, so it only makes sense where that
+  // interaction exists. Touch has no dodge, and reduced motion has no scene.
+  let canDodge = $state(false);
 
   onMount(() => {
-    if (!fieldEl || prefersReduced()) return;
+    if (!fieldEl || prefersReduced()) {
+      // Nothing will move, so retire the hint rather than leave it inviting a
+      // chase that cannot happen. The shard labels stay — they are content.
+      gathered = true;
+      return;
+    }
+    canDodge = hasFinePointer();
 
     // Each layer of the shard is driven by exactly one animejs instance:
     //   .shard      → the gather timeline (flies to Mos)
@@ -58,7 +67,7 @@
 
     // The dodge. Each shard owns an animatable offset that eases back to zero
     // whenever the pointer isn't near it.
-    if (hasFinePointer()) {
+    if (canDodge) {
       const dodges = leans.map((el) => createAnimatable(el, { x: 620, y: 620, ease: 'out(3)' }));
       const RADIUS = 190;
 
@@ -71,10 +80,23 @@
       // leans away and eases back smoothly.
       // `.shard` is absolutely positioned inside `.field`, so offsetLeft/Top
       // are its untransformed layout coordinates.
-      const homes = shards.map((el) => ({
+      let homes = shards.map((el) => ({
         x: el.offsetLeft + el.offsetWidth / 2,
         y: el.offsetTop + el.offsetHeight / 2,
       }));
+      // The field is sized in vh and the shards are placed in %, so every
+      // resize — and a late webfont swap, since the pills are nowrap — moves
+      // every home. Stale origins make the wrong shard flee.
+      const remeasure = () => {
+        homes = shards.map((el) => ({
+          x: el.offsetLeft + el.offsetWidth / 2,
+          y: el.offsetTop + el.offsetHeight / 2,
+        }));
+      };
+      const ro = new ResizeObserver(remeasure);
+      ro.observe(fieldEl);
+      document.fonts?.ready.then(remeasure).catch(() => {});
+      cleanups.push(() => ro.disconnect());
 
       const onMove = (event: PointerEvent) => {
         if (gathered) return;
@@ -252,7 +274,9 @@
         <span class="sink-core"></span>
       </div>
 
-      <p class="hint" class:hidden={gathered}>{m.drift_hint()}</p>
+      {#if canDodge}
+        <p class="hint" class:hidden={gathered}>{m.drift_hint()}</p>
+      {/if}
     </div>
 
     <p class="t-title-2 gain reveal prewrap" use:reveal={{ delay: 120 }}>{m.empathy_gain()}</p>

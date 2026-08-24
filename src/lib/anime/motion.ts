@@ -1,5 +1,5 @@
 import type { Action } from 'svelte/action';
-import { animate, onScroll, utils } from 'animejs';
+import { animate, createAnimatable, onScroll, utils } from 'animejs';
 
 /** Single source of truth for "should this page move at all". */
 export function prefersReduced(): boolean {
@@ -100,32 +100,43 @@ export function attachPointerParallax(
   const layers = Array.from(container.querySelectorAll<HTMLElement>('[data-depth]'));
   if (!layers.length) return () => {};
 
+  // One animatable per layer, created once. Calling `animate()` per layer per
+  // event would allocate an Animation for every layer on every pointer move —
+  // seven per event, hundreds per second on a high-polling mouse.
+  const drivers = layers.map((layer) => ({
+    set: createAnimatable(layer, { x: duration, y: duration, ease: 'out(3)' }),
+    depth: parseFloat(layer.dataset.depth ?? '0') || 0,
+  }));
+
+  // Cached so the hot path never forces a layout; refreshed only when the box
+  // can actually have moved.
+  let rect = container.getBoundingClientRect();
+  const refresh = () => {
+    rect = container.getBoundingClientRect();
+  };
+
   const onMove = (event: PointerEvent) => {
-    const rect = container.getBoundingClientRect();
     const nx = (event.clientX - rect.left) / rect.width - 0.5;
     const ny = (event.clientY - rect.top) / rect.height - 0.5;
-    for (const layer of layers) {
-      const depth = parseFloat(layer.dataset.depth ?? '0') || 0;
-      animate(layer, {
-        x: -nx * ax * depth,
-        y: -ny * ay * depth,
-        duration,
-        ease: 'out(3)',
-      });
+    for (const { set, depth } of drivers) {
+      set.x(-nx * ax * depth).y(-ny * ay * depth);
     }
   };
 
   const onLeave = () => {
-    for (const layer of layers) {
-      animate(layer, { x: 0, y: 0, duration: 1400, ease: 'out(3)' });
-    }
+    for (const { set } of drivers) set.x(0).y(0);
   };
 
-  container.addEventListener('pointermove', onMove);
+  container.addEventListener('pointermove', onMove, { passive: true });
   container.addEventListener('pointerleave', onLeave);
+  window.addEventListener('resize', refresh);
+  window.addEventListener('scroll', refresh, { passive: true });
   return () => {
     container.removeEventListener('pointermove', onMove);
     container.removeEventListener('pointerleave', onLeave);
+    window.removeEventListener('resize', refresh);
+    window.removeEventListener('scroll', refresh);
+    for (const { set } of drivers) set.revert();
   };
 }
 
@@ -162,32 +173,48 @@ function setPlaying(instances: Playable[], playing: boolean) {
   }
 }
 
-/** Pause/resume a set of instances when the tab is hidden. */
-export function bindVisibility(instances: Playable[]): () => void {
-  const onChange = () => setPlaying(instances, !document.hidden);
-  document.addEventListener('visibilitychange', onChange);
-  return () => document.removeEventListener('visibilitychange', onChange);
-}
-
 /**
- * Pause a set of instances while `el` is outside the viewport.
+ * Run a set of animejs instances only while the element is on screen AND the
+ * tab is visible.
  *
- * The characters each run a per-frame path rewrite, so several of them idling
- * on sections nobody is looking at is pure waste — and on a phone it's the
- * difference between a smooth scroll and a hot battery.
+ * Both conditions have to be arbitrated together. Two independent controllers
+ * calling play/pause on one list fight: an IntersectionObserver only fires on
+ * threshold crossings, so a `visibilitychange` resume would restart characters
+ * that are scrolled far out of view and nothing would pause them again until
+ * they were scrolled back in and out.
+ *
+ * The characters each run a per-frame path rewrite, so idling ones are pure
+ * waste — and on a phone it's the difference between a smooth scroll and a hot
+ * battery.
  */
-export function bindViewport(el: Element, instances: Playable[]): () => void {
-  if (typeof IntersectionObserver === 'undefined') return () => {};
+export function bindActivity(el: Element, instances: Playable[]): () => void {
+  let onScreen = true;
+  let tabVisible = !document.hidden;
+  const sync = () => setPlaying(instances, onScreen && tabVisible);
 
-  const io = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) setPlaying(instances, entry.isIntersecting);
-    },
-    // A margin keeps the character already moving by the time it's on screen.
-    { rootMargin: '200px 0px' },
-  );
-  io.observe(el);
-  return () => io.disconnect();
+  const onVisibility = () => {
+    tabVisible = !document.hidden;
+    sync();
+  };
+  document.addEventListener('visibilitychange', onVisibility);
+
+  let io: IntersectionObserver | undefined;
+  if (typeof IntersectionObserver !== 'undefined') {
+    io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) onScreen = entry.isIntersecting;
+        sync();
+      },
+      // A margin keeps the character already moving by the time it's on screen.
+      { rootMargin: '200px 0px' },
+    );
+    io.observe(el);
+  }
+
+  return () => {
+    document.removeEventListener('visibilitychange', onVisibility);
+    io?.disconnect();
+  };
 }
 
 export { animate, utils, onScroll };
