@@ -237,6 +237,33 @@
         <path d="M200,208c1.1,7,8.3,11.6,16,10.4" stroke-width="7" />
         <path d="M200,208c-1.1,7-8.3,11.6-16,10.4" stroke-width="7" />
       </g>
+
+      <!--
+        What this Mon is for, as a mark rather than a word. The Mon used to be
+        told apart by a text tag under the body, which put three labels into a
+        scene that should be read, not captioned — and on the hero they landed
+        on top of the copy column. A glyph on the shoulder says the same thing
+        and stays inside the silhouette.
+      -->
+      <g
+        class="glyph"
+        fill="none"
+        stroke="#EAF7FF"
+        stroke-opacity="0.82"
+        stroke-linecap="round"
+        stroke-width="11"
+        transform="translate(276,282) scale(1.5) translate(-24,-24)"
+      >
+        <circle cx="24" cy="24" r="23" fill="rgba(6,20,40,.62)" stroke="none" />
+        {#if role === 'research'}
+          <circle cx="21" cy="21" r="9" />
+          <path d="M28,28l7,7" />
+        {:else if role === 'organize'}
+          <path d="M14,17h20M14,24h20M14,31h13" />
+        {:else}
+          <path d="M15,15h13v13h-13zM32,15h2v13h-2zM15,32h13v2h-13z" />
+        {/if}
+      </g>
     </svg>
   </div>
 

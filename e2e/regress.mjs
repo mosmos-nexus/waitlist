@@ -279,6 +279,94 @@ const page = async (o = {}) => {
   await ctx.close();
 }
 
+// --- the scene must have a depth field, not just parallax ---
+{
+  const { ctx, p } = await page();
+  // Every layer that opts into depth of field, paired with its measured blur.
+  const layers = await p.locator('.hero .frame').evaluate((frame) =>
+    [...frame.querySelectorAll('[data-dof]')].map((el) => ({
+      depth: Number(el.dataset.depth),
+      declared: Number(el.dataset.dof),
+      blur: Number((getComputedStyle(el).filter.match(/blur\(([\d.]+)px\)/) || [0, 0])[1]),
+    })),
+  );
+  ok('depth-of-field layers present', layers.length >= 5, `${layers.length} layers`);
+  ok(
+    'every declared blur is actually applied',
+    layers.every((l) => l.blur === l.declared),
+    layers.map((l) => `${l.depth}:${l.blur}/${l.declared}`).join(' '),
+  );
+
+  // The island is the focal plane. Blur must fall monotonically approaching it
+  // from the far side and rise again on the near side — a V, not a ladder.
+  // A ladder would blur the foreground *less* than the subject, which is what
+  // makes a flat scene look flat.
+  const focal = layers.find((l) => l.blur === 0);
+  ok('there is a sharp focal plane', !!focal, focal ? `depth ${focal.depth}` : 'none');
+  const far = layers.filter((l) => l.depth < focal.depth).sort((a, b) => a.depth - b.depth);
+  const near = layers.filter((l) => l.depth > focal.depth).sort((a, b) => a.depth - b.depth);
+  ok(
+    'far field sharpens toward the subject',
+    far.length >= 2 && far.every((l, i) => i === 0 || l.blur < far[i - 1].blur),
+    far.map((l) => `${l.depth}→${l.blur}`).join(' '),
+  );
+  ok(
+    'near field softens away from the subject',
+    near.length >= 2 && near.every((l, i) => i === 0 || l.blur > near[i - 1].blur),
+    near.map((l) => `${l.depth}→${l.blur}`).join(' '),
+  );
+  const spread = Math.max(...layers.map((l) => l.blur));
+  ok('the field is deep enough to read', spread >= 10, `max blur ${spread}px`);
+
+  // Rock strata: the seams are what make the mass read as layered stone, and a
+  // uniform value across the bands is what made it read as a flat funnel.
+  const tones = await p.locator('.hero .isle [clip-path*="cone-clip"] rect').evaluateAll((els) =>
+    els
+      .map((e) => e.getAttribute('fill'))
+      .filter((f) => f && f.startsWith('rgb('))
+      .map((f) =>
+        f
+          .match(/\d+/g)
+          .map(Number)
+          .reduce((a, b) => a + b, 0),
+      ),
+  );
+  ok('the underside is banded', tones.length >= 6, `${tones.length} bands`);
+  ok(
+    'bands carry a value range',
+    Math.max(...tones) - Math.min(...tones) > 100,
+    `spread ${Math.max(...tones) - Math.min(...tones)}`,
+  );
+
+  // The Mon used to be captioned; their identity is a glyph now.
+  ok('no Mon captions in the hero', (await p.locator('.hero .mon .tag').count()) === 0);
+  ok('each Mon carries a role glyph', (await p.locator('.hero .mon .glyph').count()) === 3);
+  // The copy column and the characters must not sit on top of each other. A
+  // paragraph's own box spans the full column even where the line is short, so
+  // measure the glyphs: a Range yields one tight rect per rendered line.
+  const hits = await p.locator('.hero').evaluate((hero) => {
+    const lines = [];
+    for (const el of hero.querySelectorAll('.copy h1, .copy .sub, .copy .eyebrow')) {
+      for (const node of el.childNodes) {
+        if (node.nodeType !== 3) continue;
+        const r = document.createRange();
+        r.selectNodeContents(node);
+        lines.push(...[...r.getClientRects()].map((b) => b.toJSON()));
+      }
+    }
+    const mons = [...hero.querySelectorAll('.mon')].map((e) => e.getBoundingClientRect().toJSON());
+    const clash = [];
+    for (const m of mons)
+      for (const l of lines)
+        if (m.right > l.left && m.left < l.right && m.bottom > l.top && m.top < l.bottom)
+          clash.push(`${Math.round(l.left)},${Math.round(l.top)}`);
+    return { clash, lines: lines.length };
+  });
+  ok('hero copy lines measured', hits.lines >= 3, `${hits.lines} lines`);
+  ok('no Mon overlaps the hero copy', hits.clash.length === 0, hits.clash.join(' ') || 'clear');
+  await ctx.close();
+}
+
 await browser.close();
 console.log(fail ? `\n${fail} FAILED` : '\nall regression guards pass');
 process.exit(fail ? 1 : 0);

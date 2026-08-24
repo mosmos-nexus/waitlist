@@ -75,17 +75,22 @@
     {/snippet}
 
     {#snippet orbit()}
-      <!-- The Mon ring sits on the island's near edge, so it reads as three
-           specialists waiting beside Mos rather than decoration. -->
-      <div class="mon-ring" aria-label={m.mos_mon_hint()}>
+      <!-- Three specialists standing on the island beside Mos. Each carries a
+           glyph instead of a name tag: the tags put three captions into the
+           scene and the left one landed on the copy column. The names stay for
+           screen readers, where they cost no space. -->
+      <div class="mon-ring">
+        <p class="visually-hidden">
+          {m.mos_mon_hint()} — {m.mon_research_name()}, {m.mon_organize_name()}, {m.mon_design_name()}
+        </p>
         <div class="mon left">
-          <MonBlob role="research" size={74} name={m.mon_research_name()} offset={0} />
+          <MonBlob role="research" size={74} offset={0} />
         </div>
         <div class="mon mid">
-          <MonBlob role="organize" size={64} name={m.mon_organize_name()} offset={0.6} />
+          <MonBlob role="organize" size={64} offset={0.6} />
         </div>
         <div class="mon right">
-          <MonBlob role="design" size={70} name={m.mon_design_name()} offset={1.2} />
+          <MonBlob role="design" size={70} offset={1.2} />
         </div>
       </div>
     {/snippet}

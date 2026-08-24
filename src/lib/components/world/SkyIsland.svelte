@@ -9,9 +9,9 @@
   } from '$lib/anime/motion';
 
   interface Props {
-    /** Content that sits on the island's disc — normally Mos. */
+    /** Content that sits on the island's plate — normally Mos. */
     stage?: Snippet;
-    /** Content that orbits the island — the Mon ring. */
+    /** Content that stands on the island beside Mos — the Mon. */
     orbit?: Snippet;
     /** Accessible name for the scene as a whole. */
     label?: string;
@@ -19,41 +19,75 @@
 
   let { stage, orbit, label }: Props = $props();
 
-  // The island's silhouette. One outline drives the top face, its drop shadow,
-  // the rim highlight and the clip that keeps the surface detail on the disc.
+  // The island's silhouette. One outline drives the top plate, its drop shadow,
+  // the rim highlight and the clip that keeps the surface detail on the plate.
   const ISLE =
     'M1033.4,470.0C1032.4,475.6 1028.7,481.3 1023.4,486.8C1018.2,492.2 1011.3,497.6 1002.0,502.6C992.7,507.6 981.3,512.6 967.5,516.8C953.7,520.9 936.8,524.7 919.1,527.5C901.5,530.4 881.1,532.3 861.8,533.9C842.6,535.4 822.6,536.0 803.6,536.9C784.7,537.8 766.7,538.3 748.0,539.2C729.2,540.0 710.9,541.1 691.0,541.8C671.0,542.5 649.7,543.5 628.4,543.3C607.1,543.1 583.8,542.5 563.2,540.6C542.5,538.8 521.8,535.8 504.5,532.2C487.2,528.7 472.0,524.0 459.4,519.2C446.9,514.5 437.0,509.1 429.0,503.7C421.0,498.3 414.9,492.7 411.4,487.1C407.9,481.4 406.3,475.6 408.2,470.0C410.0,464.4 415.0,458.7 422.4,453.6C429.9,448.4 441.2,443.5 452.9,439.1C464.5,434.6 478.7,430.8 492.2,427.0C505.6,423.1 519.4,419.7 533.6,416.2C547.8,412.6 561.5,409.0 577.3,405.7C593.1,402.5 609.9,399.1 628.4,396.7C646.9,394.3 667.8,392.3 688.3,391.5C708.8,390.7 731.1,391.0 751.6,391.9C772.1,392.8 792.3,394.9 811.3,396.9C830.4,399.0 848.3,401.6 866.1,404.2C883.9,406.9 901.4,409.6 918.3,412.7C935.2,415.9 952.8,419.2 967.5,423.2C982.3,427.3 996.7,431.8 1007.0,436.8C1017.3,441.7 1024.9,447.4 1029.3,452.9C1033.7,458.4 1034.4,464.4 1033.4,470.0Z';
 
-  // Underside shards — the inverted cone that makes it read as a torn-off island.
-  const SHARDS: { points: string; fill: string; opacity: number }[] = [
-    { points: '408,470 422,498 566,690', fill: 'rgb(5,38,75)', opacity: 0.9 },
-    { points: '422,498 480,526 648,748 566,690', fill: 'rgb(5,38,75)', opacity: 0.6 },
-    { points: '480,526 596,543 706,788 648,748', fill: 'rgb(3,24,48)', opacity: 1 },
-    { points: '596,543 720,540 768,754 706,788', fill: 'rgb(3,24,48)', opacity: 0.72 },
-    { points: '720,540 832,536 854,700 768,754', fill: 'rgb(2,14,27)', opacity: 0.9 },
-    { points: '832,536 945,523 906,646 854,700', fill: 'rgb(2,14,27)', opacity: 1 },
-    { points: '945,523 1010,497 1033,470 906,646', fill: 'rgb(3,24,48)', opacity: 0.45 },
-    { points: '566,690 584,678 575,728', fill: 'rgb(3,24,48)', opacity: 1 },
-    { points: '648,748 664,736 656,794', fill: 'rgb(2,14,27)', opacity: 1 },
-    { points: '706,788 720,776 713,818', fill: 'rgb(3,24,48)', opacity: 1 },
-    { points: '768,754 780,742 774,794', fill: 'rgb(2,14,27)', opacity: 1 },
-    { points: '854,700 864,688 859,726', fill: 'rgb(3,24,48)', opacity: 1 },
+  /**
+   * The torn-off underside, as one jagged silhouette.
+   *
+   * It used to be a dozen flat polygons over a wireframe of seam lines, which is
+   * what made the island read as a diagram of an island. Now the same shape is
+   * cut into horizontal strata instead: rock exposes its layers, and layers are
+   * what tell the eye how far down it goes.
+   */
+  const CONE =
+    'M500,466L940,466L922,514L892,562L868,608L888,624L852,668L816,716L780,762L744,800L714,832L690,858L666,822L642,778L614,728L588,674L560,614L534,552L514,506Z';
+
+  /**
+   * Rock strata, top to bottom. Each band is the cone clipped to a slice, and
+   * each carries a lighter seam along its upper edge — the seams are what make
+   * the mass read as layered stone. Without them six near-black bands stack
+   * into one flat silhouette, which is what the underside looked like before.
+   */
+  const STRATA: { y: number; h: number; fill: string; seam: string }[] = [
+    { y: 452, h: 84, fill: 'rgb(11,58,104)', seam: 'rgba(0,0,0,0)' },
+    { y: 536, h: 38, fill: 'rgb(11,58,104)', seam: 'rgba(164,226,255,.34)' },
+    { y: 574, h: 42, fill: 'rgb(8,44,82)', seam: 'rgba(140,204,240,.24)' },
+    { y: 616, h: 44, fill: 'rgb(6,33,63)', seam: 'rgba(120,180,220,.19)' },
+    { y: 660, h: 50, fill: 'rgb(4,24,47)', seam: 'rgba(104,158,198,.15)' },
+    { y: 710, h: 58, fill: 'rgb(3,17,34)', seam: 'rgba(88,136,176,.12)' },
+    { y: 768, h: 62, fill: 'rgb(2,11,23)', seam: 'rgba(74,116,152,.09)' },
+    { y: 830, h: 84, fill: 'rgb(1,7,15)', seam: 'rgba(60,96,130,.07)' },
   ];
 
-  const SEAMS = [
-    'M422,498L566,690',
-    'M480,526L648,748',
-    'M596,543L706,788',
-    'M720,540L768,754',
-    'M832,536L854,700',
-    'M945,523L906,646',
+  /** Near-vertical fractures. Horizontal bands alone read as a bar chart. */
+  const FRACTURES = [
+    'M566,540L610,724L636,806',
+    'M700,536L714,700L708,846',
+    'M812,538L788,690L760,782',
+    'M876,540L852,646',
   ];
 
-  // Surface facets clipped to the disc — the low-poly "ground".
+  /**
+   * Slivers of exposed mineral across the strata. Short, off-horizontal and
+   * unevenly spaced on purpose — evenly spaced marks read as a texture swatch.
+   */
+  const VEINS = [
+    'M524,534L594,566',
+    'M614,600L692,626',
+    'M746,592L822,616',
+    'M566,650L622,686',
+    'M690,690L758,710',
+    'M646,758L698,782',
+    'M858,536L918,556',
+  ];
+
+  /** Crystals hanging off the underside — the island's only warm-lit detail. */
+  const CRYSTALS = [
+    { points: '584,652 598,646 592,712', o: 0.9 },
+    { points: '648,770 662,762 656,824', o: 0.75 },
+    { points: '706,850 716,842 712,898', o: 0.6 },
+    { points: '800,736 812,728 806,784', o: 0.8 },
+    { points: '870,624 880,618 876,664', o: 0.65 },
+  ];
+
+  /** Surface facets clipped to the plate — the low-poly ground. */
   const FACETS: { fill: string; opacity: number; points: string[] }[] = [
     {
-      fill: 'rgb(8,62,123)',
-      opacity: 0.24,
+      fill: 'rgb(10,74,146)',
+      opacity: 0.3,
       points: [
         '576,452 654,438 708,452 646,470',
         '744,432 822,436 852,452 776,456',
@@ -62,21 +96,34 @@
       ],
     },
     {
-      fill: 'rgb(12,87,170)',
-      opacity: 0.12,
+      fill: 'rgb(16,104,198)',
+      opacity: 0.16,
       points: ['504,464 562,450 594,462 532,476', '706,420 762,416 784,428 720,432'],
     },
     {
       fill: 'rgb(2,14,27)',
-      opacity: 0.45,
+      opacity: 0.5,
       points: ['760,470 856,478 902,496 792,494', '640,428 712,424 744,436 664,442'],
     },
   ];
 
-  const ROCKS = [
-    '1146,462 1178,452 1196,474 1180,502 1150,500 1138,480',
-    '1150,586 1174,580 1184,598 1170,616 1150,612 1144,598',
-    '238,498 268,490 282,512 266,540 238,536 226,514',
+  /**
+   * Other islands, far off. Two shapes at a fraction of the size, pushed into
+   * the blurred far layer. The old scene had bare hexagons sitting at the same
+   * sharpness as everything else, which read as stray interface furniture
+   * rather than as land in the distance.
+   */
+  const ISLETS = [
+    { x: 1188, y: 402, s: 0.2, flip: false },
+    { x: 1264, y: 508, s: 0.13, flip: true },
+    { x: 214, y: 452, s: 0.16, flip: true },
+  ];
+
+  /** Light coming down through the haze onto the plate. */
+  const SHAFTS = [
+    { x: 566, w: 34, skew: -13 },
+    { x: 720, w: 52, skew: -4 },
+    { x: 892, w: 28, skew: 7 },
   ];
 
   const SPARKS = [
@@ -87,7 +134,7 @@
     { cx: 700, cy: 700, r: 2, o: 0.35 },
   ];
 
-  // Drifting motes in the near field.
+  /** Drifting motes in the near field. */
   const MOTES = [
     { x: 16, y: 62, s: 3, c: 'rgba(49,220,220,.8)' },
     { x: 29, y: 74, s: 2, c: 'rgba(236,237,246,.7)' },
@@ -107,7 +154,7 @@
    * viewport. A straight `width / 1440` would shrink the island to a pebble on
    * a phone, so the curve is deliberately flattened: it stays generous at the
    * narrow end and tops out just above 1 on very wide screens. Short viewports
-   * take an extra squeeze so the disc never pushes the form off-screen.
+   * take an extra squeeze so the plate never pushes the form off-screen.
    */
   function fit() {
     if (!worldEl) return;
@@ -198,6 +245,51 @@
         ease: 'inOut(2)',
       }),
     );
+    // The crystals under the island catch the light unevenly.
+    keep(
+      animate(q('[data-anim="crystal"]'), {
+        opacity: [0.35, 1],
+        duration: 5600,
+        loop: true,
+        alternate: true,
+        delay: stagger(740),
+        ease: 'inOut(3)',
+      }),
+    );
+    // Light shafts wander and breathe — the slowest thing in the scene, so the
+    // sky never looks like a still image behind a moving island.
+    keep(
+      animate(q('[data-anim="shaft"]'), {
+        opacity: [0.22, 0.62],
+        scaleX: [0.9, 1.12],
+        duration: 14200,
+        loop: true,
+        alternate: true,
+        delay: stagger(2600),
+        ease: 'inOut(2)',
+      }),
+    );
+    keep(
+      animate(q('[data-anim="cloud"]'), {
+        translateX: [-70, 70],
+        duration: 32000,
+        loop: true,
+        alternate: true,
+        delay: stagger(6200),
+        ease: 'inOut(2)',
+      }),
+    );
+    // Spill off the plate's front edge, falling and fading.
+    keep(
+      animate(q('[data-anim="fall"]'), {
+        translateY: [0, 46],
+        opacity: [0.5, 0],
+        duration: 6400,
+        loop: true,
+        delay: stagger(2100),
+        ease: 'inOut(1)',
+      }),
+    );
 
     // Orbit rings spin at their own signed speeds.
     for (const el of q<HTMLElement>('[data-anim="orbit-spin"]')) {
@@ -226,27 +318,89 @@
 
 <!-- No role on the frame: `img` is Children-Presentational, so it would
      prune everything inside — including Mos (a real button) and the hero's
-     live region. The label goes on the decorative island svg instead. -->
+     live region. The label goes on the decorative island svg instead.
+
+     `data-dof` is the depth-of-field blur in px. The island is the focal
+     plane at 0, and everything reads softer the further it sits from it in
+     either direction — which is why the values are a V and not a ladder. -->
 <div class="frame" bind:this={frameEl}>
   <!-- Sky + starfield sit outside the scaled world so they always cover the
        viewport, whatever scale the island itself lands on. -->
-  <div class="fill sky" data-depth="0.15">
+  <div class="fill sky" data-depth="0.1">
     <div class="sky-deep"></div>
     <div class="sky-bloom"></div>
   </div>
-  <div class="fill stars" data-depth="0.5"></div>
+
+  <!-- Far haze bank. Heavily blurred, so the sky has a middle distance. -->
+  <div class="fill clouds" data-depth="0.25" data-dof="18">
+    <span class="cloud" data-anim="cloud" style="--cx:22%; --cy:46%; --cw:56vw; --ch:19vh"></span>
+    <span class="cloud" data-anim="cloud" style="--cx:74%; --cy:39%; --cw:48vw; --ch:15vh"></span>
+    <span class="cloud" data-anim="cloud" style="--cx:50%; --cy:57%; --cw:74vw; --ch:13vh"></span>
+  </div>
+
+  <div class="fill stars" data-depth="0.4"></div>
 
   <div class="world" bind:this={worldEl}>
-    <!-- Near-field motes -->
-    <div class="layer" data-depth="0.9">
-      {#each MOTES as m, i (i)}
-        <span
-          class="mote"
-          data-anim="mote"
-          style="left:{m.x}%; top:{m.y}%; width:{m.s}px; height:{m.s}px; background:{m.c}; box-shadow:0 0 {m.s *
-            3}px {m.c}"
-        ></span>
-      {/each}
+    <!-- Light coming down onto the plate, behind the island -->
+    <div class="layer" data-depth="0.3" data-dof="14">
+      <svg
+        class="isle"
+        viewBox="0 0 1440 900"
+        preserveAspectRatio="xMidYMid meet"
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient id="shaft-g" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="rgb(153,253,255)" stop-opacity="0" />
+            <stop offset="0.46" stop-color="rgb(153,253,255)" stop-opacity="0.055" />
+            <stop offset="1" stop-color="rgb(49,220,220)" stop-opacity="0.012" />
+          </linearGradient>
+        </defs>
+        {#each SHAFTS as s, i (i)}
+          <polygon
+            data-anim="shaft"
+            points="{s.x - s.w / 2},0 {s.x + s.w / 2},0 {s.x + s.w * 1.2 + s.skew * 8},486 {s.x -
+              s.w * 1.2 +
+              s.skew * 8},486"
+            fill="url(#shaft-g)"
+            opacity="0.4"
+          />
+        {/each}
+      </svg>
+    </div>
+
+    <!-- Other land, far off -->
+    <div class="layer" data-depth="0.45" data-dof="7">
+      <svg
+        class="isle islets"
+        viewBox="0 0 1440 900"
+        preserveAspectRatio="xMidYMid meet"
+        aria-hidden="true"
+      >
+        {#each ISLETS as isle, i (i)}
+          <!-- Placement lives on the outer group: animejs writes the CSS
+               `transform` property, which overrides the SVG attribute outright,
+               so an animated group cannot also carry its own position. -->
+          <g
+            class="islet"
+            transform="translate({isle.x},{isle.y}) scale({isle.flip
+              ? -isle.s
+              : isle.s},{isle.s}) translate(-720,-470)"
+          >
+            <g data-anim="isle-rock">
+              <path d={CONE} fill="rgb(3,12,24)" />
+              <path d={ISLE} fill="rgb(5,22,44)" />
+              <path
+                d={ISLE}
+                fill="none"
+                stroke="rgb(120,214,232)"
+                stroke-opacity="0.22"
+                stroke-width="4"
+              />
+            </g>
+          </g>
+        {/each}
+      </svg>
     </div>
 
     <!-- Orbit rings, laid flat in perspective -->
@@ -266,8 +420,8 @@
       </div>
     </div>
 
-    <!-- The island -->
-    <div class="layer" data-depth="0.55">
+    <!-- The island — the focal plane, the only layer that is fully sharp -->
+    <div class="layer" data-depth="0.55" data-dof="0">
       <svg
         class="isle"
         viewBox="0 0 1440 900"
@@ -282,13 +436,13 @@
             <stop offset="1" stop-color="rgb(15,111,218)" stop-opacity="0" />
           </radialGradient>
           <linearGradient id="isle-top" x1="0.05" y1="0" x2="0.92" y2="1">
-            <stop offset="0" stop-color="rgb(5,38,75)" />
+            <stop offset="0" stop-color="rgb(7,50,98)" />
             <stop offset="0.42" stop-color="rgb(3,24,48)" />
             <stop offset="1" stop-color="rgb(2,14,27)" />
           </linearGradient>
           <linearGradient id="isle-edge" x1="0" y1="0" x2="1" y2="0.3">
-            <stop offset="0" stop-color="rgb(0,220,224)" stop-opacity="0.4" />
-            <stop offset="0.42" stop-color="#31DCDC" stop-opacity="0.14" />
+            <stop offset="0" stop-color="rgb(0,220,224)" stop-opacity="0.44" />
+            <stop offset="0.42" stop-color="#31DCDC" stop-opacity="0.16" />
             <stop offset="1" stop-color="rgb(0,220,224)" stop-opacity="0" />
           </linearGradient>
           <linearGradient id="isle-mist-g" x1="0" y1="0" x2="1" y2="0">
@@ -298,27 +452,71 @@
             <stop offset="1" stop-color="rgb(139,190,247)" stop-opacity="0" />
           </linearGradient>
           <radialGradient id="isle-glowspot">
-            <stop offset="0" stop-color="#31DCDC" stop-opacity="0.24" />
+            <stop offset="0" stop-color="#31DCDC" stop-opacity="0.3" />
             <stop offset="1" stop-color="#31DCDC" stop-opacity="0" />
           </radialGradient>
+          <radialGradient id="isle-contact">
+            <stop offset="0" stop-color="rgb(0,8,18)" stop-opacity="0.72" />
+            <stop offset="1" stop-color="rgb(0,8,18)" stop-opacity="0" />
+          </radialGradient>
+          <linearGradient id="crystal-g" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#99FDFF" stop-opacity="0.9" />
+            <stop offset="1" stop-color="#1FCECE" stop-opacity="0.05" />
+          </linearGradient>
+          <linearGradient id="fall-g" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="rgb(153,253,255)" stop-opacity="0.28" />
+            <stop offset="1" stop-color="rgb(153,253,255)" stop-opacity="0" />
+          </linearGradient>
           <clipPath id="isle-clip"><path d={ISLE} /></clipPath>
+          <clipPath id="cone-clip"><path d={CONE} /></clipPath>
         </defs>
 
         <ellipse cx="720" cy="490" rx="480" ry="220" fill="url(#isle-halo)" />
 
         <g transform="translate(0,-16)">
           <g data-anim="isle-body">
-            {#each SHARDS as s, i (i)}
-              <polygon points={s.points} fill={s.fill} fill-opacity={s.opacity} />
-            {/each}
-
-            <g stroke="rgb(2,14,27)" stroke-opacity="0.8" fill="none" stroke-width="1.4">
-              {#each SEAMS as d, i (i)}<path {d} />{/each}
+            <!-- Underside: strata, then the veins and crystals that sit in them -->
+            <g clip-path="url(#cone-clip)">
+              <g transform="rotate(-3.4 720 660)">
+                {#each STRATA as band, i (i)}
+                  <rect x="400" y={band.y} width="640" height={band.h} fill={band.fill} />
+                  <rect x="400" y={band.y} width="640" height="2.6" fill={band.seam} />
+                {/each}
+              </g>
+              <g
+                stroke="rgb(0,6,14)"
+                stroke-opacity="0.55"
+                fill="none"
+                stroke-width="3"
+                stroke-linecap="round"
+              >
+                {#each FRACTURES as d, i (i)}<path {d} />{/each}
+              </g>
+              <g
+                stroke="rgb(120,190,236)"
+                stroke-opacity="0.13"
+                fill="none"
+                stroke-width="2.4"
+                stroke-linecap="round"
+              >
+                {#each VEINS as d, i (i)}<path {d} />{/each}
+              </g>
+              <!-- Light grazing the left face, so the mass has a lit side -->
+              <path
+                d="M408,470L468,522L512,596L556,672L470,560Z"
+                fill="rgb(14,92,178)"
+                opacity="0.2"
+              />
             </g>
-            <g stroke="rgb(153,253,255)" stroke-opacity="0.15" fill="none" stroke-width="1.4">
-              <path d="M408,470L526,620" />
+            <path d={CONE} fill="none" stroke="rgb(1,9,18)" stroke-opacity="0.9" stroke-width="2" />
+
+            <g fill="url(#crystal-g)">
+              {#each CRYSTALS as c, i (i)}
+                <polygon data-anim="crystal" points={c.points} opacity={c.o} />
+              {/each}
             </g>
 
+            <!-- Top plate -->
             <path d={ISLE} fill="rgb(5,38,75)" transform="translate(0,13)" />
             <path d={ISLE} fill="url(#isle-top)" />
 
@@ -328,27 +526,41 @@
                   {#each group.points as points, pi (pi)}<polygon {points} />{/each}
                 </g>
               {/each}
-              <ellipse cx="720" cy="466" rx="140" ry="36" fill="url(#isle-glowspot)" />
+              <!-- The hollow Mos rests in: a lit pool, plus the shadow the body
+                   casts into it. Without the shadow Mos floats above the plate. -->
+              <ellipse cx="720" cy="466" rx="150" ry="40" fill="url(#isle-glowspot)" />
               <ellipse
                 cx="720"
                 cy="470"
-                rx="150"
-                ry="38"
+                rx="158"
+                ry="42"
                 fill="none"
                 stroke="#31DCDC"
-                stroke-opacity="0.13"
+                stroke-opacity="0.15"
                 stroke-width="1"
               />
+              <ellipse cx="722" cy="474" rx="104" ry="26" fill="url(#isle-contact)" />
             </g>
 
             <path
               d="M408,470A300,78 0 0 1 1033,470"
               fill="none"
               stroke="#31DCDC"
-              stroke-opacity="0.26"
+              stroke-opacity="0.28"
               stroke-width="1.6"
             />
             <path d={ISLE} fill="none" stroke="url(#isle-edge)" stroke-width="1.4" />
+
+            <!-- Mist spilling off the front edge, falling and fading. Tapered
+                 paths, not rounded rects — a rect with a big `rx` reads as a
+                 capsule, which is exactly what it looked like. -->
+            <g fill="url(#fall-g)" class="falls">
+              <path
+                data-anim="fall"
+                d="M528,534q30,0 34,10l-12,116q-11,10-22,0l-8,-116q4,-10 8,-10z"
+              />
+              <path data-anim="fall" d="M816,530q22,0 25,8l-9,92q-8,8-16,0l-6,-92q3,-8 6,-8z" />
+            </g>
 
             <ellipse
               data-anim="isle-mist"
@@ -371,30 +583,38 @@
           </g>
         </g>
 
-        <g transform="translate(0,-16)">
-          <g fill="rgb(5,38,75)" stroke="rgb(153,253,255)" stroke-opacity="0.12" stroke-width="1.2">
-            {#each ROCKS as points, i (i)}
-              <polygon data-anim="isle-rock" {points} />
-            {/each}
-          </g>
-          <g fill="rgb(153,253,255)">
-            {#each SPARKS as s, i (i)}
-              <circle data-anim="isle-spark" cx={s.cx} cy={s.cy} r={s.r} opacity={s.o} />
-            {/each}
-          </g>
+        <g transform="translate(0,-16)" fill="rgb(153,253,255)">
+          {#each SPARKS as s, i (i)}
+            <circle data-anim="isle-spark" cx={s.cx} cy={s.cy} r={s.r} opacity={s.o} />
+          {/each}
         </g>
       </svg>
     </div>
 
-    <!-- Mos stands on the disc -->
+    <!-- Mos stands on the plate -->
     <div class="layer stage" data-depth="1.25">
       <div class="stage-slot">{@render stage?.()}</div>
     </div>
 
-    <!-- Mon ring sits just above the disc, in front of the island -->
+    <!-- The Mon stand on the island in front of Mos -->
     {#if orbit}
       <div class="layer orbit-slot" data-depth="1.05">{@render orbit()}</div>
     {/if}
+
+    <!-- Near-field motes and haze, in front of everything and softened again -->
+    <div class="layer" data-depth="1.6" data-dof="2">
+      {#each MOTES as m, i (i)}
+        <span
+          class="mote"
+          data-anim="mote"
+          style="left:{m.x}%; top:{m.y}%; width:{m.s}px; height:{m.s}px; background:{m.c}; box-shadow:0 0 {m.s *
+            3}px {m.c}"
+        ></span>
+      {/each}
+    </div>
+    <div class="layer" data-depth="1.9" data-dof="9">
+      <span class="fog"></span>
+    </div>
   </div>
 </div>
 
@@ -426,6 +646,24 @@
     pointer-events: none;
   }
 
+  /* Depth of field, declared once. The island is the focal plane, so distance
+     from it — not depth itself — decides the blur. */
+  .frame :global([data-dof='2']) {
+    filter: blur(2px);
+  }
+  .frame :global([data-dof='14']) {
+    filter: blur(14px);
+  }
+  .frame :global([data-dof='7']) {
+    filter: blur(7px);
+  }
+  .frame :global([data-dof='9']) {
+    filter: blur(9px);
+  }
+  .frame :global([data-dof='18']) {
+    filter: blur(18px);
+  }
+
   /* Full-bleed backdrop layers — unaffected by --isle-scale */
   .fill {
     position: absolute;
@@ -446,6 +684,45 @@
   }
   .sky-bloom {
     background: var(--sky-bloom);
+  }
+
+  .clouds {
+    inset: -140px;
+  }
+  .cloud {
+    position: absolute;
+    left: var(--cx);
+    top: var(--cy);
+    width: var(--cw);
+    height: var(--ch);
+    /* `translate`, not `transform`: animejs drifts these on `translateX`, which
+       writes the whole `transform` property and would drop the centring. */
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: radial-gradient(
+      closest-side,
+      rgba(23, 78, 150, 0.42),
+      rgba(15, 48, 96, 0.2) 58%,
+      transparent
+    );
+  }
+
+  /* One wide bank across the bottom of the frame, so the island's base fades
+     into haze instead of ending on the page background. */
+  .fog {
+    position: absolute;
+    left: 50%;
+    bottom: -140px;
+    width: 150%;
+    height: 320px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: radial-gradient(
+      closest-side,
+      rgba(18, 62, 120, 0.5),
+      rgba(9, 34, 68, 0.22) 62%,
+      transparent
+    );
   }
 
   .stars {
@@ -475,11 +752,12 @@
      mote sits frozen mid-scene. Kept in sync with the halving in q(). */
   @media (max-width: 560px) {
     .mote:nth-child(n + 5),
-    .isle :global([data-anim='isle-rock']:nth-of-type(n + 2)),
+    .islet:nth-of-type(n + 2),
     .isle :global([data-anim='isle-spark']:nth-of-type(n + 3)) {
       display: none;
     }
-    .orbit-plane.inner {
+    .orbit-plane.inner,
+    .cloud:nth-child(n + 3) {
       display: none;
     }
   }
@@ -559,7 +837,8 @@
     transform: translateX(-50%);
     overflow: visible;
   }
-  .isle :global([data-anim='isle-rock']) {
+  .isle :global([data-anim='isle-rock']),
+  .isle :global([data-anim='shaft']) {
     transform-box: fill-box;
     transform-origin: center;
   }

@@ -39,8 +39,13 @@ function ok(label, cond, extra = '') {
   const d = await p.locator('.hero [data-anim="mos-fill"]').getAttribute('d');
   ok('Mos silhouette generated', !!d && d.length > 400, `${(d || '').length} chars`);
 
-  const isle = await p.locator('svg.isle').count();
-  ok('island svg present', isle === 1);
+  // The scene now draws on three svgs (far islets, light shafts, the island).
+  // Exactly one is the labelled subject; the rest are aria-hidden decoration.
+  ok('island svg present', (await p.locator('svg.isle[role="img"]').count()) === 1);
+  ok(
+    'decorative island layers hidden',
+    (await p.locator('svg.isle[aria-hidden="true"]').count()) === 2,
+  );
 
   const monCount = await p.locator('.hero [data-anim="mon-fill"]').count();
   ok('three Mon on the island', monCount === 3, `got ${monCount}`);
@@ -226,8 +231,7 @@ function ok(label, cond, extra = '') {
   await p.goto(BASE + '/', { waitUntil: 'networkidle' });
   await p.waitForTimeout(1400);
 
-  const isle = await p.locator('svg.isle').count();
-  ok('island kept on mobile', isle === 1);
+  ok('island kept on mobile', (await p.locator('svg.isle[role="img"]').count()) === 1);
 
   const d = await p.locator('.hero [data-anim="mos-fill"]').getAttribute('d');
   ok('Mos renders on mobile', !!d && d.length > 200);
