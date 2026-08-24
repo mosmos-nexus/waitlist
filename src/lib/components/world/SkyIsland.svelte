@@ -3,7 +3,7 @@
   import { animate, stagger } from 'animejs';
   import {
     prefersReduced,
-    attachPointerParallax,
+    attachDepthDrift,
     bindActivity,
     isCompactViewport,
   } from '$lib/anime/motion';
@@ -304,7 +304,10 @@
       );
     }
 
-    const stopParallax = attachPointerParallax(frameEl, { x: 34, y: 20 });
+    // Scroll drift on top of the pointer drift: leaving the hero pulls the far
+    // layers one way and the near ones the other, so the depth field is felt
+    // while reading and not only while waving the cursor at it.
+    const stopParallax = attachDepthDrift(frameEl, { x: 34, y: 20, scroll: 74 });
     const stopActivity = bindActivity(frameEl, loops);
 
     return () => {

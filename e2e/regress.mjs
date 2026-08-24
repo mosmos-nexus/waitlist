@@ -20,6 +20,28 @@ const mosFace = (p, root) =>
       return on?.dataset.face ?? 'none';
     });
 
+/**
+ * Centre and usable radius of the circulation ring, with the ring scrolled to
+ * the middle of the viewport first.
+ *
+ * `getBoundingClientRect()` returns the axis-aligned bounds of a *rotated*
+ * element, so once scrolling turns the ring a 376px square reports as ~526 —
+ * deriving the drag radius from it puts the path outside the ring and off the
+ * top of the screen, where the pointer clamps and the sweep never completes.
+ * `offsetWidth` is the layout size and is unaffected by the transform.
+ */
+async function ringGeometry(p) {
+  await p
+    .locator('.growth .scene')
+    .evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await p.waitForTimeout(700);
+  const g = await p.locator('.growth .ring').evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, d: el.offsetWidth };
+  });
+  return { ...g, r: g.d / 2 - 12 };
+}
+
 const page = async (o = {}) => {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...o });
   const p = await ctx.newPage();
@@ -556,6 +578,76 @@ const page = async (o = {}) => {
     .evaluateAll((els) => els.filter((e) => (e.getAttribute('d') || '').length > 6).length);
   ok('wires re-measure in the stacked layout', drawn === 6, `${drawn}/6`);
   ok('demo does not pan sideways', (await pans()) === 0);
+  await ctx.close();
+}
+
+// --- the scene has to answer to scrolling, not only to the cursor ---
+{
+  const { ctx, p } = await page();
+  const layerY = () =>
+    p.locator('.hero .frame [data-dof]').evaluateAll((els) =>
+      els.map((e) => ({
+        depth: Number(e.dataset.depth),
+        y: new DOMMatrixReadOnly(getComputedStyle(e).transform).f,
+      })),
+    );
+  const rest = await layerY();
+  ok(
+    'depth layers start at rest',
+    rest.every((l) => Math.abs(l.y) < 1),
+  );
+
+  await p.evaluate(() => window.scrollTo(0, 620));
+  await p.waitForTimeout(1400);
+  const moved = await layerY();
+  ok(
+    'every depth layer drifts on scroll',
+    moved.every((l, i) => Math.abs(l.y - rest[i].y) > 1),
+    moved.map((l) => `${l.depth}:${Math.round(l.y)}`).join(' '),
+  );
+  // Parallax means the drift scales with depth. Equal drift is just a scroll.
+  const byDepth = moved
+    .slice()
+    .sort((a, b) => a.depth - b.depth)
+    .map((l) => Math.abs(l.y));
+  ok(
+    'drift scales with depth',
+    byDepth.every((v, i) => i === 0 || v > byDepth[i - 1]),
+    byDepth.map((v) => Math.round(v)).join(' < '),
+  );
+  await ctx.close();
+}
+
+// --- scrolling the circulation turns it, and still earns nothing ---
+{
+  const { ctx, p } = await page();
+  await p.locator('.growth .scene').scrollIntoViewIfNeeded();
+  await p.waitForTimeout(1200);
+  const spin = () =>
+    p
+      .locator('.growth .ring')
+      .evaluate((e) => Math.round(new DOMMatrixReadOnly(getComputedStyle(e).transform).b * 1000));
+  const before = await spin();
+  await p.evaluate(() => window.scrollBy(0, 420));
+  await p.waitForTimeout(1500);
+  ok('passing through turns the ring', (await spin()) !== before);
+
+  // Growth is the section's payoff and has to be earned by real input; the old
+  // timer drift had the same hazard and the `touched` guard is what stops it.
+  ok('scrolling awards no growth', (await p.locator('.growth .cycle').innerText()) === '');
+  ok('and adds no inner light', (await p.locator('.growth .glob').count()) === 2);
+
+  // Dragging still does earn it.
+  const { cx, cy, r } = await ringGeometry(p);
+  await p.mouse.move(cx + r, cy);
+  await p.mouse.down();
+  for (let a = 0; a <= 360; a += 12) {
+    const rad = (a * Math.PI) / 180;
+    await p.mouse.move(cx + Math.cos(rad) * r, cy + Math.sin(rad) * r);
+  }
+  await p.mouse.up();
+  await p.waitForTimeout(900);
+  ok('a full drag still earns a cycle', (await p.locator('.growth .cycle').innerText()) !== '');
   await ctx.close();
 }
 

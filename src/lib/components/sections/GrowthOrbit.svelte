@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { animate, spring, createTimer, stagger, utils } from 'animejs';
+  import { animate, spring, onScroll, stagger, utils } from 'animejs';
   import { m } from '$lib/locale.svelte';
-  import { prefersReduced, reveal, bindActivity } from '$lib/anime/motion';
+  import { prefersReduced, reveal } from '$lib/anime/motion';
 
   /**
    * The circulation, as something you turn.
@@ -68,7 +68,7 @@
   const globCount = $derived(2 + cycles);
   const monCount = $derived(Math.min(3, cycles));
 
-  let idleTimer: ReturnType<typeof createTimer> | null = null;
+  let scrollSpin: ReturnType<typeof animate> | null = null;
 
   // Each surface redraws itself when it becomes the active one.
   $effect(() => {
@@ -105,20 +105,36 @@
     const reduced = prefersReduced();
     const cleanups: (() => void)[] = [];
 
-    // Before anyone touches it, the ring turns by itself — the same idle drift
-    // the island's orbits have, so it reads as part of the world.
+    // Before anyone takes hold, scrolling turns the ring.
+    //
+    // It used to drift on a timer, which moved but answered to nothing. Linking
+    // it to the section's own scroll range means passing through the section
+    // *is* one trip round the circulation — the surfaces come up in order as you
+    // read, and the ring is already somewhere meaningful if you then grab it.
+    // Growth still comes only from real input: `idleBase` is taken at the moment
+    // of first touch, so whatever scrolling put on the clock is not counted.
     if (!reduced) {
-      idleTimer = createTimer({
-        duration: Infinity,
-        frameRate: 30,
+      const scrubbed = { t: 0 };
+      scrollSpin = animate(scrubbed, {
+        t: 360,
+        duration: 1000,
+        ease: 'linear',
         onUpdate: () => {
           if (dragging || touched) return;
-          turn += 0.16;
+          turn = scrubbed.t;
           applyTurn();
         },
+        autoplay: onScroll({
+          target: sceneEl,
+          enter: 'bottom top',
+          leave: 'top bottom',
+          // A number is the smoothing factor, not a 1:1 link — `true` snaps the
+          // ring frame-for-frame with the wheel and the cards jitter instead of
+          // turning.
+          sync: 0.4,
+        }),
       });
-      cleanups.push(bindActivity(sceneEl, [idleTimer]));
-      cleanups.push(() => idleTimer?.revert());
+      cleanups.push(() => scrollSpin?.revert());
     }
 
     // Rotation input. `createDraggable` moves things along axes, not around a

@@ -86,17 +86,28 @@ export const reveal: Action<HTMLElement, RevealOptions | undefined> = (node, opt
 };
 
 /**
- * Pointer parallax over a container. Children carrying `data-depth` drift
- * against the cursor by that multiplier — the depth cue that sells the island
- * as something floating in front of a sky rather than a flat picture of one.
+ * Depth drift over a container.
+ *
+ * Children carrying `data-depth` move against both the cursor and the page
+ * scroll by that multiplier — the cue that sells the island as something
+ * floating in front of a sky rather than a flat picture of one.
+ *
+ * Both inputs feed one writer per layer on purpose. animejs composes with
+ * `replace`, so a second animation on the same target and property would
+ * override the first, and `x`/`y` normalise to the same `transform`. The
+ * pointer and the scroll are therefore summed here and applied once.
  */
-export function attachPointerParallax(
+export function attachDepthDrift(
   container: HTMLElement,
-  opts: { x?: number; y?: number; duration?: number } = {},
+  opts: { x?: number; y?: number; scroll?: number; duration?: number } = {},
 ): () => void {
-  if (prefersReduced() || !hasFinePointer()) return () => {};
+  if (prefersReduced()) return () => {};
 
-  const { x: ax = 34, y: ay = 20, duration = 1100 } = opts;
+  const { x: ax = 34, y: ay = 20, scroll: as = 0, duration = 520 } = opts;
+  // Scroll drift is worth having on a phone, where there is no cursor at all.
+  const fine = hasFinePointer();
+  if (!fine && !as) return () => {};
+
   const layers = Array.from(container.querySelectorAll<HTMLElement>('[data-depth]'));
   if (!layers.length) return () => {};
 
@@ -111,31 +122,61 @@ export function attachPointerParallax(
   // Cached so the hot path never forces a layout; refreshed only when the box
   // can actually have moved.
   let rect = container.getBoundingClientRect();
-  const refresh = () => {
-    rect = container.getBoundingClientRect();
-  };
+  let px = 0;
+  let py = 0;
+  let sn = 0;
 
-  const onMove = (event: PointerEvent) => {
-    const nx = (event.clientX - rect.left) / rect.width - 0.5;
-    const ny = (event.clientY - rect.top) / rect.height - 0.5;
+  const apply = () => {
     for (const { set, depth } of drivers) {
-      set.x(-nx * ax * depth).y(-ny * ay * depth);
+      set.x(-px * ax * depth).y(-py * ay * depth - sn * as * depth);
     }
   };
 
-  const onLeave = () => {
-    for (const { set } of drivers) set.x(0).y(0);
+  /** How far the container's centre sits from the viewport's, as ±1. */
+  const measure = () => {
+    rect = container.getBoundingClientRect();
+    if (!as) return;
+    const mid = rect.top + rect.height / 2;
+    const half = window.innerHeight / 2;
+    sn = Math.max(-1, Math.min(1, (half - mid) / (half + rect.height / 2)));
   };
 
-  container.addEventListener('pointermove', onMove, { passive: true });
-  container.addEventListener('pointerleave', onLeave);
-  window.addEventListener('resize', refresh);
-  window.addEventListener('scroll', refresh, { passive: true });
+  let queued = false;
+  const onScrollFrame = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      measure();
+      apply();
+    });
+  };
+
+  const onMove = (event: PointerEvent) => {
+    px = (event.clientX - rect.left) / rect.width - 0.5;
+    py = (event.clientY - rect.top) / rect.height - 0.5;
+    apply();
+  };
+
+  const onLeave = () => {
+    px = 0;
+    py = 0;
+    apply();
+  };
+
+  measure();
+  apply();
+  if (fine) {
+    container.addEventListener('pointermove', onMove, { passive: true });
+    container.addEventListener('pointerleave', onLeave);
+  }
+  window.addEventListener('resize', onScrollFrame);
+  window.addEventListener('scroll', onScrollFrame, { passive: true });
   return () => {
     container.removeEventListener('pointermove', onMove);
     container.removeEventListener('pointerleave', onLeave);
-    window.removeEventListener('resize', refresh);
-    window.removeEventListener('scroll', refresh);
+    window.removeEventListener('resize', onScrollFrame);
+    window.removeEventListener('scroll', onScrollFrame);
     for (const { set } of drivers) set.revert();
   };
 }

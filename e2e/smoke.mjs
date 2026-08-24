@@ -4,6 +4,29 @@ import { chromePath } from './resolve-chrome.mjs';
 const EXEC = chromePath();
 
 const BASE = 'http://localhost:5199';
+
+/**
+ * Centre and usable radius of the circulation ring, with the ring scrolled to
+ * the middle of the viewport first.
+ *
+ * `getBoundingClientRect()` returns the axis-aligned bounds of a *rotated*
+ * element, so once scrolling turns the ring a 376px square reports as ~526 —
+ * deriving the drag radius from it puts the path outside the ring and off the
+ * top of the screen, where the pointer clamps and the sweep never completes.
+ * `offsetWidth` is the layout size and is unaffected by the transform.
+ */
+async function ringGeometry(p) {
+  await p
+    .locator('.growth .scene')
+    .evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await p.waitForTimeout(700);
+  const g = await p.locator('.growth .ring').evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, d: el.offsetWidth };
+  });
+  return { ...g, r: g.d / 2 - 12 };
+}
+
 const errors = [];
 
 const browser = await chromium.launch({ executablePath: EXEC });
@@ -187,11 +210,7 @@ function ok(label, cond, extra = '') {
   await p.locator('.growth .scene').scrollIntoViewIfNeeded();
   await p.waitForTimeout(400);
 
-  const ring = p.locator('.growth .ring');
-  const box = await ring.boundingBox();
-  const cx = box.x + box.width / 2;
-  const cy = box.y + box.height / 2;
-  const r = box.width / 2 - 12;
+  const { cx, cy, r } = await ringGeometry(p);
 
   const scale0 = await p.locator('.growth .core').evaluate((el) => getComputedStyle(el).transform);
 
