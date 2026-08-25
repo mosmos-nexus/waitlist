@@ -121,6 +121,187 @@ function ok(l, c, e = '') {
   await ctx.close();
 }
 
+// ---- Mos stands on the island, at every scroll depth and every width ----
+{
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const p = await ctx.newPage();
+  p.on('pageerror', (e) => errors.push('world: ' + e.message));
+  await p.goto(BASE + '/', { waitUntil: 'networkidle' });
+  await p.waitForTimeout(1800);
+
+  const H = await p.evaluate(() => document.documentElement.scrollHeight);
+  const read = () =>
+    p.evaluate(() => {
+      const dy = (sel) =>
+        new DOMMatrixReadOnly(getComputedStyle(document.querySelector(sel)).transform).f;
+      const svg = document.querySelector('.isle-svg').getBoundingClientRect();
+      // The top surface reads at viewBox y 454 of a 0 0 1440 900 box.
+      const surface = svg.top + 454 * (svg.width / 1440);
+      const mos = document.querySelector('.mos-svg').getBoundingClientRect();
+      return {
+        isle: Math.round(dy('.isle')),
+        stage: Math.round(dy('.stage')),
+        seat: Math.round(mos.bottom - surface),
+        bottom: Math.round(mos.bottom),
+      };
+    });
+
+  // The island and Mos are one body: scaling the sink by pointer depth pulled
+  // them 228 px apart over the page and dropped Mos through the footer.
+  let glued = true;
+  let worstSeat = 0;
+  let lowest = 0;
+  for (const pct of [0, 0.25, 0.5, 0.75, 1]) {
+    await p.evaluate(
+      (v) => window.scrollTo({ top: v, behavior: 'instant' }),
+      Math.round((H - 900) * pct),
+    );
+    await p.waitForTimeout(900);
+    const g = await read();
+    if (g.isle !== g.stage) glued = false;
+    worstSeat = Math.max(worstSeat, Math.abs(g.seat));
+    lowest = Math.max(lowest, g.bottom);
+  }
+  ok('the island and Mos sink together', glued);
+  ok('Mos stays seated on the surface', worstSeat <= 30, `worst ${worstSeat}px off`);
+  ok('and never drops out of the viewport', lowest < 900, `lowest ${lowest}px`);
+
+  // Proportion: Mos's size is derived from the island's, so the ratio holds.
+  const ratios = [];
+  for (const [w, h] of [
+    [1920, 1080],
+    [1440, 900],
+    [1024, 768],
+  ]) {
+    await p.setViewportSize({ width: w, height: h });
+    await p.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await p.waitForTimeout(700);
+    ratios.push(
+      await p.evaluate(() => {
+        const svg = document.querySelector('.isle-svg').getBoundingClientRect();
+        const disc = (1033 - 408) * (svg.width / 1440);
+        return document.querySelector('.mos-svg').getBoundingClientRect().width / disc;
+      }),
+    );
+  }
+  const spread = Math.max(...ratios) - Math.min(...ratios);
+  ok(
+    'Mos keeps its share of the island at any width',
+    spread < 0.03,
+    `spread ${spread.toFixed(3)}`,
+  );
+  await ctx.close();
+}
+
+// ---- The idle is one buoyant body, not three loops beating ----
+{
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const p = await ctx.newPage();
+  p.on('pageerror', (e) => errors.push('idle: ' + e.message));
+  await p.goto(BASE + '/', { waitUntil: 'networkidle' });
+  await p.waitForTimeout(2000);
+
+  const rows = [];
+  for (let i = 0; i < 30; i++) {
+    rows.push(
+      await p.evaluate(() => {
+        const t = (sel) =>
+          new DOMMatrixReadOnly(getComputedStyle(document.querySelector(sel)).transform);
+        const body = t('[data-anim="mos-svg"]');
+        const sh = t('[data-anim="mos-shadow"]');
+        return {
+          up: -t('[data-anim="mos"]').f,
+          sy: Math.hypot(body.c, body.d),
+          sx: Math.hypot(body.a, body.b),
+          sh: Math.hypot(sh.a, sh.b),
+        };
+      }),
+    );
+    await p.waitForTimeout(100);
+  }
+  const cor = (a, b) => {
+    const ma = a.reduce((x, y) => x + y, 0) / a.length;
+    const mb = b.reduce((x, y) => x + y, 0) / b.length;
+    let n = 0;
+    let da = 0;
+    let db = 0;
+    for (let i = 0; i < a.length; i++) {
+      n += (a[i] - ma) * (b[i] - mb);
+      da += (a[i] - ma) ** 2;
+      db += (b[i] - mb) ** 2;
+    }
+    return n / Math.sqrt(da * db);
+  };
+  const up = rows.map((r) => r.up);
+  ok(
+    'the body bobs',
+    Math.max(...up) - Math.min(...up) > 10,
+    `${(Math.max(...up) - Math.min(...up)).toFixed(1)}px`,
+  );
+  const stretch = cor(
+    up,
+    rows.map((r) => r.sy),
+  );
+  const volume = cor(
+    rows.map((r) => r.sy),
+    rows.map((r) => r.sx),
+  );
+  const shadow = cor(
+    up,
+    rows.map((r) => r.sh),
+  );
+  ok('it stretches as it rises', stretch > 0.6, stretch.toFixed(2));
+  ok('and conserves its volume', volume < -0.8, volume.toFixed(2));
+  ok('the shadow tightens with it', shadow < -0.6, shadow.toFixed(2));
+  await ctx.close();
+}
+
+// ---- The world answers how hard you scroll ----
+{
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const p = await ctx.newPage();
+  p.on('pageerror', (e) => errors.push('lean: ' + e.message));
+  await p.goto(BASE + '/', { waitUntil: 'networkidle' });
+  await p.waitForTimeout(1600);
+
+  const lean = () =>
+    p.evaluate(() => {
+      const m = new DOMMatrixReadOnly(
+        getComputedStyle(document.querySelector('[data-anim="mos-lean"]')).transform,
+      );
+      return { y: m.f, rot: (Math.atan2(m.b, m.a) * 180) / Math.PI };
+    });
+
+  ok('at rest there is no lean', Math.abs((await lean()).rot) < 0.4);
+  const down = [];
+  for (let i = 0; i < 20; i++) {
+    await p.mouse.wheel(0, 130);
+    down.push(await lean());
+  }
+  const peakDown = down.reduce((a, b) => (Math.abs(b.rot) > Math.abs(a.rot) ? b : a));
+  ok(
+    'scrolling makes Mos lean and lag',
+    Math.abs(peakDown.rot) > 2 && Math.abs(peakDown.y) > 8,
+    `rot ${peakDown.rot.toFixed(1)}deg y ${peakDown.y.toFixed(1)}px`,
+  );
+
+  await p.waitForTimeout(1000);
+  ok('and it settles back', Math.abs((await lean()).rot) < 1);
+
+  const up = [];
+  for (let i = 0; i < 20; i++) {
+    await p.mouse.wheel(0, -130);
+    up.push(await lean());
+  }
+  const peakUp = up.reduce((a, b) => (Math.abs(b.rot) > Math.abs(a.rot) ? b : a));
+  ok(
+    'the lean follows the direction of travel',
+    Math.sign(peakUp.rot) !== Math.sign(peakDown.rot),
+    `${peakDown.rot.toFixed(1)} vs ${peakUp.rot.toFixed(1)}`,
+  );
+  await ctx.close();
+}
+
 await browser.close();
 console.log('\n--- errors ---');
 console.log(errors.length ? errors.join('\n') : 'none');

@@ -172,6 +172,8 @@ export function createWorld(root: HTMLElement): World {
   const cleanups: (() => void)[] = [];
   /** The path rewriter, held so the scroll driver can idle it. */
   let slimeTimer: Loop | undefined;
+  /** Raised while a Mon runs; the velocity response multiplies on top of it. */
+  let busy = false;
 
   /* ---- the island: rock adrift, on cycles that never line up ---- */
   keep(
@@ -216,7 +218,7 @@ export function createWorld(root: HTMLElement): World {
       ease: 'out(2)',
     }),
   );
-  keep(
+  const motes = keep(
     animate(q(root, '[data-anim="mote"]'), {
       translateY: [0, -26],
       opacity: [0.25, 1, 0.25],
@@ -250,41 +252,75 @@ export function createWorld(root: HTMLElement): World {
     );
   });
 
-  /* ---- Mos: float, shadow, aura, face ---- */
+  /* ---- Mos: one buoyant cycle, phase-locked ----
+   *
+   * The bob, the squash and the shadow used to be three loops on three
+   * different periods (2800 / 2800 / 3400 ms). Each was a plain sine, so they
+   * beat against each other and the body read as several parts wobbling rather
+   * than one thing floating. They now share a single 3200 ms cycle with the
+   * same keyframe boundaries: rise slowly and stretch, hang, drop faster and
+   * squash, settle. That asymmetry — slow up, quicker down — is what makes a
+   * mass look buoyant instead of oscillating.
+   */
+  const RISE = 1760;
+  const HANG = 250;
+  const FALL = 1000;
+  const SETTLE = 190;
+
   keep(
     animate(q(root, '[data-anim="mos"]'), {
-      translateY: [0, -15],
-      duration: 2800,
+      translateY: [
+        { to: -17, duration: RISE, ease: 'out(2)' },
+        { to: -14, duration: HANG, ease: 'inOut(2)' },
+        { to: 1.5, duration: FALL, ease: 'in(2)' },
+        { to: 0, duration: SETTLE, ease: 'out(2)' },
+      ],
       loop: true,
-      alternate: true,
-      ease: 'inOut(2)',
+    }),
+  );
+  // Volume is conserved: the body narrows as it stretches and spreads as it
+  // lands, which is the difference between a squash and a resize.
+  keep(
+    animate(q(root, '[data-anim="mos-svg"]'), {
+      scaleY: [
+        { to: 1.04, duration: RISE, ease: 'out(2)' },
+        { to: 1.025, duration: HANG, ease: 'inOut(2)' },
+        { to: 0.95, duration: FALL, ease: 'in(2)' },
+        { to: 1, duration: SETTLE, ease: 'out(3)' },
+      ],
+      scaleX: [
+        { to: 0.968, duration: RISE, ease: 'out(2)' },
+        { to: 0.98, duration: HANG, ease: 'inOut(2)' },
+        { to: 1.055, duration: FALL, ease: 'in(2)' },
+        { to: 1, duration: SETTLE, ease: 'out(3)' },
+      ],
+      loop: true,
     }),
   );
   keep(
     animate(q(root, '[data-anim="mos-shadow"]'), {
-      scale: [1, 0.88],
-      opacity: [0.55, 0.34],
-      duration: 2800,
+      scale: [
+        { to: 0.84, duration: RISE, ease: 'out(2)' },
+        { to: 0.86, duration: HANG, ease: 'inOut(2)' },
+        { to: 1.06, duration: FALL, ease: 'in(2)' },
+        { to: 1, duration: SETTLE, ease: 'out(3)' },
+      ],
+      opacity: [
+        { to: 0.3, duration: RISE, ease: 'out(2)' },
+        { to: 0.33, duration: HANG, ease: 'inOut(2)' },
+        { to: 0.62, duration: FALL, ease: 'in(2)' },
+        { to: 0.55, duration: SETTLE, ease: 'out(3)' },
+      ],
       loop: true,
-      alternate: true,
-      ease: 'inOut(2)',
     }),
   );
+  // The aura is the only part deliberately off the cycle: a glow that pulsed in
+  // lockstep with the bob would read as a second body rather than as light.
   keep(
     animate(q(root, '[data-anim="aura"]'), {
       scale: [1, 1.09],
       opacity: [0.5, 0.82],
-      duration: 3200,
-      loop: true,
-      alternate: true,
-      ease: 'inOut(2)',
-    }),
-  );
-  keep(
-    animate(q(root, '[data-anim="mos-svg"]'), {
-      scaleX: [1, 1.045],
-      scaleY: [1, 0.955],
-      duration: 3400,
+      duration: 4300,
       loop: true,
       alternate: true,
       ease: 'inOut(2)',
@@ -457,10 +493,32 @@ export function createWorld(root: HTMLElement): World {
    * comes back a fifth of a second after it stops — nobody reads the outline of
    * a character they are scrolling past, and the scroll is what they can feel.
    */
+  /*
+   * Everything that reacts to how hard the page is being scrolled.
+   *
+   * `velocity` is signed and eased, roughly -1…1, and it decays to zero on its
+   * own when the wheel stops. Three things read it, so the whole scene answers
+   * one gesture instead of each part answering separately: Mos leans and lags
+   * behind the sink, the orbits and the liquid inside Mos wind up, and the
+   * motes streak. Speed is a property on a running loop, so none of this
+   * allocates and none of it fights the loops it accelerates.
+   */
+  const leanEl = q(root, '[data-anim="mos-lean"]')[0];
+  const lean = leanEl ? createAnimatable(leanEl, { y: 260, rotate: 260, ease: 'out(3)' }) : null;
+
   cleanups.push(
     attachDrift(root, {
       onScrollStart: () => slimeTimer?.pause(),
       onScrollIdle: () => slimeTimer?.play(),
+      onVelocity: (v) => {
+        // Mos hangs back from the world's descent, then catches up — the lag is
+        // what makes it read as a body being carried rather than a decal.
+        lean?.y(-v * 22).rotate(v * 5.5);
+        const wind = 1 + Math.abs(v) * (busy ? 1.4 : 2.4);
+        for (const o of orbits) o.speed = (busy ? 2.6 : 1) * wind;
+        for (const g of globs) g.speed = (busy ? 2.1 : 1) * wind;
+        motes.speed = 1 + Math.abs(v) * 2.2;
+      },
     }),
   );
 
@@ -468,7 +526,6 @@ export function createWorld(root: HTMLElement): World {
   cleanups.push(bindActivity(root, loops));
 
   let pokeTimer: ReturnType<typeof setTimeout> | undefined;
-  let busy = false;
 
   const world: World = {
     poke(event) {
@@ -619,6 +676,8 @@ export function createWorld(root: HTMLElement): World {
     setBusy(next) {
       if (busy === next) return;
       busy = next;
+      // The velocity hook multiplies on top of these, so both write the same
+      // base — otherwise whichever ran last would decide the resting speed.
       for (const o of orbits) o.speed = next ? 2.6 : 1;
       for (const g of globs) g.speed = next ? 2.1 : 1;
       animate(sp, { amp: next ? 1.2 : 1, duration: 900, ease: 'out(3)' });
@@ -648,18 +707,25 @@ export function createWorld(root: HTMLElement): World {
 /**
  * Depth drift over the scene.
  *
- * Two inputs, one output. The pointer offset and the page's scroll progress are
- * both reduced to a single x/y per layer before anything is written, because
- * `x` and `y` normalise to the same `transform` — two animations would fight
- * and the later one would win outright.
+ * Two inputs, one output per layer. The pointer offset and the page's scroll
+ * progress are summed by hand before anything is written, because `x` and `y`
+ * normalise to the same `transform` — two animations would fight and the later
+ * one would win outright.
  *
- * The scroll term is what carries the page: it lags behind the real scroll
- * position by an exponential ease, so the world drifts a beat after the text
- * does. That difference is the whole depth effect, and it costs one lerp.
+ * **The two inputs do not share a depth.** `data-px` is how far a layer moves
+ * with the pointer, which is genuine perspective: the nearer a thing is, the
+ * more it slides. `data-scroll` is how far it sinks as the page is read, and
+ * there the island, its rings and Mos have to share one number, because Mos is
+ * standing *on* the island. Scaling the sink by pointer depth pulled them apart
+ * by 228 px over the page — Mos began 54 px above the rim and ended 174 px
+ * below it, through the footer. A layer without `data-scroll` falls back to
+ * `data-px`, so a purely atmospheric layer needs only the one attribute.
  */
 interface DriftHooks {
   onScrollStart?: () => void;
   onScrollIdle?: () => void;
+  /** Signed, eased scroll speed, about -1…1, decaying to 0 when the wheel stops. */
+  onVelocity?: (velocity: number) => void;
 }
 
 function attachDrift(root: HTMLElement, hooks: DriftHooks = {}): () => void {
@@ -667,10 +733,16 @@ function attachDrift(root: HTMLElement, hooks: DriftHooks = {}): () => void {
   if (!layers.length) return () => {};
 
   const fine = hasFinePointer();
-  const drivers = layers.map((layer) => ({
-    set: createAnimatable(layer, { x: 0, y: 0 }),
-    depth: parseFloat(layer.dataset.px ?? '0') || 0,
-  }));
+  const drivers = layers.map((layer) => {
+    const near = parseFloat(layer.dataset.px ?? '0') || 0;
+    return {
+      set: createAnimatable(layer, { x: 0, y: 0, scale: 0 }),
+      near,
+      sink: layer.dataset.scroll === undefined ? near : parseFloat(layer.dataset.scroll) || 0,
+      pan: parseFloat(layer.dataset.scrollX ?? '0') || 0,
+      recede: parseFloat(layer.dataset.recede ?? '0') || 0,
+    };
+  });
 
   let px = 0;
   let py = 0;
@@ -678,23 +750,32 @@ function attachDrift(root: HTMLElement, hooks: DriftHooks = {}): () => void {
   let scrollTarget = 0;
   /** Where the world thinks it is. Chases `scrollTarget` and never quite lands. */
   let scrollEased = 0;
+  /** Unspent scroll distance in px, drained a little every frame. */
+  let velRaw = 0;
+  /** The eased, signed version the scene reacts to. */
+  let velEased = 0;
+  let lastY = 0;
   let raf = 0;
   let scrolling = false;
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
 
   const apply = () => {
-    for (const { set, depth } of drivers) {
-      set.x(-px * 34 * depth);
+    for (const { set, near, sink, pan, recede } of drivers) {
+      set.x(-px * 34 * near + scrollEased * 150 * pan);
       // Positive: the island *sinks* as the page is read. Rising would drive it
       // straight up through the panels it sits behind, and the descent also
       // reads as the reader climbing away from where they started.
-      set.y(-py * 20 * depth + scrollEased * 300 * depth);
+      set.y(-py * 20 * near + scrollEased * 300 * sink);
+      if (recede) set.scale(1 - scrollEased * 0.09 * recede);
     }
   };
 
   const readScroll = () => {
     const span = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-    scrollTarget = Math.min(1, window.scrollY / span);
+    const y = window.scrollY;
+    velRaw += y - lastY;
+    lastY = y;
+    scrollTarget = Math.min(1, y / span);
   };
 
   let last = 0;
@@ -704,12 +785,25 @@ function attachDrift(root: HTMLElement, hooks: DriftHooks = {}): () => void {
     // Frame-time corrected, so the ease reads the same at 60 and at 120Hz.
     const k = 1 - Math.pow(1 - 0.09, dt / 16.667);
     const gap = scrollTarget - scrollEased;
-    if (Math.abs(gap) > 0.00005) {
+
+    // Velocity attacks fast and releases slowly: a scene that snapped back the
+    // instant the wheel stopped would read as a switch rather than as momentum.
+    const velTarget = Math.max(-1, Math.min(1, velRaw / 70));
+    const kv =
+      1 - Math.pow(1 - (Math.abs(velTarget) > Math.abs(velEased) ? 0.3 : 0.075), dt / 16.667);
+    velEased += (velTarget - velEased) * kv;
+    velRaw *= Math.pow(0.8, dt / 16.667);
+    hooks.onVelocity?.(velEased);
+
+    if (Math.abs(gap) > 0.00005 || Math.abs(velEased) > 0.004) {
       scrollEased += gap * k;
       apply();
       raf = requestAnimationFrame(frame);
     } else {
       scrollEased = scrollTarget;
+      velEased = 0;
+      velRaw = 0;
+      hooks.onVelocity?.(0);
       apply();
       raf = 0;
       last = 0;
@@ -735,7 +829,9 @@ function attachDrift(root: HTMLElement, hooks: DriftHooks = {}): () => void {
     apply();
   };
 
+  lastY = window.scrollY;
   readScroll();
+  velRaw = 0;
   scrollEased = scrollTarget;
   apply();
 

@@ -620,7 +620,10 @@ textarea {
   --gray3: rgb(154, 154, 175);
 
   /* Glass — the recipe every HUD surface in Monitor uses. */
-  --glass: rgba(18, 20, 28, 0.86);
+  /* 0.90, not 0.86: at the lower value Mos's face read through a panel it was
+     directly behind, which looks like a mistake rather than like depth. Any
+     higher and the panels stop reading as glass over the sky at all. */
+  --glass: rgba(18, 20, 28, 0.9);
   --glass-line: rgba(112, 115, 124, 0.32);
   --glass-line-soft: rgba(112, 115, 124, 0.22);
 

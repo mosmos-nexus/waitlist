@@ -48,10 +48,10 @@
 <div class="world" bind:this={root} aria-hidden="false">
   <!-- Sky. Two washes: the deep gradient, then three coloured pools that keep
        the corners from going flat black. -->
-  <div class="layer sky" data-px="0.15"></div>
-  <div class="layer stars" data-px="0.5"></div>
+  <div class="layer sky" data-px="0.15" data-scroll="0.1" data-scroll-x="0.12"></div>
+  <div class="layer stars" data-px="0.5" data-scroll="0.2" data-scroll-x="0.3"></div>
 
-  <div class="layer" data-px="0.9">
+  <div class="layer" data-px="0.9" data-scroll="0.34" data-scroll-x="0.45">
     <span
       class="mote"
       data-anim="mote"
@@ -96,7 +96,7 @@
 
   <!-- The orbit the Mon travel on. Two rings, opposite directions, tipped back
        so they read as ellipses around the island rather than circles on it. -->
-  <div class="layer rings" data-px="0.7">
+  <div class="layer rings" data-px="0.7" data-scroll="0.52" data-scroll-x="0.55" data-recede="1">
     <div class="halo"></div>
     <div class="ring ring-a">
       <div class="ring-line"></div>
@@ -112,7 +112,7 @@
     </div>
   </div>
 
-  <div class="layer isle" data-px="0.55">
+  <div class="layer isle" data-px="0.55" data-scroll="0.52" data-scroll-x="0.55" data-recede="1">
     <svg
       data-anim="island"
       viewBox="0 0 1440 900"
@@ -294,258 +294,261 @@
 
   <!-- Mos. The button is the poke target; every transform channel it uses is
        one no loop owns, so a poke can never override the float or the breath. -->
-  <div class="layer stage" data-px="1.25">
+  <div class="layer stage" data-px="1.25" data-scroll="0.52" data-scroll-x="0.55" data-recede="1">
     <div class="shadow-slot"><div class="mos-shadow" data-anim="mos-shadow"></div></div>
     <div class="mos-slot">
-      <button
-        type="button"
-        class="poke"
-        data-anim="mos-give"
-        onclick={poke}
-        aria-label={m.poke_hint()}
-      >
-        <span class="mos-inner" data-anim="mos">
-          <span class="aura" data-anim="aura"></span>
-          <svg data-anim="mos-svg" viewBox="216 220 476 406" class="mos-svg" aria-hidden="true">
-            <defs>
-              <clipPath id="w-mos-clip"
-                ><path
-                  data-anim="mos-clip-path"
+      <span class="mos-lean" data-anim="mos-lean">
+        <button
+          type="button"
+          class="poke"
+          data-anim="mos-give"
+          onclick={poke}
+          aria-label={m.poke_hint()}
+        >
+          <span class="mos-inner" data-anim="mos">
+            <span class="aura" data-anim="aura"></span>
+            <svg data-anim="mos-svg" viewBox="216 220 476 406" class="mos-svg" aria-hidden="true">
+              <defs>
+                <clipPath id="w-mos-clip"
+                  ><path
+                    data-anim="mos-clip-path"
+                    d="M610.94,292.11c-17.97-14.53-41.63-19.69-65.13-11.21-9.38,3.39-18.63,7.49-28.5,8.92-24.88,3.59-31.33-14.56-47.12-28.75-26.09-23.43-65.1-34.47-98.96-23.14-12.44,4.16-23.34,11.49-32.54,20.66-8.96,8.92-16.31,19.59-21.89,30.76-12.21,24.42-13.98,52.32-24.62,77.3-7.93,18.61-23.13,33.71-35.17,49.68-21.01,27.84-34.21,65.95-24.36,100.73,5.87,20.74,24.05,31.11,41.94,40.39,4.67,2.42,9.42,4.75,14.06,7.26,2.4,1.3,4.83,2.68,7.46,3.43,1.17.33,2.35.67,3.48,1.1,18.12,23.62,47.33,46.33,78.58,44.51,18.44-1.07,36.17-7.34,52.42-15.87,7.13-3.74,15.3-6.72,21.98-11.21,10.89-3.96,21.76,4.75,31.64,8.15,15.38,5.3,31.35,7.26,47.55,7.54,44.77.77,99.22-17.02,129.76-50.85,45.56-50.47-13.97-107.12-18.53-160.04-2.37-27.47.02-56.92-15.7-81.12-4.61-7.09-10.14-13.24-16.36-18.27Z"
+                  ></path></clipPath
+                >
+                <linearGradient id="w-mos-base" x1="0.15" y1="0" x2="0.85" y2="1">
+                  <stop offset="0" stop-color="#2E6FC8"></stop>
+                  <stop offset="1" stop-color="#0F2F5E"></stop>
+                </linearGradient>
+                <linearGradient id="w-mos-rim" x1="0.1" y1="0" x2="0.9" y2="1">
+                  <stop offset="0" stop-color="#ECEDF6" stop-opacity="0.8"></stop>
+                  <stop offset="0.55" stop-color="#31DCDC" stop-opacity="0.42"></stop>
+                  <stop offset="1" stop-color="#0F6FDA" stop-opacity="0.28"></stop>
+                </linearGradient>
+                <radialGradient id="w-mos-glob-1">
+                  <stop offset="0" stop-color="#1B7BE8" stop-opacity="0.95"></stop>
+                  <stop offset="0.5" stop-color="#1B7BE8" stop-opacity="0.6"></stop>
+                  <stop offset="1" stop-color="#1B7BE8" stop-opacity="0"></stop>
+                </radialGradient>
+                <radialGradient id="w-mos-glob-2">
+                  <stop offset="0" stop-color="#3D8BEE" stop-opacity="0.9"></stop>
+                  <stop offset="0.5" stop-color="#3D8BEE" stop-opacity="0.5"></stop>
+                  <stop offset="1" stop-color="#3D8BEE" stop-opacity="0"></stop>
+                </radialGradient>
+                <radialGradient id="w-mos-glob-3">
+                  <stop offset="0" stop-color="#31DCDC" stop-opacity="0.85"></stop>
+                  <stop offset="0.5" stop-color="#31DCDC" stop-opacity="0.42"></stop>
+                  <stop offset="1" stop-color="#31DCDC" stop-opacity="0"></stop>
+                </radialGradient>
+                <radialGradient id="w-mos-glob-4">
+                  <stop offset="0" stop-color="#6D4BD8" stop-opacity="0.8"></stop>
+                  <stop offset="0.5" stop-color="#6D4BD8" stop-opacity="0.36"></stop>
+                  <stop offset="1" stop-color="#6D4BD8" stop-opacity="0"></stop>
+                </radialGradient>
+                <radialGradient id="w-mos-glob-5">
+                  <stop offset="0" stop-color="#21EDB3" stop-opacity="0.8"></stop>
+                  <stop offset="0.5" stop-color="#21EDB3" stop-opacity="0.34"></stop>
+                  <stop offset="1" stop-color="#21EDB3" stop-opacity="0"></stop>
+                </radialGradient>
+                <radialGradient id="w-mos-gloss">
+                  <stop offset="0" stop-color="#F7F8F9" stop-opacity="0.34"></stop>
+                  <stop offset="0.6" stop-color="#F7F8F9" stop-opacity="0.12"></stop>
+                  <stop offset="1" stop-color="#F7F8F9" stop-opacity="0"></stop>
+                </radialGradient>
+                <radialGradient id="w-poke-press">
+                  <stop offset="0" stop-color="#0B3A6B" stop-opacity="0.4"></stop>
+                  <stop offset="0.66" stop-color="#0B3A6B" stop-opacity="0.16"></stop>
+                  <stop offset="1" stop-color="#0B3A6B" stop-opacity="0"></stop>
+                </radialGradient>
+                <radialGradient id="w-poke-lift">
+                  <stop offset="0" stop-color="#8FD8FF" stop-opacity="0.34"></stop>
+                  <stop offset="0.72" stop-color="#8FD8FF" stop-opacity="0.08"></stop>
+                  <stop offset="1" stop-color="#8FD8FF" stop-opacity="0"></stop>
+                </radialGradient>
+                <radialGradient id="w-poke-band-1">
+                  <stop offset="0" stop-color="#7FC4FF" stop-opacity="0"></stop>
+                  <stop offset="0.58" stop-color="#7FC4FF" stop-opacity="0.06"></stop>
+                  <stop offset="0.84" stop-color="#AEE4FF" stop-opacity="0.5"></stop>
+                  <stop offset="1" stop-color="#AEE4FF" stop-opacity="0"></stop>
+                </radialGradient>
+                <radialGradient id="w-poke-band-2">
+                  <stop offset="0" stop-color="#31DCDC" stop-opacity="0"></stop>
+                  <stop offset="0.62" stop-color="#31DCDC" stop-opacity="0.05"></stop>
+                  <stop offset="0.86" stop-color="#5FE6E6" stop-opacity="0.36"></stop>
+                  <stop offset="1" stop-color="#5FE6E6" stop-opacity="0"></stop>
+                </radialGradient>
+                <radialGradient id="w-poke-band-3">
+                  <stop offset="0" stop-color="#3D8BEE" stop-opacity="0"></stop>
+                  <stop offset="0.68" stop-color="#3D8BEE" stop-opacity="0.04"></stop>
+                  <stop offset="0.9" stop-color="#79B6FF" stop-opacity="0.24"></stop>
+                  <stop offset="1" stop-color="#79B6FF" stop-opacity="0"></stop>
+                </radialGradient>
+                <radialGradient id="w-mos-shade">
+                  <stop offset="0" stop-color="#06101F" stop-opacity="0.5"></stop>
+                  <stop offset="0.6" stop-color="#06101F" stop-opacity="0.2"></stop>
+                  <stop offset="1" stop-color="#06101F" stop-opacity="0"></stop>
+                </radialGradient>
+              </defs>
+              <g>
+                <path
+                  data-anim="mos-fill"
+                  fill="url(#w-mos-base)"
                   d="M610.94,292.11c-17.97-14.53-41.63-19.69-65.13-11.21-9.38,3.39-18.63,7.49-28.5,8.92-24.88,3.59-31.33-14.56-47.12-28.75-26.09-23.43-65.1-34.47-98.96-23.14-12.44,4.16-23.34,11.49-32.54,20.66-8.96,8.92-16.31,19.59-21.89,30.76-12.21,24.42-13.98,52.32-24.62,77.3-7.93,18.61-23.13,33.71-35.17,49.68-21.01,27.84-34.21,65.95-24.36,100.73,5.87,20.74,24.05,31.11,41.94,40.39,4.67,2.42,9.42,4.75,14.06,7.26,2.4,1.3,4.83,2.68,7.46,3.43,1.17.33,2.35.67,3.48,1.1,18.12,23.62,47.33,46.33,78.58,44.51,18.44-1.07,36.17-7.34,52.42-15.87,7.13-3.74,15.3-6.72,21.98-11.21,10.89-3.96,21.76,4.75,31.64,8.15,15.38,5.3,31.35,7.26,47.55,7.54,44.77.77,99.22-17.02,129.76-50.85,45.56-50.47-13.97-107.12-18.53-160.04-2.37-27.47.02-56.92-15.7-81.12-4.61-7.09-10.14-13.24-16.36-18.27Z"
-                ></path></clipPath
-              >
-              <linearGradient id="w-mos-base" x1="0.15" y1="0" x2="0.85" y2="1">
-                <stop offset="0" stop-color="#2E6FC8"></stop>
-                <stop offset="1" stop-color="#0F2F5E"></stop>
-              </linearGradient>
-              <linearGradient id="w-mos-rim" x1="0.1" y1="0" x2="0.9" y2="1">
-                <stop offset="0" stop-color="#ECEDF6" stop-opacity="0.8"></stop>
-                <stop offset="0.55" stop-color="#31DCDC" stop-opacity="0.42"></stop>
-                <stop offset="1" stop-color="#0F6FDA" stop-opacity="0.28"></stop>
-              </linearGradient>
-              <radialGradient id="w-mos-glob-1">
-                <stop offset="0" stop-color="#1B7BE8" stop-opacity="0.95"></stop>
-                <stop offset="0.5" stop-color="#1B7BE8" stop-opacity="0.6"></stop>
-                <stop offset="1" stop-color="#1B7BE8" stop-opacity="0"></stop>
-              </radialGradient>
-              <radialGradient id="w-mos-glob-2">
-                <stop offset="0" stop-color="#3D8BEE" stop-opacity="0.9"></stop>
-                <stop offset="0.5" stop-color="#3D8BEE" stop-opacity="0.5"></stop>
-                <stop offset="1" stop-color="#3D8BEE" stop-opacity="0"></stop>
-              </radialGradient>
-              <radialGradient id="w-mos-glob-3">
-                <stop offset="0" stop-color="#31DCDC" stop-opacity="0.85"></stop>
-                <stop offset="0.5" stop-color="#31DCDC" stop-opacity="0.42"></stop>
-                <stop offset="1" stop-color="#31DCDC" stop-opacity="0"></stop>
-              </radialGradient>
-              <radialGradient id="w-mos-glob-4">
-                <stop offset="0" stop-color="#6D4BD8" stop-opacity="0.8"></stop>
-                <stop offset="0.5" stop-color="#6D4BD8" stop-opacity="0.36"></stop>
-                <stop offset="1" stop-color="#6D4BD8" stop-opacity="0"></stop>
-              </radialGradient>
-              <radialGradient id="w-mos-glob-5">
-                <stop offset="0" stop-color="#21EDB3" stop-opacity="0.8"></stop>
-                <stop offset="0.5" stop-color="#21EDB3" stop-opacity="0.34"></stop>
-                <stop offset="1" stop-color="#21EDB3" stop-opacity="0"></stop>
-              </radialGradient>
-              <radialGradient id="w-mos-gloss">
-                <stop offset="0" stop-color="#F7F8F9" stop-opacity="0.34"></stop>
-                <stop offset="0.6" stop-color="#F7F8F9" stop-opacity="0.12"></stop>
-                <stop offset="1" stop-color="#F7F8F9" stop-opacity="0"></stop>
-              </radialGradient>
-              <radialGradient id="w-poke-press">
-                <stop offset="0" stop-color="#0B3A6B" stop-opacity="0.4"></stop>
-                <stop offset="0.66" stop-color="#0B3A6B" stop-opacity="0.16"></stop>
-                <stop offset="1" stop-color="#0B3A6B" stop-opacity="0"></stop>
-              </radialGradient>
-              <radialGradient id="w-poke-lift">
-                <stop offset="0" stop-color="#8FD8FF" stop-opacity="0.34"></stop>
-                <stop offset="0.72" stop-color="#8FD8FF" stop-opacity="0.08"></stop>
-                <stop offset="1" stop-color="#8FD8FF" stop-opacity="0"></stop>
-              </radialGradient>
-              <radialGradient id="w-poke-band-1">
-                <stop offset="0" stop-color="#7FC4FF" stop-opacity="0"></stop>
-                <stop offset="0.58" stop-color="#7FC4FF" stop-opacity="0.06"></stop>
-                <stop offset="0.84" stop-color="#AEE4FF" stop-opacity="0.5"></stop>
-                <stop offset="1" stop-color="#AEE4FF" stop-opacity="0"></stop>
-              </radialGradient>
-              <radialGradient id="w-poke-band-2">
-                <stop offset="0" stop-color="#31DCDC" stop-opacity="0"></stop>
-                <stop offset="0.62" stop-color="#31DCDC" stop-opacity="0.05"></stop>
-                <stop offset="0.86" stop-color="#5FE6E6" stop-opacity="0.36"></stop>
-                <stop offset="1" stop-color="#5FE6E6" stop-opacity="0"></stop>
-              </radialGradient>
-              <radialGradient id="w-poke-band-3">
-                <stop offset="0" stop-color="#3D8BEE" stop-opacity="0"></stop>
-                <stop offset="0.68" stop-color="#3D8BEE" stop-opacity="0.04"></stop>
-                <stop offset="0.9" stop-color="#79B6FF" stop-opacity="0.24"></stop>
-                <stop offset="1" stop-color="#79B6FF" stop-opacity="0"></stop>
-              </radialGradient>
-              <radialGradient id="w-mos-shade">
-                <stop offset="0" stop-color="#06101F" stop-opacity="0.5"></stop>
-                <stop offset="0.6" stop-color="#06101F" stop-opacity="0.2"></stop>
-                <stop offset="1" stop-color="#06101F" stop-opacity="0"></stop>
-              </radialGradient>
-            </defs>
-            <g>
-              <path
-                data-anim="mos-fill"
-                fill="url(#w-mos-base)"
-                d="M610.94,292.11c-17.97-14.53-41.63-19.69-65.13-11.21-9.38,3.39-18.63,7.49-28.5,8.92-24.88,3.59-31.33-14.56-47.12-28.75-26.09-23.43-65.1-34.47-98.96-23.14-12.44,4.16-23.34,11.49-32.54,20.66-8.96,8.92-16.31,19.59-21.89,30.76-12.21,24.42-13.98,52.32-24.62,77.3-7.93,18.61-23.13,33.71-35.17,49.68-21.01,27.84-34.21,65.95-24.36,100.73,5.87,20.74,24.05,31.11,41.94,40.39,4.67,2.42,9.42,4.75,14.06,7.26,2.4,1.3,4.83,2.68,7.46,3.43,1.17.33,2.35.67,3.48,1.1,18.12,23.62,47.33,46.33,78.58,44.51,18.44-1.07,36.17-7.34,52.42-15.87,7.13-3.74,15.3-6.72,21.98-11.21,10.89-3.96,21.76,4.75,31.64,8.15,15.38,5.3,31.35,7.26,47.55,7.54,44.77.77,99.22-17.02,129.76-50.85,45.56-50.47-13.97-107.12-18.53-160.04-2.37-27.47.02-56.92-15.7-81.12-4.61-7.09-10.14-13.24-16.36-18.27Z"
-              ></path>
-              <g data-anim="mos-flow" clip-path="url(#w-mos-clip)" style="pointer-events:none">
-                <circle
-                  data-anim="mos-glob"
-                  data-tone="blue"
-                  data-orbit="30"
-                  data-phase="0"
-                  data-dur="14000"
-                  data-dir="1"
-                  cx="452"
-                  cy="432"
-                  r="176"
-                  fill="url(#w-mos-glob-1)"
-                  opacity="0.95"
-                ></circle>
-                <circle
-                  data-anim="mos-glob"
-                  data-tone="light"
-                  data-orbit="78"
-                  data-phase="40"
-                  data-dur="9200"
-                  data-dir="1"
-                  cx="452"
-                  cy="432"
-                  r="140"
-                  fill="url(#w-mos-glob-2)"
-                  opacity="0.9"
-                ></circle>
-                <circle
-                  data-anim="mos-glob"
-                  data-tone="cyan"
-                  data-orbit="62"
-                  data-phase="130"
-                  data-dur="7600"
-                  data-dir="-1"
-                  cx="452"
-                  cy="432"
-                  r="126"
-                  fill="url(#w-mos-glob-3)"
-                  opacity="0.8"
-                ></circle>
-                <circle
-                  data-anim="mos-glob"
-                  data-tone="purple"
-                  data-orbit="92"
-                  data-phase="215"
-                  data-dur="11800"
-                  data-dir="-1"
-                  cx="452"
-                  cy="432"
-                  r="118"
-                  fill="url(#w-mos-glob-4)"
-                  opacity="0.7"
-                ></circle>
-                <circle
-                  data-anim="mos-glob"
-                  data-tone="green"
-                  data-orbit="50"
-                  data-phase="300"
-                  data-dur="8400"
-                  data-dir="1"
-                  cx="452"
-                  cy="432"
-                  r="104"
-                  fill="url(#w-mos-glob-5)"
-                  opacity="0.42"
-                ></circle>
-                <ellipse cx="368" cy="318" rx="132" ry="96" fill="url(#w-mos-gloss)"></ellipse>
-                <ellipse cx="536" cy="566" rx="150" ry="104" fill="url(#w-mos-shade)"></ellipse>
-              </g>
-              <path
-                data-anim="mos-rim"
-                style="pointer-events:none"
-                fill="none"
-                stroke="url(#w-mos-rim)"
-                stroke-width="3.4"
-                d="M610.94,292.11c-17.97-14.53-41.63-19.69-65.13-11.21-9.38,3.39-18.63,7.49-28.5,8.92-24.88,3.59-31.33-14.56-47.12-28.75-26.09-23.43-65.1-34.47-98.96-23.14-12.44,4.16-23.34,11.49-32.54,20.66-8.96,8.92-16.31,19.59-21.89,30.76-12.21,24.42-13.98,52.32-24.62,77.3-7.93,18.61-23.13,33.71-35.17,49.68-21.01,27.84-34.21,65.95-24.36,100.73,5.87,20.74,24.05,31.11,41.94,40.39,4.67,2.42,9.42,4.75,14.06,7.26,2.4,1.3,4.83,2.68,7.46,3.43,1.17.33,2.35.67,3.48,1.1,18.12,23.62,47.33,46.33,78.58,44.51,18.44-1.07,36.17-7.34,52.42-15.87,7.13-3.74,15.3-6.72,21.98-11.21,10.89-3.96,21.76,4.75,31.64,8.15,15.38,5.3,31.35,7.26,47.55,7.54,44.77.77,99.22-17.02,129.76-50.85,45.56-50.47-13.97-107.12-18.53-160.04-2.37-27.47.02-56.92-15.7-81.12-4.61-7.09-10.14-13.24-16.36-18.27Z"
-              ></path>
-            </g>
-            <g data-anim="poke-fx" clip-path="url(#w-mos-clip)" style="pointer-events:none">
-              <circle
-                data-anim="press-dip"
-                cx="452"
-                cy="432"
-                r="40"
-                fill="url(#w-poke-press)"
-                opacity="0"
-                style="transform-box:fill-box;transform-origin:center"
-              ></circle>
-              <circle
-                data-anim="press-bloom"
-                cx="452"
-                cy="432"
-                r="34"
-                fill="url(#w-poke-lift)"
-                opacity="0"
-                style="transform-box:fill-box;transform-origin:center"
-              ></circle>
-              <circle
-                data-anim="poke-wave"
-                cx="452"
-                cy="432"
-                r="90"
-                fill="url(#w-poke-band-1)"
-                opacity="0"
-                style="transform-box:fill-box;transform-origin:center"
-              ></circle>
-              <circle
-                data-anim="poke-wave"
-                cx="452"
-                cy="432"
-                r="90"
-                fill="url(#w-poke-band-2)"
-                opacity="0"
-                style="transform-box:fill-box;transform-origin:center"
-              ></circle>
-              <circle
-                data-anim="poke-wave"
-                cx="452"
-                cy="432"
-                r="90"
-                fill="url(#w-poke-band-3)"
-                opacity="0"
-                style="transform-box:fill-box;transform-origin:center"
-              ></circle>
-            </g>
-            <g data-anim="mos-face" style="pointer-events:none">
-              <g fill="none" stroke="#0B1B33" stroke-linecap="round" opacity="0.88">
-                <g data-anim="mos-calm">
-                  <g data-anim="mos-eye" style="transform-box:fill-box;transform-origin:center">
-                    <line x1="423.5" y1="399.07" x2="423.5" y2="420.32" stroke-width="8"></line>
-                  </g>
-                  <g data-anim="mos-eye" style="transform-box:fill-box;transform-origin:center">
-                    <line x1="496.61" y1="399.07" x2="496.61" y2="420.32" stroke-width="8"></line>
-                  </g>
+                ></path>
+                <g data-anim="mos-flow" clip-path="url(#w-mos-clip)" style="pointer-events:none">
+                  <circle
+                    data-anim="mos-glob"
+                    data-tone="blue"
+                    data-orbit="30"
+                    data-phase="0"
+                    data-dur="14000"
+                    data-dir="1"
+                    cx="452"
+                    cy="432"
+                    r="176"
+                    fill="url(#w-mos-glob-1)"
+                    opacity="0.95"
+                  ></circle>
+                  <circle
+                    data-anim="mos-glob"
+                    data-tone="light"
+                    data-orbit="78"
+                    data-phase="40"
+                    data-dur="9200"
+                    data-dir="1"
+                    cx="452"
+                    cy="432"
+                    r="140"
+                    fill="url(#w-mos-glob-2)"
+                    opacity="0.9"
+                  ></circle>
+                  <circle
+                    data-anim="mos-glob"
+                    data-tone="cyan"
+                    data-orbit="62"
+                    data-phase="130"
+                    data-dur="7600"
+                    data-dir="-1"
+                    cx="452"
+                    cy="432"
+                    r="126"
+                    fill="url(#w-mos-glob-3)"
+                    opacity="0.8"
+                  ></circle>
+                  <circle
+                    data-anim="mos-glob"
+                    data-tone="purple"
+                    data-orbit="92"
+                    data-phase="215"
+                    data-dur="11800"
+                    data-dir="-1"
+                    cx="452"
+                    cy="432"
+                    r="118"
+                    fill="url(#w-mos-glob-4)"
+                    opacity="0.7"
+                  ></circle>
+                  <circle
+                    data-anim="mos-glob"
+                    data-tone="green"
+                    data-orbit="50"
+                    data-phase="300"
+                    data-dur="8400"
+                    data-dir="1"
+                    cx="452"
+                    cy="432"
+                    r="104"
+                    fill="url(#w-mos-glob-5)"
+                    opacity="0.42"
+                  ></circle>
+                  <ellipse cx="368" cy="318" rx="132" ry="96" fill="url(#w-mos-gloss)"></ellipse>
+                  <ellipse cx="536" cy="566" rx="150" ry="104" fill="url(#w-mos-shade)"></ellipse>
                 </g>
-                <path d="M460.25,427.67c1.6,9.93,11.76,16.53,22.72,14.76" stroke-width="6"></path>
-                <path d="M460.25,427.67c-1.6,9.93-11.76,16.53-22.72,14.76" stroke-width="6"></path>
+                <path
+                  data-anim="mos-rim"
+                  style="pointer-events:none"
+                  fill="none"
+                  stroke="url(#w-mos-rim)"
+                  stroke-width="3.4"
+                  d="M610.94,292.11c-17.97-14.53-41.63-19.69-65.13-11.21-9.38,3.39-18.63,7.49-28.5,8.92-24.88,3.59-31.33-14.56-47.12-28.75-26.09-23.43-65.1-34.47-98.96-23.14-12.44,4.16-23.34,11.49-32.54,20.66-8.96,8.92-16.31,19.59-21.89,30.76-12.21,24.42-13.98,52.32-24.62,77.3-7.93,18.61-23.13,33.71-35.17,49.68-21.01,27.84-34.21,65.95-24.36,100.73,5.87,20.74,24.05,31.11,41.94,40.39,4.67,2.42,9.42,4.75,14.06,7.26,2.4,1.3,4.83,2.68,7.46,3.43,1.17.33,2.35.67,3.48,1.1,18.12,23.62,47.33,46.33,78.58,44.51,18.44-1.07,36.17-7.34,52.42-15.87,7.13-3.74,15.3-6.72,21.98-11.21,10.89-3.96,21.76,4.75,31.64,8.15,15.38,5.3,31.35,7.26,47.55,7.54,44.77.77,99.22-17.02,129.76-50.85,45.56-50.47-13.97-107.12-18.53-160.04-2.37-27.47.02-56.92-15.7-81.12-4.61-7.09-10.14-13.24-16.36-18.27Z"
+                ></path>
               </g>
-              <g
-                data-anim="mos-happy"
-                fill="none"
-                stroke="#0B1B33"
-                stroke-linecap="round"
-                stroke-width="7.5"
-                opacity="0"
-              >
-                <path d="M414,398l13,11l-13,11"></path>
-                <path d="M506,398l-13,11l13,11"></path>
+              <g data-anim="poke-fx" clip-path="url(#w-mos-clip)" style="pointer-events:none">
+                <circle
+                  data-anim="press-dip"
+                  cx="452"
+                  cy="432"
+                  r="40"
+                  fill="url(#w-poke-press)"
+                  opacity="0"
+                  style="transform-box:fill-box;transform-origin:center"
+                ></circle>
+                <circle
+                  data-anim="press-bloom"
+                  cx="452"
+                  cy="432"
+                  r="34"
+                  fill="url(#w-poke-lift)"
+                  opacity="0"
+                  style="transform-box:fill-box;transform-origin:center"
+                ></circle>
+                <circle
+                  data-anim="poke-wave"
+                  cx="452"
+                  cy="432"
+                  r="90"
+                  fill="url(#w-poke-band-1)"
+                  opacity="0"
+                  style="transform-box:fill-box;transform-origin:center"
+                ></circle>
+                <circle
+                  data-anim="poke-wave"
+                  cx="452"
+                  cy="432"
+                  r="90"
+                  fill="url(#w-poke-band-2)"
+                  opacity="0"
+                  style="transform-box:fill-box;transform-origin:center"
+                ></circle>
+                <circle
+                  data-anim="poke-wave"
+                  cx="452"
+                  cy="432"
+                  r="90"
+                  fill="url(#w-poke-band-3)"
+                  opacity="0"
+                  style="transform-box:fill-box;transform-origin:center"
+                ></circle>
               </g>
-            </g>
-          </svg>
-        </span>
-      </button>
+              <g data-anim="mos-face" style="pointer-events:none">
+                <g fill="none" stroke="#0B1B33" stroke-linecap="round" opacity="0.88">
+                  <g data-anim="mos-calm">
+                    <g data-anim="mos-eye" style="transform-box:fill-box;transform-origin:center">
+                      <line x1="423.5" y1="399.07" x2="423.5" y2="420.32" stroke-width="8"></line>
+                    </g>
+                    <g data-anim="mos-eye" style="transform-box:fill-box;transform-origin:center">
+                      <line x1="496.61" y1="399.07" x2="496.61" y2="420.32" stroke-width="8"></line>
+                    </g>
+                  </g>
+                  <path d="M460.25,427.67c1.6,9.93,11.76,16.53,22.72,14.76" stroke-width="6"></path>
+                  <path d="M460.25,427.67c-1.6,9.93-11.76,16.53-22.72,14.76" stroke-width="6"
+                  ></path>
+                </g>
+                <g
+                  data-anim="mos-happy"
+                  fill="none"
+                  stroke="#0B1B33"
+                  stroke-linecap="round"
+                  stroke-width="7.5"
+                  opacity="0"
+                >
+                  <path d="M414,398l13,11l-13,11"></path>
+                  <path d="M506,398l-13,11l13,11"></path>
+                </g>
+              </g>
+            </svg>
+          </span>
+        </button>
+      </span>
       <p class="say" aria-live="polite">{line}</p>
     </div>
   </div>
@@ -579,14 +582,31 @@
     will-change: transform;
   }
 
-  /* The sky and its three coloured pools in one paint rather than two stacked
-     surfaces: the pools sit above the base gradient in the same layer list. */
+  /*
+   * The sky, aimed at the island.
+   *
+   * These pools come from a screen where the island is centred, so their
+   * authored positions (50% 66%, 22% 24%, 84% 30%) put the brightest one beside
+   * this island rather than behind it — the light and the object it was lighting
+   * had come apart, which is most of why the background read as pasted on. They
+   * now track `--isle-x` and `--pool-y`, so moving the island moves its glow.
+   */
   .sky {
     background:
-      radial-gradient(38% 30% at 50% 66%, rgba(31, 206, 206, 0.16), transparent 70%),
-      radial-gradient(46% 34% at 22% 24%, rgba(15, 111, 218, 0.18), transparent 72%),
-      radial-gradient(40% 30% at 84% 30%, rgba(84, 54, 180, 0.16), transparent 70%),
-      radial-gradient(120% 90% at 50% 118%, #1b3a63 0%, #12203a 34%, #0c1020 62%, #08090f 100%);
+      radial-gradient(
+        44% 36% at calc(50% + var(--isle-x)) var(--pool-y),
+        rgba(31, 206, 206, 0.2),
+        transparent 70%
+      ),
+      radial-gradient(46% 34% at 16% 24%, rgba(15, 111, 218, 0.17), transparent 72%),
+      radial-gradient(40% 30% at 92% 20%, rgba(84, 54, 180, 0.18), transparent 70%),
+      radial-gradient(
+        var(--sky-size) at calc(50% + var(--isle-x)) var(--sky-y),
+        #1b3a63 0%,
+        #13233f 34%,
+        #0c1020 64%,
+        #08090f 100%
+      );
   }
 
   /*
@@ -629,16 +649,36 @@
      * the form. Any higher and the island crosses the consent line.
      */
     --horizon: 94vh;
-    --isle-w: min(760px, 124vw);
+    --isle-w: min(760px, 132vw);
+    /*
+     * Mos's size is a fraction of the island, never of the viewport.
+     *
+     * They used to be clamped independently — `min(272px, 51vw)` against
+     * `min(1180px, 88vw)` — so the ratio between them drifted from 0.57 on a
+     * desktop to 1.02 on a phone, where Mos was as wide as the island it stands
+     * on. Deriving one from the other holds the proportion at every width. The
+     * phone gets a deliberately larger share: there the island is mostly below
+     * the fold and works as a plinth, so Mos is the subject.
+     */
+    --mos-k: 0.26;
     /* On a phone the copy stacks above the island; on a desktop the island
        moves out from under the left-hand column instead of shrinking. */
     --isle-x: 0%;
+  }
+  @media (min-width: 640px) {
+    .world {
+      /* The reference draft seats Mos at about a third of the disc's width. */
+      --mos-k: 0.16;
+    }
   }
   @media (min-width: 1000px) {
     .world {
       --horizon: 60vh;
       --isle-w: min(1180px, 88vw);
       --isle-x: 20%;
+      --pool-y: 58%;
+      --sky-y: 120%;
+      --sky-size: 124% 94%;
     }
   }
 
@@ -663,15 +703,15 @@
   }
 
   .halo {
-    --w: calc(var(--isle-w) * 0.67);
+    --w: calc(var(--isle-w) * 0.82);
     top: var(--horizon);
-    height: calc(var(--isle-w) * 0.3);
-    margin-top: calc(var(--isle-w) * -0.15);
+    height: calc(var(--isle-w) * 0.38);
+    margin-top: calc(var(--isle-w) * -0.19);
     border-radius: 50%;
     background: radial-gradient(
       closest-side,
-      rgba(31, 206, 206, 0.18),
-      rgba(15, 111, 218, 0.12) 52%,
+      rgba(31, 206, 206, 0.22),
+      rgba(15, 111, 218, 0.13) 52%,
       transparent 100%
     );
     filter: blur(2px);
@@ -746,26 +786,51 @@
     border-color: rgba(33, 237, 179, 0.24);
   }
 
+  /*
+   * Seating. The island's top surface reads at `--horizon` minus about 1.1 % of
+   * the island's width (the bezier's centre sits at viewBox y 454 of 900, and
+   * the svg is offset −52.2 %). Mos's shadow goes there, and Mos's own box is
+   * raised so its *bottom* lands on that line rather than hanging over the
+   * near rim — which is what made it look like it was falling off the front.
+   */
+  /*
+   * The contact shadow, which is what makes Mos read as standing on the island
+   * rather than hovering in front of it. It has to be dark enough to show on a
+   * surface that is already dark — the authored 60 % black was invisible there —
+   * and wide enough that the gap opened by the bob still reads as a gap.
+   */
   .shadow-slot {
-    --w: calc(var(--isle-w) * 0.14);
-    top: calc(var(--horizon) + var(--isle-w) * 0.012);
-    height: calc(var(--isle-w) * 0.032);
+    --w: calc(var(--isle-w) * var(--mos-k) * 1.34);
+    top: calc(var(--horizon) - var(--isle-w) * 0.014);
+    height: calc(var(--isle-w) * var(--mos-k) * 0.32);
   }
   .mos-shadow {
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    background: radial-gradient(closest-side, rgba(0, 0, 0, 0.6), transparent);
+    background: radial-gradient(
+      closest-side,
+      rgba(1, 6, 14, 0.86),
+      rgba(1, 6, 14, 0.42) 58%,
+      transparent 100%
+    );
     opacity: 0.55;
   }
 
   .mos-slot {
-    --w: min(340px, 62vw);
-    top: calc(var(--horizon) - var(--isle-w) * 0.128);
+    --w: calc(var(--isle-w) * var(--mos-k) * 1.8);
+    /* Raised so the body's *bottom* lands on the surface line rather than
+       hanging over the near rim. 0.899 is the svg's bottom inside its box. */
+    top: calc(var(--horizon) - var(--isle-w) * 0.015 - var(--isle-w) * var(--mos-k) * 0.899);
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: var(--space-10);
+  }
+  /* Scroll-velocity lean. Owns rotate and translateY and nothing else does, so
+     the poke's squash on the button and the float on the inner span survive it. */
+  .mos-lean {
+    display: block;
   }
   .poke {
     /* The one interactive thing in the scene. */
@@ -786,17 +851,19 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: min(300px, 56vw);
-    height: min(250px, 47vw);
+    width: calc(var(--isle-w) * var(--mos-k) * 1.105);
+    height: calc(var(--isle-w) * var(--mos-k) * 0.945);
   }
   .aura {
     position: absolute;
     left: 50%;
     top: 52%;
-    width: min(250px, 47vw);
-    height: min(250px, 47vw);
-    margin-left: min(-125px, -23.5vw);
-    margin-top: min(-125px, -23.5vw);
+    width: calc(var(--isle-w) * var(--mos-k) * 1.24);
+    height: calc(var(--isle-w) * var(--mos-k) * 1.24);
+    /* Centred with margins, never `transform`: the aura's own loop writes the
+       whole transform property and would erase a centring translate. */
+    margin-left: calc(var(--isle-w) * var(--mos-k) * -0.62);
+    margin-top: calc(var(--isle-w) * var(--mos-k) * -0.62);
     border-radius: 50%;
     background: radial-gradient(
       closest-side,
@@ -808,8 +875,9 @@
   }
   .mos-svg {
     position: relative;
-    width: min(272px, 51vw);
-    height: min(232px, 43vw);
+    width: calc(var(--isle-w) * var(--mos-k));
+    /* The body's own aspect, 476:406. */
+    height: calc(var(--isle-w) * var(--mos-k) * 0.853);
     overflow: visible;
   }
 
