@@ -35,35 +35,80 @@ export function hold(p: number, from: number, to: number, fade = 0.055) {
 }
 
 /**
- * Report a track's scroll progress, rAF-throttled.
+ * Report a track's scroll progress, damped.
  *
  * `p` is 0 when the track's top reaches the top of the viewport and 1 when its
  * bottom reaches the bottom, which is exactly the span over which a `sticky`
  * child stays pinned.
+ *
+ * The reported value chases the real scroll position rather than matching it.
+ * That is the difference between a scene that plays and one that steps: a mouse
+ * wheel delivers scroll in discrete jumps of a hundred pixels or more, so
+ * driving the scene from the raw value makes it jump the same way, however
+ * smooth the easing inside each frame is. Chasing turns one wheel notch into a
+ * short piece of playback, and it stays interruptible — a new notch mid-chase
+ * just moves the target.
+ *
+ * `smooth` is the fraction of the remaining distance covered per 60fps frame,
+ * corrected for the real frame time so a 120Hz display does not run twice as
+ * fast. Pass 0 for no damping.
  */
-export function trackProgress(track: HTMLElement, onProgress: (p: number) => void): () => void {
-  let queued = false;
+export function trackProgress(
+  track: HTMLElement,
+  onProgress: (p: number) => void,
+  { smooth = 0.1 }: { smooth?: number } = {},
+): () => void {
+  let target = 0;
+  let current = 0;
+  let raf = 0;
+  let running = false;
+  let last = 0;
 
   const read = () => {
     const rect = track.getBoundingClientRect();
     const span = rect.height - window.innerHeight;
-    onProgress(span <= 0 ? 0 : clamp01(-rect.top / span));
+    target = span <= 0 ? 0 : clamp01(-rect.top / span);
   };
 
-  const schedule = () => {
-    if (queued) return;
-    queued = true;
-    requestAnimationFrame(() => {
-      queued = false;
-      read();
-    });
+  const tick = (now: number) => {
+    const dt = last ? Math.min(64, now - last) : 16.7;
+    last = now;
+    const gap = target - current;
+    // Close enough that another frame would not move a pixel: land exactly and
+    // stop, so an idle page costs nothing.
+    if (Math.abs(gap) < 0.00008) {
+      current = target;
+      onProgress(current);
+      running = false;
+      return;
+    }
+    current += gap * (1 - Math.pow(1 - smooth, dt / 16.667));
+    onProgress(current);
+    raf = requestAnimationFrame(tick);
+  };
+
+  const wake = () => {
+    read();
+    if (smooth <= 0) {
+      current = target;
+      onProgress(current);
+      return;
+    }
+    if (running) return;
+    running = true;
+    last = 0;
+    raf = requestAnimationFrame(tick);
   };
 
   read();
-  window.addEventListener('scroll', schedule, { passive: true });
-  window.addEventListener('resize', schedule);
+  current = target;
+  onProgress(current);
+  window.addEventListener('scroll', wake, { passive: true });
+  window.addEventListener('resize', wake);
   return () => {
-    window.removeEventListener('scroll', schedule);
-    window.removeEventListener('resize', schedule);
+    cancelAnimationFrame(raf);
+    running = false;
+    window.removeEventListener('scroll', wake);
+    window.removeEventListener('resize', wake);
   };
 }

@@ -5,7 +5,6 @@
   import MosBlob from '$lib/components/world/MosBlob.svelte';
   import MonBlob from '$lib/components/world/MonBlob.svelte';
   import WaitlistForm from '$lib/components/WaitlistForm.svelte';
-  import SurfaceCard from '$lib/components/journey/SurfaceCard.svelte';
   import type { MonRole } from '$lib/anime/mon';
   import type { MosMood } from '$lib/anime/mos';
   import { m } from '$lib/locale.svelte';
@@ -31,16 +30,35 @@
    * only way in.
    */
 
-  /** Act boundaries in journey progress. */
+  /**
+   * Act boundaries in journey progress, and the window each act's copy holds.
+   *
+   * The two are separate on purpose. World beats butt up against each other so
+   * the scene never stalls; copy windows leave a gap between them, because
+   * adjacent windows that share an edge put two headlines on screen at half
+   * strength through the whole handover — which is what made the middle of every
+   * transition look broken.
+   */
   const ACTS = {
-    // Starts below zero: the act has to be fully up at the top of the page, and
-    // a window that rises from its own edge is invisible there.
-    arrival: [-0.07, 0.19] as const,
-    burden: [0.19, 0.4] as const,
-    delegate: [0.4, 0.71] as const,
-    circulate: [0.71, 0.91] as const,
-    invite: [0.91, 1.0] as const,
+    arrival: [-0.08, 0.26] as const,
+    burden: [0.26, 0.55] as const,
+    delegate: [0.55, 1.0] as const,
   };
+  /**
+   * Copy windows meet edge to edge, and the fade is short.
+   *
+   * Both acts occupy the same part of the screen, so a true crossfade puts two
+   * headlines on top of each other — that is what made every handover look
+   * broken. A hand-off instead: one is gone before the next arrives. The cost is
+   * a brief beat on the world alone, and the fade is kept short so the beat is
+   * about a tenth of a viewport rather than a blank screen.
+   */
+  const COPY = {
+    arrival: [-0.08, 0.25] as const,
+    burden: [0.25, 0.53] as const,
+    delegate: [0.53, 1.04] as const,
+  };
+  const COPY_FADE = 0.02;
 
   const TASKS = [
     m.drift_task_1,
@@ -86,13 +104,6 @@
    * faded out, so nothing ever showed four.
    */
   const BEAT = { call: -0.06, arrive: 0.18, work: 0.42, ship: 0.42, shipEnd: 0.58 };
-
-  const SURFACES = [
-    { key: 'monitor', name: 'Monitor', plate: 'dark' as const },
-    { key: 'hub', name: 'Hub', plate: 'light' as const },
-    { key: 'inventory', name: 'Inventory', plate: 'light' as const },
-    { key: 'studio', name: 'Studio', plate: 'light' as const },
-  ];
 
   let trackEl = $state<HTMLElement | null>(null);
   let stageEl = $state<HTMLElement | null>(null);
@@ -234,7 +245,7 @@
     if (!worldEl) return;
 
     // --- the island rises and settles back as the story moves off it ---
-    const rise = ease(seg(p, 0, ACTS.circulate[1]));
+    const rise = ease(seg(p, 0, 1));
     // Scaled with everything else: an unscaled +90 start pushed the island down
     // into the copy band on a phone, where the band is below it rather than
     // beside it.
@@ -250,9 +261,8 @@
     // drift is driven here — the previous version positioned Mos in world space
     // against a hand-computed island offset, and the two came apart.
     const toStage = ease(seg(p, ACTS.burden[0], ACTS.delegate[0] + 0.06));
-    const toCentre = ease(seg(p, ACTS.circulate[0], ACTS.circulate[0] + 0.07));
-    const mosX = lerp(lerp(70, -212, toStage), -20, toCentre) * k;
-    const mosScale = lerp(lerp(1, 0.84, toStage), 0.62, toCentre);
+    const mosX = lerp(70, -212, toStage) * k;
+    const mosScale = lerp(1, 0.84, toStage);
     utils.set(q('[data-drive="mos"]'), { x: mosX, scale: mosScale });
     utils.set(q('[data-drive="tasks"]'), { x: mosX });
     drawWires(mosX);
@@ -261,17 +271,11 @@
     utils.set(q('[data-drive="say"]'), {
       x: mosX * isleS,
       y: isleY + 104 * k,
-      opacity: hold(p, -0.07, ACTS.burden[0] + 0.03, 0.04),
+      opacity: hold(p, COPY.arrival[0], ACTS.burden[0], 0.04),
     });
 
     const mood: MosMood =
-      p < 0.04
-        ? 'resting'
-        : p < ACTS.burden[0]
-          ? 'idle'
-          : p < ACTS.circulate[0]
-            ? 'working'
-            : 'happy';
+      p < 0.05 ? 'resting' : p < ACTS.burden[0] ? 'idle' : p < 0.94 ? 'working' : 'happy';
     if (mood !== mosMood) mosMood = mood;
 
     // --- the burden: task words ring Mos, then are taken one at a time ---
@@ -298,7 +302,7 @@
     });
 
     // --- delegation: the crew emerges, works, and hands work on ---
-    const busy = p > ACTS.delegate[0] && p < ACTS.circulate[0];
+    const busy = p > ACTS.delegate[0] && p < 0.97;
     if (busy !== crewBusy) crewBusy = busy;
 
     const span = ACTS.delegate[1] - ACTS.delegate[0];
@@ -307,7 +311,7 @@
       const start = ACTS.delegate[0] + spec.at * span;
       const inT = ease(seg(p, start, start + BEAT.arrive * span));
       const work = ease(seg(p, start + BEAT.arrive * span, start + BEAT.work * span));
-      const out = ease(seg(p, ACTS.circulate[0] - 0.03, ACTS.circulate[0] + 0.02));
+      const out = 0;
       utils.set(el, {
         opacity: inT * (1 - out),
         y: lerp(46, 0, inT) + out * -30,
@@ -324,10 +328,9 @@
       if (!spec) continue;
       const start = ACTS.delegate[0] + spec.at * span;
       const t = ease(seg(p, start + BEAT.call * span, start + BEAT.arrive * span));
-      const outT = ease(seg(p, ACTS.circulate[0] - 0.03, ACTS.circulate[0]));
       const len = Number(path.dataset.len ?? 1);
       path.style.strokeDashoffset = String(len * (1 - t));
-      path.style.opacity = String(t * (1 - outT));
+      path.style.opacity = String(t);
     }
 
     // --- artifacts fly home to Storage ---
@@ -345,49 +348,19 @@
       });
     });
     const yieldIn = ease(seg(p, ACTS.delegate[1] - 0.07, ACTS.delegate[1] - 0.01));
-    const yieldOut = ease(seg(p, ACTS.circulate[0], ACTS.circulate[0] + 0.04));
     utils.set(q('[data-drive="yield"]'), {
-      opacity: yieldIn * (1 - yieldOut),
+      opacity: yieldIn,
       y: lerp(22, 0, yieldIn),
       scale: lerp(0.94, 1, yieldIn),
     });
 
-    const wellIn = ease(seg(p, ACTS.delegate[0] + 0.04, ACTS.delegate[0] + 0.1));
-    const wellOut = ease(seg(p, ACTS.circulate[0], ACTS.circulate[0] + 0.05));
-    utils.set(q('[data-drive="well"]'), {
-      opacity: wellIn * (1 - wellOut),
-      y: lerp(30, 0, wellIn),
-    });
-
-    // --- circulation: the four surfaces rise and revolve ---
-    const cIn = ease(seg(p, ACTS.circulate[0], ACTS.circulate[0] + 0.06));
-    const turn = seg(p, ACTS.circulate[0], ACTS.circulate[1]);
-    const active = Math.min(3, Math.floor(turn * 4));
-    q<HTMLElement>('[data-ring]').forEach((el, i) => {
-      const angle = (i / 4) * Math.PI * 2 + turn * Math.PI * 2 - Math.PI / 2;
-      // Wider than the island's own half-width, or the far half of the ring sits
-      // inside the crown and only two of the four are ever visible.
-      const r = 352 * cIn * k;
-      // `depth` is 1 at the near side of the orbit and 0 at the far side.
-      const depth = (Math.sin(angle) + 1) / 2;
-      utils.set(el, {
-        x: Math.cos(angle) * r,
-        // Lifted off the crown's plane so the far half of the ring rides above
-        // the island instead of disappearing inside it.
-        y: Math.sin(angle) * r * 0.26 - 48 * cIn * k,
-        scale: cIn * lerp(0.78, 1.08, depth),
-        opacity: cIn * lerp(0.52, 1, depth),
-      });
-      // Real occlusion, not just a size change: on the far side the card goes
-      // behind the island.
-      el.style.zIndex = depth > 0.5 ? '4' : '0';
-      el.dataset.on = i === active ? '1' : '0';
-    });
+    const wellIn = ease(seg(p, ACTS.delegate[0] + 0.04, ACTS.delegate[0] + 0.12));
+    utils.set(q('[data-drive="well"]'), { opacity: wellIn, y: lerp(30, 0, wellIn) });
 
     // --- act copy ---
     for (const el of qStage<HTMLElement>('[data-act]')) {
-      const [from, to] = ACTS[el.dataset.act as keyof typeof ACTS];
-      const v = hold(p, from, to);
+      const [from, to] = COPY[el.dataset.act as keyof typeof COPY];
+      const v = hold(p, from, to, COPY_FADE);
       utils.set(el, { opacity: v, y: lerp(26, 0, v) });
       // The act's own box spans the stage, so it must never take pointers
       // itself — it covered Mos and swallowed every poke. Only the form of an
@@ -434,15 +407,6 @@
              1200×640), so it can never float off the surface. -->
         <div class="mos-drive" data-drive="mos">
           <MosBlob size={208} mood={mosMood} onpoke={onPoke} label="Mos" />
-        </div>
-        <!-- The surfaces circle the island itself, so they pass behind it on the
-             far side. Centred on the stage instead, they drifted off it. -->
-        <div class="surfaces">
-          {#each SURFACES as s (s.key)}
-            <div class="surface" data-ring data-key={s.key}>
-              <SurfaceCard surface={s.key} name={s.name} plate={s.plate} />
-            </div>
-          {/each}
         </div>
         <!-- The ring of things being handed over belongs to Mos, not to the
              stage: anchored alongside it so it travels with it. -->
@@ -543,20 +507,6 @@
           <p class="t-body-1-reading lead">{m.demo_chat_ai2()}</p>
         </div>
       </div>
-
-      <div class="act circulate" data-act="circulate">
-        <div class="col">
-          <span class="eyebrow">{m.loop_eyebrow()}</span>
-          <h2 class="t-display-3 head prewrap">{m.loop_title()}</h2>
-          <p class="t-subtitle-1 lead prewrap">{m.loop_lead()}</p>
-        </div>
-      </div>
-
-      <div class="act invite" data-act="invite">
-        <div class="col">
-          <h2 class="t-display-3 head prewrap">{m.loop_kicker()}</h2>
-        </div>
-      </div>
     </div>
 
     <span class="cue">{m.hero_scroll()}</span>
@@ -572,8 +522,8 @@
       var(--sky-deep);
   }
   .journey[data-pinned] {
-    /* Five acts plus one viewport of pin. */
-    height: 600svh;
+    /* Three acts plus one viewport of pin. */
+    height: 460svh;
   }
   .stage {
     position: relative;
@@ -689,10 +639,12 @@
     color: var(--label-assistive);
   }
 
+  /* Directly under Storage, because Storage is what it came out of. Parked at
+     the bottom of the stage it read as a caption belonging to nothing. */
   .yield {
     position: absolute;
-    left: var(--world-cx);
-    bottom: 7%;
+    left: calc(var(--world-cx) + 21%);
+    top: calc(var(--world-cy) + 17%);
     translate: -50% 0;
     display: flex;
     flex-direction: column;
@@ -868,15 +820,7 @@
     z-index: 7;
     pointer-events: none;
   }
-  .surfaces {
-    position: absolute;
-    left: 50%;
-    top: 40.3%;
-    translate: -50% -50%;
-    width: 0;
-    height: 0;
-    pointer-events: none;
-  }
+
   .task {
     position: absolute;
     left: 0;
@@ -889,13 +833,6 @@
     font-size: var(--font-size-caption-1);
     color: var(--label-normal);
     white-space: nowrap;
-    opacity: 0;
-  }
-  .surface {
-    position: absolute;
-    left: 0;
-    top: 0;
-    translate: -50% -50%;
     opacity: 0;
   }
 
@@ -1004,7 +941,7 @@
      the crew tucks under the island and the copy sits over the top of it. */
   @media (max-width: 860px) {
     .journey[data-pinned] {
-      height: 520svh;
+      height: 420svh;
     }
     /* Stacked bands, spelled out: island, crew, Storage, copy. Sharing one
        centre is what put the crew on top of Mos. */
@@ -1031,11 +968,10 @@
     .crew-slot[data-lane='serial'] {
       margin-top: var(--space-8);
     }
+    /* No room for it on a phone: island, crew, Storage and the copy already
+       fill the column. The artifacts landing in Storage carry the same news. */
     .yield {
-      left: 50%;
-      bottom: 46%;
-      translate: -50% 0;
-      max-width: 74vw;
+      display: none;
     }
     .well {
       left: 50%;

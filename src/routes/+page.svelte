@@ -2,6 +2,7 @@
   import type { PageProps } from './$types';
   import Seo from '$lib/components/Seo.svelte';
   import Journey from '$lib/components/journey/Journey.svelte';
+  import TryConsole from '$lib/components/sections/TryConsole.svelte';
   import TrustCta from '$lib/components/sections/TrustCta.svelte';
   import BuildCta from '$lib/components/sections/BuildCta.svelte';
   import Confirmation from '$lib/components/Confirmation.svelte';
@@ -28,6 +29,7 @@
   </section>
 {:else}
   <Journey {onSuccess} />
+  <TryConsole />
   <TrustCta {onSuccess} registrantCount={data.registrantCount} />
   <BuildCta />
 {/if}

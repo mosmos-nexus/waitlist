@@ -27,12 +27,46 @@ async function open(o = {}) {
   return { ctx, p, span: track - h };
 }
 
+/**
+ * Wait until the scene stops chasing the scroll.
+ *
+ * Progress is damped, so the frame at any moment lags the scroll position.
+ * Two parts, both needed: wait for the chase to *start* — polling straight after
+ * `scrollTo` can otherwise read the same pre-scroll value twice and call it
+ * settled before anything moved — then wait for it to hold still.
+ */
+async function settle(p, before = null, budget = 3200) {
+  const read = () =>
+    p.locator('.journey [data-drive="isle"]').evaluate((e) => getComputedStyle(e).transform);
+  const startBy = Date.now() + 600;
+  while (before !== null && Date.now() < startBy) {
+    if ((await read()) !== before) break;
+    await p.waitForTimeout(50);
+  }
+  let last = null;
+  let same = 0;
+  const until = Date.now() + budget;
+  while (Date.now() < until) {
+    const v = await read();
+    if (v === last) {
+      if (++same >= 2) return;
+    } else {
+      same = 0;
+      last = v;
+    }
+    await p.waitForTimeout(60);
+  }
+}
+
 /** Scroll to a fraction of the journey and let the frame settle. */
-async function at(p, span, t, settle = 800) {
+async function at(p, span, t) {
+  const before = await p
+    .locator('.journey [data-drive="isle"]')
+    .evaluate((e) => getComputedStyle(e).transform);
   // `behavior: 'instant'` on purpose: the page sets `scroll-behavior: smooth`,
   // so a plain `scrollTo` animates and every sample lands short of its target.
   await p.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), Math.round(span * t));
-  await p.waitForTimeout(settle);
+  await settle(p, before);
 }
 
 // ---- 1. the world is drawn, and it is alive ----
@@ -111,10 +145,10 @@ async function at(p, span, t, settle = 800) {
       .locator('.journey [data-task]')
       .evaluateAll((els) => els.filter((e) => Number(getComputedStyle(e).opacity) > 0.3).length);
 
-  await at(p, span, 0.22);
+  await at(p, span, 0.3);
   const up = await vis();
   ok('every task is on the ring', up === 6, `${up}/6 visible`);
-  await at(p, span, 0.39);
+  await at(p, span, 0.52);
   const left = await vis();
   ok('Mos takes them all', left === 0, `${left} left`);
   await ctx.close();
@@ -123,7 +157,7 @@ async function at(p, span, t, settle = 800) {
 // ---- 5. delegation: both ways, and the work lands ----
 {
   const { ctx, p, span } = await open();
-  await at(p, span, 0.62, 1000);
+  await at(p, span, 0.8);
 
   const crew = await p
     .locator('.journey [data-crew]')
@@ -138,7 +172,7 @@ async function at(p, span, t, settle = 800) {
   const handoff = await p.locator('.journey .wire.handoff').count();
   ok('the serial pair hands off directly', handoff >= 1, `${handoff} handoff wire(s)`);
 
-  await at(p, span, 0.7, 1000);
+  await at(p, span, 0.99);
   const arts = await p
     .locator('.journey [data-artifact]')
     .evaluateAll((els) => els.filter((e) => Number(getComputedStyle(e).opacity) > 0.6).length);
@@ -146,25 +180,42 @@ async function at(p, span, t, settle = 800) {
   await ctx.close();
 }
 
-// ---- 6. circulation: the four real surfaces ----
+// ---- 6. the console you can actually try ----
 {
-  const { ctx, p, span } = await open();
-  await at(p, span, 0.82, 1000);
-  const names = await p.locator('.journey [data-ring] .name').allInnerTexts();
+  const { ctx, p } = await open();
+  await p.locator('.try .console').scrollIntoViewIfNeeded();
+  await p.waitForTimeout(700);
+
+  const tabs = await p.locator('.try [role="tab"]').allInnerTexts();
   ok(
-    'the ring is the four product surfaces',
-    names.join(',') === 'Monitor,Hub,Inventory,Studio',
-    names.join(','),
+    'the console offers the four surfaces',
+    tabs.join(',') === 'Monitor,Hub,Inventory,Studio',
+    tabs.join(','),
   );
-  const plates = await p
-    .locator('.journey [data-ring] .card')
-    .evaluateAll((els) => els.map((e) => e.dataset.plate));
-  ok(
-    'Monitor is dark, the workshop is light',
-    plates.filter((t) => t === 'dark').length === 1 &&
-      plates.filter((t) => t === 'light').length === 3,
-    plates.join(','),
-  );
+
+  const plate = () => p.locator('.try .screen').getAttribute('data-plate');
+  ok('Monitor is the dark surface', (await plate()) === 'dark');
+  await p.locator('.try [role="tab"]:has-text("Hub")').click();
+  await p.waitForTimeout(300);
+  ok('Hub is a light one', (await plate()) === 'light');
+
+  // The four share one state, which is what makes this the product rather than
+  // four unrelated demos.
+  const held = () => p.locator('.try .rows li').count();
+  await p.locator('.try .card .act').first().click();
+  await p.waitForTimeout(300);
+  await p.locator('.try [role="tab"]:has-text("Inventory")').click();
+  await p.waitForTimeout(300);
+  ok('bringing a Mon in grows Inventory', (await held()) === 4, `${await held()} rows`);
+
+  await p.locator('.try [role="tab"]:has-text("Monitor")').click();
+  await p.waitForTimeout(300);
+  const mana = () => p.locator('.try .mana em').innerText();
+  const before = await mana();
+  await p.locator('.try .queue .act').first().click();
+  await p.waitForTimeout(1700);
+  ok('handing work over spends Mana', (await mana()) !== before, `${before} → ${await mana()}`);
+  ok('and it lands in today', (await p.locator('.try .flow li').count()) === 1);
   await ctx.close();
 }
 
@@ -179,7 +230,7 @@ async function at(p, span, t, settle = 800) {
   ok('Mos renders on mobile', (await p.locator('.journey [data-anim="mos-fill"]').count()) === 1);
   const cur = await p.evaluate(() => getComputedStyle(document.body).cursor);
   ok('no cursor takeover on touch', cur === 'auto', cur);
-  await at(p, span, 0.62, 1000);
+  await at(p, span, 0.8);
   const crew = await p
     .locator('.journey [data-crew]')
     .evaluateAll((els) => els.filter((e) => Number(getComputedStyle(e).opacity) > 0.5).length);
@@ -194,7 +245,7 @@ async function at(p, span, t, settle = 800) {
   const acts = await p
     .locator('.journey [data-act]')
     .evaluateAll((els) => els.filter((e) => Number(getComputedStyle(e).opacity) > 0.9).length);
-  ok('every act is readable at once', acts === 5, `${acts}/5 visible`);
+  ok('every act is readable at once', acts === 3, `${acts}/3 visible`);
   const d = await p.locator('.journey [data-isle="crown"]').first().getAttribute('d');
   ok('reduced motion still draws the island', !!d && d.length > 400);
   const mos = await p.locator('.journey [data-anim="mos-fill"]').getAttribute('d');

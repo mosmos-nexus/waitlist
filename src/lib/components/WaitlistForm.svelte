@@ -91,6 +91,7 @@
         name="email"
         autocomplete="email"
         inputmode="email"
+        spellcheck={false}
         placeholder={m.hero_email_placeholder()}
         bind:value={email}
         status={errorKey === 'invalid_email' ? 'error' : 'default'}

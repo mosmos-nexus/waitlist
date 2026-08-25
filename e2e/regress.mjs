@@ -19,11 +19,48 @@ async function open(o = {}) {
   return { ctx, p, span: track - view.height };
 }
 
-const at = async (p, span, t, settle = 620) => {
+/**
+ * Wait until the scene stops chasing the scroll.
+ *
+ * Progress is damped, so the frame at any moment lags the scroll position.
+ * Two parts, both needed: wait for the chase to *start* — polling straight after
+ * `scrollTo` can otherwise read the same pre-scroll value twice and call it
+ * settled before anything moved — then wait for it to hold still.
+ */
+async function settle(p, before = null, budget = 3200) {
+  const read = () =>
+    p.locator('.journey [data-drive="isle"]').evaluate((e) => getComputedStyle(e).transform);
+  const startBy = Date.now() + 600;
+  while (before !== null && Date.now() < startBy) {
+    if ((await read()) !== before) break;
+    await p.waitForTimeout(50);
+  }
+  let last = null;
+  let same = 0;
+  const until = Date.now() + budget;
+  while (Date.now() < until) {
+    const v = await read();
+    if (v === last) {
+      if (++same >= 2) return;
+    } else {
+      same = 0;
+      last = v;
+    }
+    await p.waitForTimeout(60);
+  }
+}
+
+const at = async (p, span, t, wait = 0) => {
+  const before = wait
+    ? null
+    : await p
+        .locator('.journey [data-drive="isle"]')
+        .evaluate((e) => getComputedStyle(e).transform);
   // `behavior: 'instant'` on purpose: the page sets `scroll-behavior: smooth`,
   // so a plain `scrollTo` animates and every sample lands short of its target.
   await p.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), Math.round(span * t));
-  await p.waitForTimeout(settle);
+  if (wait) await p.waitForTimeout(wait);
+  else await settle(p, before);
 };
 
 /** Which Mos face is held right now. */
@@ -47,7 +84,7 @@ for (const [label, view, mobile] of [
   const { ctx, p, span } = await open({ viewport: view, isMobile: mobile, hasTouch: mobile });
   const clashes = [];
   for (let i = 0; i <= 50; i++) {
-    await at(p, span, i / 50, 130);
+    await at(p, span, i / 50, 150);
     const hit = await p.locator('.journey .stage').evaluate((stage) => {
       const vis = (el) => Number(getComputedStyle(el).opacity) > 0.5;
       // Glyph-tight rects: a paragraph's own box spans the column even where
@@ -65,7 +102,7 @@ for (const [label, view, mobile] of [
       }
       const objs = [];
       for (const el of stage.querySelectorAll(
-        '.mos-drive, [data-crew], [data-task], [data-ring], .well, .yield, .say',
+        '.mos-drive, [data-crew], [data-task], .well, .yield, .say',
       ))
         if (vis(el))
           objs.push({
@@ -112,7 +149,6 @@ for (const [label, view, mobile] of [
     task: j.querySelectorAll('[data-task]').length,
     crew: j.querySelectorAll('[data-crew]').length,
     artifact: j.querySelectorAll('[data-artifact]').length,
-    ring: j.querySelectorAll('[data-ring]').length,
     wire: j.querySelectorAll('[data-wire]').length,
     drive: j.querySelectorAll('[data-drive]').length,
     act: j.querySelectorAll('[data-act]').length,
@@ -121,7 +157,6 @@ for (const [label, view, mobile] of [
   ok('one element per task marker', counts.task === 6, `${counts.task}`);
   ok('one element per crew marker', counts.crew === 4, `${counts.crew}`);
   ok('one element per artifact marker', counts.artifact === 4, `${counts.artifact}`);
-  ok('one element per ring marker', counts.ring === 4, `${counts.ring}`);
   ok('one element per crew bar', counts.bar === 4, `${counts.bar}`);
   ok('one wire per crew slot', counts.wire === 4, `${counts.wire}`);
   const drives = await p
@@ -132,7 +167,7 @@ for (const [label, view, mobile] of [
     drives.join(',') === 'isle,mos,say,tasks,well,yield',
     drives.join(','),
   );
-  ok('five acts', counts.act === 5, `${counts.act}`);
+  ok('three acts', counts.act === 3, `${counts.act}`);
   await ctx.close();
 }
 
@@ -187,7 +222,7 @@ for (const [label, view, mobile] of [
 {
   const { ctx, p, span } = await open();
   const seen = [];
-  for (const t of [0.01, 0.12, 0.55, 0.88]) {
+  for (const t of [0.01, 0.14, 0.7, 0.99]) {
     await at(p, span, t, 700);
     seen.push(await mosFace(p));
   }
@@ -201,8 +236,8 @@ for (const [label, view, mobile] of [
   const arrival = async () => {
     const marks = {};
     for (let i = 0; i <= 40; i++) {
-      const t = 0.4 + (i / 40) * 0.31;
-      await at(p, span, t, 90);
+      const t = 0.55 + (i / 40) * 0.44;
+      await at(p, span, t, 110);
       const now = await p
         .locator('.journey [data-crew]')
         .evaluateAll((els) =>
@@ -238,32 +273,102 @@ for (const [label, view, mobile] of [
   await ctx.close();
 }
 
-// --- the surface orbit has real depth ---
+// --- the scene has to play, not step ---
+//
+// A wheel notch is one discrete jump of several hundred pixels. Driving the
+// scene from the raw scroll value made it jump the same way; the reported
+// progress chases the real position instead, so one notch becomes a short piece
+// of playback. Sampling the island through a single notch is what tells the two
+// apart.
 {
-  const { ctx, p, span } = await open();
-  await at(p, span, 0.82, 900);
-  const cards = await p.locator('.journey [data-ring]').evaluateAll((els) =>
-    els.map((e) => ({
-      key: e.dataset.key,
-      o: Number(getComputedStyle(e).opacity),
-      z: getComputedStyle(e).zIndex,
-      x: Math.round(e.getBoundingClientRect().left),
-    })),
-  );
+  const { ctx, p } = await open();
+  const isleY = () =>
+    p
+      .locator('.journey [data-drive="isle"]')
+      .evaluate(
+        (e) => Math.round(new DOMMatrixReadOnly(getComputedStyle(e).transform).f * 100) / 100,
+      );
+
+  await p.mouse.move(720, 450);
+  const trail = [await isleY()];
+  await p.mouse.wheel(0, 600);
+  for (let i = 0; i < 12; i++) {
+    await p.waitForTimeout(55);
+    trail.push(await isleY());
+  }
+  const frames = new Set(trail).size;
+  ok('one wheel notch plays out over frames', frames >= 6, `${frames} distinct positions`);
+  ok('and it lands', Math.abs(trail.at(-1) - trail.at(-2)) < 0.4, trail.slice(-3).join(' '));
+  // Monotonic: a chase overshooting or wobbling would read as a spring, not a
+  // scroll.
+  const monotonic = trail.every((v, i) => i === 0 || v <= trail[i - 1] + 0.01);
+  ok('the chase does not overshoot', monotonic, trail.slice(0, 6).join(' '));
+  await ctx.close();
+}
+
+// --- the console is four surfaces sharing one state ---
+{
+  const { ctx, p } = await open();
+  await p.locator('.try .console').scrollIntoViewIfNeeded();
+  await p.waitForTimeout(700);
+
+  const rail = p.locator('.try [role="tab"]');
+  ok('exactly four tabs', (await rail.count()) === 4);
+  const wired = await p
+    .locator('.try')
+    .evaluate((root) =>
+      [...root.querySelectorAll('[role="tab"]')].every(
+        (t) => t.getAttribute('aria-controls') && t.hasAttribute('aria-selected'),
+      ),
+    );
+  ok('every tab names its panel', wired);
+  const roving = await rail.evaluateAll((els) => els.map((e) => e.getAttribute('tabindex')));
+  ok('one tab stop, not four', roving.filter((v) => v === '0').length === 1, roving.join(','));
+
+  // Arrow keys, because a tablist owes the keyboard a way through.
+  await rail.first().focus();
+  await p.keyboard.press('ArrowRight');
+  await p.waitForTimeout(250);
   ok(
-    'all four surfaces are up',
-    cards.every((c) => c.o > 0.4),
-    cards.map((c) => c.o.toFixed(2)).join(' '),
+    'arrow keys move between surfaces',
+    (await p.locator('.try [role="tab"][aria-selected="true"]').innerText()) === 'Hub',
   );
+  await p.keyboard.press('End');
+  await p.waitForTimeout(250);
   ok(
-    'they are spread around the ring',
-    new Set(cards.map((c) => c.x)).size === 4,
-    cards.map((c) => c.x).join(','),
+    'End reaches the last one',
+    (await p.locator('.try [role="tab"][aria-selected="true"]').innerText()) === 'Studio',
   );
-  // Near cards render in front of the island, far ones behind it — the depth cue
-  // that a size change alone cannot give.
-  const zs = new Set(cards.map((c) => c.z));
-  ok('near and far sort against the island', zs.size === 2, [...zs].join(','));
+
+  // Toggling a safeguard changes the canvas, not just the button.
+  const lit = () => p.locator('.try .guard-slot[data-on="true"]').count();
+  const before = await lit();
+  await p.locator('.try .guards .pill').nth(1).click();
+  await p.waitForTimeout(250);
+  ok(
+    'a safeguard toggle moves the canvas',
+    (await lit()) === before + 1,
+    `${before} → ${await lit()}`,
+  );
+
+  // State survives moving between surfaces — four demos would each reset.
+  await p.locator('.try [role="tab"]:has-text("Hub")').click();
+  await p.waitForTimeout(200);
+  await p.locator('.try .card .act').first().click();
+  await p.waitForTimeout(250);
+  await p.locator('.try [role="tab"]:has-text("Monitor")').click();
+  await p.waitForTimeout(200);
+  await p.locator('.try [role="tab"]:has-text("Studio")').click();
+  await p.waitForTimeout(250);
+  ok('the safeguard is still on after a detour', (await lit()) === before + 1);
+  await p.locator('.try [role="tab"]:has-text("Inventory")').click();
+  await p.waitForTimeout(250);
+  ok('and the brought-in Mon is still held', (await p.locator('.try .rows li').count()) === 4);
+
+  // The filter has to filter.
+  await p.locator('.try .filters .pill').click();
+  await p.waitForTimeout(250);
+  ok('starred-only narrows the list', (await p.locator('.try .rows li').count()) === 1);
   await ctx.close();
 }
 
