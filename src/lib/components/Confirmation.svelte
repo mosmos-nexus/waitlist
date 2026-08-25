@@ -5,8 +5,6 @@
   import Select from '$lib/components/ui/Select.svelte';
   import Chip from '$lib/components/ui/Chip.svelte';
   import Input from '$lib/components/ui/Input.svelte';
-  import MosBlob from '$lib/components/world/MosBlob.svelte';
-  import MonBlob from '$lib/components/world/MonBlob.svelte';
   import { m } from '$lib/locale.svelte';
   import { getLocale } from '$lib/locale.svelte';
   import { JOB_OPTIONS, AI_TASK_OPTIONS, OTHER_VALUE, optionLabel } from '$lib/data/survey-options';
@@ -108,13 +106,19 @@
     <span class="ring" aria-hidden="true"></span>
 
     <div class="mos-hold">
-      <MosBlob size={170} mood="happy" label="Mos" />
+      <img src="/characters/mos-happy.webp" alt="" width="150" height="150" />
     </div>
 
     <div class="joiners" aria-hidden="true">
-      <span class="mon-join j0"><MonBlob role="research" size={48} /></span>
-      <span class="mon-join j1"><MonBlob role="organize" size={44} /></span>
-      <span class="mon-join j2"><MonBlob role="design" size={46} /></span>
+      <span class="mon-join j0">
+        <img src="/characters/mon-research.webp" alt="" width="46" height="46" />
+      </span>
+      <span class="mon-join j1">
+        <img src="/characters/mon-organize.webp" alt="" width="42" height="42" />
+      </span>
+      <span class="mon-join j2">
+        <img src="/characters/mon-design.webp" alt="" width="44" height="44" />
+      </span>
     </div>
   </div>
 
@@ -273,7 +277,7 @@
     align-self: center;
     font-size: var(--font-size-caption-1);
     letter-spacing: 0.04em;
-    color: var(--bright-cyan);
+    color: var(--primary-strong);
   }
   h2 {
     color: var(--label-strong);
@@ -295,13 +299,12 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--summon-green);
-    box-shadow: 0 0 8px var(--summon-green);
+    background: var(--primary-normal);
   }
 
   .reward {
     font-size: var(--font-size-body-2);
-    color: var(--summon-green);
+    color: var(--primary-normal);
   }
   .care,
   .next {
@@ -332,7 +335,7 @@
     padding: 3px 10px;
     border-radius: var(--radius-full);
     background: rgba(31, 206, 206, 0.14);
-    color: var(--bright-cyan);
+    color: var(--primary-strong);
     font-size: var(--font-size-caption-2);
     font-weight: var(--weight-semibold);
   }

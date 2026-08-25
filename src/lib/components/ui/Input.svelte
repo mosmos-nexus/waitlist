@@ -61,7 +61,7 @@
 
   .control {
     width: 100%;
-    background: rgba(20, 23, 27, 0.72);
+    background: var(--card);
     border: 1px solid var(--line-normal-normal);
     border-radius: var(--radius-s);
     color: var(--label-strong);
@@ -96,7 +96,7 @@
   .control:focus {
     outline: none;
     border-color: var(--primary-light);
-    background: rgba(20, 23, 27, 0.9);
+    background: var(--card);
     box-shadow: var(--shadow-focus);
   }
 
@@ -107,7 +107,7 @@
     box-shadow: 0 0 0 3px rgba(233, 83, 83, 0.28);
   }
   .control.success {
-    border-color: var(--summon-green);
+    border-color: var(--primary-normal);
   }
 
   .helper {
@@ -118,6 +118,6 @@
     color: var(--status-error-fill);
   }
   .helper.success {
-    color: var(--summon-green);
+    color: var(--primary-normal);
   }
 </style>

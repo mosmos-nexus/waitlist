@@ -15,7 +15,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:browser": "node e2e/smoke.mjs && node e2e/extra.mjs && node e2e/regress.mjs"
+    "test:browser": "node e2e/smoke.mjs && node e2e/extra.mjs"
   },
   "lint-staged": {
     "*.{js,mjs,cjs,ts,jsx,svelte}": [

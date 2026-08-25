@@ -5,15 +5,13 @@
   interface Props {
     height?: number;
     alt?: string;
-    /** The waitlist runs dark, so white is the default treatment. */
-    tone?: 'white' | 'color';
+    /** The page is paper, so the black lockup is the default treatment. */
+    tone?: 'black' | 'color' | 'white';
   }
 
-  let { height = 28, alt = 'mosmos', tone = 'white' }: Props = $props();
+  let { height = 28, alt = 'mosmos', tone = 'black' }: Props = $props();
   const width = $derived(Math.round(height * RATIO));
-  const src = $derived(
-    tone === 'white' ? '/brand/mosmos-horizontal-white.svg' : '/brand/mosmos-horizontal-color.svg',
-  );
+  const src = $derived(`/brand/mosmos-horizontal-${tone}.svg`);
 </script>
 
 <img class="logo" {src} {alt} {height} {width} />

@@ -50,7 +50,7 @@
     margin: 2px 0 0;
     border: 1.5px solid var(--line-normal-strong);
     border-radius: 6px;
-    background: rgba(20, 23, 27, 0.72);
+    background: var(--card);
     cursor: pointer;
     transition:
       background var(--duration-fast) var(--ease-out),

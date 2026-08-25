@@ -551,14 +551,6 @@ textarea {
   color: var(--summon-cyan);
   text-transform: none;
 }
-.eyebrow::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--summon-cyan);
-  box-shadow: 0 0 10px rgba(31, 206, 206, 0.9);
-}
 
 /* Copy authored with intentional line breaks keeps them */
 .prewrap {
@@ -611,4 +603,81 @@ textarea {
     opacity: 1;
     transform: none;
   }
+}
+
+/* ============================================================
+   PAPER — the theme the product wireframes are drawn in.
+   ------------------------------------------------------------
+   Every value here is lifted from the Mosmos wireframe set
+   (Monitor / Hub / Inventory / Storage / Studio), not invented:
+   warm paper grounds, one burnt-orange accent, hairline rules at
+   1.5px and dashed dividers, and IBM Plex Mono for the micro
+   labels that sit above everything.
+
+   It overrides the semantic layer rather than replacing it, so
+   every component that already speaks in `--label-*`,
+   `--line-*` and `--primary-*` follows without an edit.
+   ============================================================ */
+:root {
+  /* Grounds */
+  --paper: #efede8;
+  --panel: #f4f3f0;
+  --card: #ffffff;
+  --chip: #f1efeb;
+  --app-bg: var(--paper);
+  --app-bg-hovered: rgba(42, 42, 40, 0.04);
+  --app-bg-selected: rgba(42, 42, 40, 0.08);
+
+  /* Ink */
+  --label-strong: #2a2a28;
+  --label-normal: #3f3d39;
+  --label-alternative: #57534e;
+  --label-assistive: #8a8781;
+  --label-faint: #a8a49d;
+  --static-white: #ffffff;
+
+  /* Rules — 1.5px solid for structure, dashed for grouping */
+  --line-normal-normal: #c4c0b9;
+  --line-normal-strong: #a8a49d;
+  --line-normal-alternative: #dcd9d3;
+  --line-faint: #e2dfda;
+
+  /* One accent, used sparingly */
+  --primary-normal: #c2660f;
+  --primary-strong: #8c4c10;
+  --primary-light: #e8c79b;
+  --primary-bright: #b4651a;
+  --primary-wash: #fbf3ea;
+
+  --fill-weak: #f1efeb;
+  --fill-normal: #e6e4df;
+
+  --status-error-fill: #b4321a;
+
+  /* The wireframes set every micro label in IBM Plex Mono. Plex carries no
+     Hangul or Kana, so Pretendard sits directly behind it: Latin and digits get
+     the monospace cut, everything else stays in the brand face instead of
+     dropping to a system mono that spaces Korean badly. */
+  --font-mono:
+    'IBM Plex Mono', 'Pretendard Variable', 'Pretendard JP Variable', Pretendard, ui-monospace,
+    monospace;
+
+  --shadow-e1: 0 1px 2px rgba(42, 42, 40, 0.06);
+  --shadow-e2: 0 6px 18px rgba(42, 42, 40, 0.08);
+  --shadow-e3: 0 20px 48px rgba(42, 42, 40, 0.16);
+  --shadow-focus: 0 0 0 3px rgba(194, 102, 15, 0.34);
+}
+
+/* The label that sits above a block, in the wireframes' own voice. */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--label-assistive);
+}
+/* Figures line up in columns and change in place, so they need fixed widths. */
+.tnum {
+  font-variant-numeric: tabular-nums;
 }

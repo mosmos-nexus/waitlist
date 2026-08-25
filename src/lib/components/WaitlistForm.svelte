@@ -12,6 +12,12 @@
   }
   let { onSuccess }: Props = $props();
 
+  // The page carries this form twice — hero and closing CTA — so the field's id
+  // has to be generated. Two elements sharing `wl-email` made the label
+  // ambiguous and left one of them effectively unlabelled.
+  const uid = $props.id();
+  const fieldId = `wl-email-${uid}`;
+
   // Mirror of the server pattern; kept local so the client bundle never imports $lib/server.
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -84,9 +90,9 @@
 <form class="form" onsubmit={handleSubmit} novalidate>
   <div class="row">
     <div class="email">
-      <label class="visually-hidden" for="wl-email">{m.hero_email_label()}</label>
+      <label class="visually-hidden" for={fieldId}>{m.hero_email_label()}</label>
       <Input
-        id="wl-email"
+        id={fieldId}
         type="email"
         name="email"
         autocomplete="email"

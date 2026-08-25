@@ -164,13 +164,13 @@
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: var(--summon-cyan);
+    background: var(--primary-normal);
     box-shadow: 0 0 8px rgba(31, 206, 206, 0.7);
     /* Alternating tint keeps a row of identical dots from reading as a chart */
     opacity: 0.85;
   }
   .mote:nth-child(3n) {
-    background: var(--summon-green);
+    background: var(--primary-normal);
     box-shadow: 0 0 8px rgba(33, 237, 179, 0.7);
   }
   .mote:nth-child(4n) {

@@ -6,7 +6,6 @@
   import favicon from '$lib/assets/favicon.svg';
   import Logo from '$lib/components/ui/Logo.svelte';
   import LanguageToggle from '$lib/components/ui/LanguageToggle.svelte';
-  import ManaCursor from '$lib/components/world/ManaCursor.svelte';
   import { afterNavigate } from '$app/navigation';
   import { m, localizeHref, syncLocale } from '$lib/locale.svelte';
 
@@ -26,8 +25,6 @@
 <svelte:head>
   <link rel="icon" href={favicon} />
 </svelte:head>
-
-<ManaCursor pokeHint={m.poke_hint()} />
 
 <a class="skip-link" href="#main">{m.skip_to_content()}</a>
 
@@ -73,12 +70,16 @@
     top: 12px;
   }
 
-  /* The header floats over the hero's sky rather than sitting on a bar of its
-     own — the island should be the first thing you see, uninterrupted. */
+  /* A plain bar on paper, in the wireframes' own chrome: a hairline under it
+     and nothing else. Fixed, so the email field stays one gesture away all the
+     way down the page. */
   .site-header {
     position: fixed;
     inset: 0 0 auto 0;
     z-index: 20;
+    background: rgba(239, 237, 232, 0.86);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line-normal-alternative);
   }
   .bar {
     display: flex;
@@ -89,13 +90,11 @@
   .brand {
     display: inline-flex;
     align-items: center;
-    /* Lifts the wordmark off the deep sky without a solid plate behind it */
-    filter: drop-shadow(0 2px 10px rgba(8, 9, 15, 0.8));
   }
 
   .site-footer {
-    border-top: 1px solid var(--line-normal-alternative);
-    background: var(--color-blue-gray-10);
+    border-top: 1.5px solid var(--line-normal-normal);
+    background: var(--panel);
   }
   .foot {
     display: flex;

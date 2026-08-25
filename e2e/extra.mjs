@@ -26,19 +26,17 @@ function ok(l, c, e = '') {
   await p.goto(BASE + '/', { waitUntil: 'networkidle' });
   await p.waitForTimeout(900);
 
-  await p.fill('#wl-email', 'someone@example.com');
-  await p.locator('.journey input[type="checkbox"]').check();
-  await p.locator('.journey button[type="submit"]').click();
+  await p.locator('.hero input[type="email"]').fill('someone@example.com');
+  await p.locator('.hero input[type="checkbox"]').check();
+  await p.locator('.hero button[type="submit"]').click();
   await p.waitForTimeout(1800);
 
   ok('arrival screen replaces the flow', (await p.locator('.arrival').count()) === 1);
-  ok('the journey is gone', (await p.locator('.journey').count()) === 0);
-  const mosD = await p.locator('.arrival [data-anim="mos-fill"]').getAttribute('d');
-  ok('Mos drawn on arrival', !!mosD && mosD.length > 200);
-  const happy = await p
-    .locator('.arrival [data-face="happy"]')
-    .evaluate((e) => Number(getComputedStyle(e).opacity));
-  ok('Mos is happy on arrival', happy > 0.5, `opacity ${happy}`);
+  ok('the marketing page is gone', (await p.locator('section.hero').count()) === 0);
+  ok(
+    'Mos greets on arrival',
+    (await p.locator('.arrival .mos-hold img').getAttribute('src')).includes('mos-happy'),
+  );
   const mons = await p
     .locator('.arrival .mon-join')
     .evaluateAll((els) => els.filter((e) => Number(getComputedStyle(e).opacity) > 0.8).length);

@@ -1,8 +1,12 @@
 <script lang="ts">
   import type { PageProps } from './$types';
   import Seo from '$lib/components/Seo.svelte';
-  import Journey from '$lib/components/journey/Journey.svelte';
-  import TryConsole from '$lib/components/sections/TryConsole.svelte';
+  import Hero from '$lib/components/sections/Hero.svelte';
+  import JoySheet from '$lib/components/sections/JoySheet.svelte';
+  import Handover from '$lib/components/sections/Handover.svelte';
+  import Watch from '$lib/components/sections/Watch.svelte';
+  import SurfaceMap from '$lib/components/sections/SurfaceMap.svelte';
+  import Reviews from '$lib/components/sections/Reviews.svelte';
   import TrustCta from '$lib/components/sections/TrustCta.svelte';
   import BuildCta from '$lib/components/sections/BuildCta.svelte';
   import Confirmation from '$lib/components/Confirmation.svelte';
@@ -28,8 +32,12 @@
     </div>
   </section>
 {:else}
-  <Journey {onSuccess} />
-  <TryConsole />
+  <Hero {onSuccess} />
+  <JoySheet />
+  <Handover />
+  <Watch />
+  <SurfaceMap />
+  <Reviews />
   <TrustCta {onSuccess} registrantCount={data.registrantCount} />
   <BuildCta />
 {/if}
@@ -43,8 +51,7 @@
     padding-block: var(--section-y-tablet);
     /* The same sky the hero opens on, so arriving doesn't leave the world */
     background:
-      radial-gradient(70% 60% at 50% 22%, rgba(33, 237, 179, 0.12), transparent 68%),
-      var(--sky-deep);
+      radial-gradient(80% 60% at 50% 0%, rgba(194, 102, 15, 0.08), transparent 68%), var(--paper);
   }
   .arrival .container {
     display: flex;

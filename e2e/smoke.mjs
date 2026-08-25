@@ -10,262 +10,172 @@ function ok(label, cond, extra = '') {
   if (!cond) process.exitCode = 1;
 }
 
-/** Open the page and return the journey's scrub span. */
-async function open(o = {}) {
+async function open(path = '/', o = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...o });
   const p = await ctx.newPage();
   p.on('pageerror', (e) => errors.push(e.message));
   p.on('console', (m) => {
-    // Vercel's analytics scripts 404 outside a Vercel deploy and the console
-    // message carries no URL, so they cannot be filtered by name.
+    // Vercel's analytics scripts 404 off a Vercel deploy and the console message
+    // carries no URL, so they cannot be filtered by name.
     if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(m.text());
   });
-  await p.goto(BASE + '/', { waitUntil: 'networkidle' });
-  await p.waitForTimeout(1600);
-  const h = (o.viewport ?? { height: 900 }).height;
-  const track = await p.locator('.journey').evaluate((e) => e.getBoundingClientRect().height);
-  return { ctx, p, span: track - h };
+  await p.goto(BASE + path, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(1200);
+  return { ctx, p };
 }
 
-/**
- * Wait until the scene stops chasing the scroll.
- *
- * Progress is damped, so the frame at any moment lags the scroll position.
- * Two parts, both needed: wait for the chase to *start* — polling straight after
- * `scrollTo` can otherwise read the same pre-scroll value twice and call it
- * settled before anything moved — then wait for it to hold still.
- */
-async function settle(p, before = null, budget = 3200) {
-  const read = () =>
-    p.locator('.journey [data-drive="isle"]').evaluate((e) => getComputedStyle(e).transform);
-  const startBy = Date.now() + 600;
-  while (before !== null && Date.now() < startBy) {
-    if ((await read()) !== before) break;
-    await p.waitForTimeout(50);
-  }
-  let last = null;
-  let same = 0;
-  const until = Date.now() + budget;
-  while (Date.now() < until) {
-    const v = await read();
-    if (v === last) {
-      if (++same >= 2) return;
-    } else {
-      same = 0;
-      last = v;
-    }
-    await p.waitForTimeout(60);
-  }
-}
-
-/** Scroll to a fraction of the journey and let the frame settle. */
-async function at(p, span, t) {
-  const before = await p
-    .locator('.journey [data-drive="isle"]')
-    .evaluate((e) => getComputedStyle(e).transform);
-  // `behavior: 'instant'` on purpose: the page sets `scroll-behavior: smooth`,
-  // so a plain `scrollTo` animates and every sample lands short of its target.
-  await p.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), Math.round(span * t));
-  await settle(p, before);
-}
-
-// ---- 1. the world is drawn, and it is alive ----
+// ---- 1. the page is the wireframes' paper, not a dark world ----
 {
   const { ctx, p } = await open();
+  const paint = await p.evaluate(() => {
+    const cs = getComputedStyle(document.body);
+    return {
+      bg: cs.backgroundColor,
+      theme: document.documentElement.dataset.theme,
+      scheme: document.querySelector('meta[name="color-scheme"]')?.content,
+      accent: getComputedStyle(document.documentElement)
+        .getPropertyValue('--primary-normal')
+        .trim(),
+    };
+  });
+  ok('the page is paper', paint.bg === 'rgb(239, 237, 232)', paint.bg);
+  ok('the theme is declared', paint.theme === 'paper' && paint.scheme === 'light');
+  ok('one burnt-orange accent', paint.accent === '#c2660f', paint.accent);
 
-  const crown = await p.locator('.journey [data-isle="crown"]').first().getAttribute('d');
-  const mass = await p.locator('.journey [data-isle="mass"]').first().getAttribute('d');
-  ok('island crown generated', !!crown && crown.length > 400, `${(crown || '').length} chars`);
-  ok('island mass generated', !!mass && mass.length > 300, `${(mass || '').length} chars`);
-  // The island runs the same engine as its inhabitants, so its outline is a
-  // curve list, never a polygon or a straight-edged plate.
-  ok('the island is all curves', !/[LlHhVv]\d/.test(crown ?? ''), 'no line segments');
-
-  const mos = await p.locator('.journey [data-anim="mos-fill"]').getAttribute('d');
-  ok('Mos silhouette generated', !!mos && mos.length > 400, `${(mos || '').length} chars`);
-
-  const before = crown;
-  await p.waitForTimeout(1400);
-  const after = await p.locator('.journey [data-isle="crown"]').first().getAttribute('d');
-  ok('the island breathes', before !== after);
-
-  ok('the journey is pinned', (await p.locator('.journey[data-pinned]').count()) === 1);
-  ok('mana cursor rendered', (await p.locator('.mana-layer').count()) === 1);
-  const cur = await p.evaluate(() => getComputedStyle(document.body).cursor);
-  ok('native cursor hidden', cur === 'none', cur);
-  await ctx.close();
-}
-
-// ---- 2. poking Mos still answers ----
-{
-  const { ctx, p } = await open();
-  const line = () => p.locator('.journey .say-line').innerText();
-  const first = await line();
-  // Mos never stops moving (island buoyancy plus its own float), so Playwright's
-  // stability check can never pass on it.
-  await p.locator('.journey .mos-drive button.hit').click({ force: true });
-  await p.waitForTimeout(700);
-  ok('poke swaps Mos line', (await line()) !== first, JSON.stringify((await line()).slice(0, 18)));
-  const happy = await p
-    .locator('.journey .mos-drive [data-face="happy"]')
-    .evaluate((e) => Number(getComputedStyle(e).opacity));
-  ok('poke shows happy face', happy > 0.5, `opacity ${happy}`);
-  await ctx.close();
-}
-
-// ---- 3. scroll moves the world ----
-{
-  const { ctx, p, span } = await open();
-  const isle = () =>
-    p.locator('.journey [data-drive="isle"]').evaluate((e) => {
-      const m = new DOMMatrixReadOnly(getComputedStyle(e).transform);
-      return { y: Math.round(m.f), s: Number(m.a.toFixed(3)) };
-    });
-
-  const a = await isle();
-  await at(p, span, 0.45);
-  const b = await isle();
-  await at(p, span, 0.9);
-  const c = await isle();
-  ok('the island rises with scroll', a.y > b.y && b.y > c.y, `${a.y} → ${b.y} → ${c.y}`);
-  ok('and settles back as it goes', a.s > b.s && b.s > c.s, `${a.s} → ${b.s} → ${c.s}`);
-
-  // Scrubbed, not triggered: coming back up restores the frame.
-  await at(p, span, 0);
-  const back = await isle();
-  ok('scrolling back rewinds it', Math.abs(back.y - a.y) < 3, `${back.y} vs ${a.y}`);
-  await ctx.close();
-}
-
-// ---- 4. the burden: tasks ring Mos, then Mos takes them ----
-{
-  const { ctx, p, span } = await open();
-  const vis = () =>
-    p
-      .locator('.journey [data-task]')
-      .evaluateAll((els) => els.filter((e) => Number(getComputedStyle(e).opacity) > 0.3).length);
-
-  await at(p, span, 0.3);
-  const up = await vis();
-  ok('every task is on the ring', up === 6, `${up}/6 visible`);
-  await at(p, span, 0.52);
-  const left = await vis();
-  ok('Mos takes them all', left === 0, `${left} left`);
-  await ctx.close();
-}
-
-// ---- 5. delegation: both ways, and the work lands ----
-{
-  const { ctx, p, span } = await open();
-  await at(p, span, 0.8);
-
-  const crew = await p
-    .locator('.journey [data-crew]')
-    .evaluateAll((els) => els.filter((e) => Number(getComputedStyle(e).opacity) > 0.5).length);
-  ok('the crew is out', crew >= 3, `${crew}/4`);
-
-  const lanes = await p
-    .locator('.journey [data-crew]')
-    .evaluateAll((els) => els.map((e) => e.dataset.lane));
-  ok('both delegation shapes are shown', new Set(lanes).size === 2, lanes.join(','));
-
-  const handoff = await p.locator('.journey .wire.handoff').count();
-  ok('the serial pair hands off directly', handoff >= 1, `${handoff} handoff wire(s)`);
-
-  await at(p, span, 0.99);
-  const arts = await p
-    .locator('.journey [data-artifact]')
-    .evaluateAll((els) => els.filter((e) => Number(getComputedStyle(e).opacity) > 0.6).length);
-  ok('the work reaches Storage', arts === 4, `${arts}/4 landed`);
-  await ctx.close();
-}
-
-// ---- 6. the console you can actually try ----
-{
-  const { ctx, p } = await open();
-  await p.locator('.try .console').scrollIntoViewIfNeeded();
-  await p.waitForTimeout(700);
-
-  const tabs = await p.locator('.try [role="tab"]').allInnerTexts();
+  // Micro labels are set in IBM Plex Mono in every wireframe.
+  const eyebrow = await p
+    .locator('.eyebrow')
+    .first()
+    .evaluate((e) => getComputedStyle(e).fontFamily);
+  ok('eyebrows are monospace', /IBM Plex Mono/.test(eyebrow), eyebrow.slice(0, 28));
+  // Plex carries no Hangul, so Pretendard has to sit directly behind it or
+  // Korean drops to a system mono and spaces badly.
   ok(
-    'the console offers the four surfaces',
-    tabs.join(',') === 'Monitor,Hub,Inventory,Studio',
-    tabs.join(','),
+    'Korean falls back to the brand face, not a system mono',
+    /IBM Plex Mono.*Pretendard/.test(eyebrow),
+    eyebrow.slice(0, 56),
+  );
+  await ctx.close();
+}
+
+// ---- 2. every section the product needs ----
+{
+  const { ctx, p } = await open();
+  ok('one h1', (await p.locator('main h1').count()) === 1);
+  for (const [sel, label] of [
+    ['section.hero', 'hero'],
+    ['section.joy', 'character sheet'],
+    ['section.flow', 'handover'],
+    ['section.watch', 'watch'],
+    ['section.map', 'surface map'],
+    ['section.rev', 'reviews'],
+  ]) {
+    ok(`${label} is present`, (await p.locator(sel).count()) === 1);
+  }
+  await ctx.close();
+}
+
+// ---- 3. the facts on the page are the wireframes' facts ----
+{
+  const { ctx, p } = await open();
+
+  // Hub's arithmetic: a paid Mon is 10 fixed plus the tokens it used.
+  const cost = await p.locator('section.flow .cost').innerText();
+  const total = cost.match(/(\d+)~(\d+)/);
+  const token = cost.match(/(\d+)~(\d+)/g)?.[1]?.match(/(\d+)~(\d+)/);
+  ok('the cost card shows a total', !!total, total?.[0]);
+  ok('and breaks it down', /\b10\b/.test(cost) && !!token, token?.[0]);
+  ok(
+    'the breakdown adds up to the total',
+    !!total && !!token && +total[1] === 10 + +token[1] && +total[2] === 10 + +token[2],
+    `${total?.[0]} = 10 + ${token?.[0]}`,
   );
 
-  const plate = () => p.locator('.try .screen').getAttribute('data-plate');
-  ok('Monitor is the dark surface', (await plate()) === 'dark');
-  await p.locator('.try [role="tab"]:has-text("Hub")').click();
-  await p.waitForTimeout(300);
-  ok('Hub is a light one', (await plate()) === 'light');
+  // Heartbeat rules are sentences, which is the whole point of the section.
+  const memos = await p.locator('section.watch .memo li').allInnerTexts();
+  ok('four watch rules', memos.length === 4, `${memos.length}`);
+  ok(
+    'they are written as sentences',
+    memos.every((t) => t.trim().length > 8),
+    memos[1],
+  );
 
-  // The four share one state, which is what makes this the product rather than
-  // four unrelated demos.
-  const held = () => p.locator('.try .rows li').count();
-  await p.locator('.try .card .act').first().click();
-  await p.waitForTimeout(300);
-  await p.locator('.try [role="tab"]:has-text("Inventory")').click();
-  await p.waitForTimeout(300);
-  ok('bringing a Mon in grows Inventory', (await held()) === 4, `${await held()} rows`);
+  // Every surface states what it will not do.
+  ok('five surfaces', (await p.locator('section.map .cell').count()) === 5);
+  ok('each names its boundary', (await p.locator('section.map .no-k').count()) === 5);
+  const names = await p.locator('section.map .n').allInnerTexts();
+  ok(
+    "the five are the product's own",
+    names.join(',') === 'Monitor,Hub,Inventory,Storage,Studio',
+    names.join(','),
+  );
 
-  await p.locator('.try [role="tab"]:has-text("Monitor")').click();
-  await p.waitForTimeout(300);
-  const mana = () => p.locator('.try .mana em').innerText();
-  const before = await mana();
-  await p.locator('.try .queue .act').first().click();
-  await p.waitForTimeout(1700);
-  ok('handing work over spends Mana', (await mana()) !== before, `${before} → ${await mana()}`);
-  ok('and it lands in today', (await p.locator('.try .flow li').count()) === 1);
+  // The character sheet is the product's most unusual fact.
+  ok('the sheet has three groups', (await p.locator('section.joy .row').count()) === 3);
+  ok('and both modes', (await p.locator('section.joy .seg-i').count()) === 2);
   await ctx.close();
 }
 
-// ---- 7. a phone gets the same story, stacked ----
+// ---- 4. the email capture works from the top of the page ----
 {
-  const { ctx, p, span } = await open({
+  const { ctx, p } = await open();
+  const box = await p.locator('.hero input[type="email"]').boundingBox();
+  ok(
+    'the field is above the fold',
+    box.y + box.height < 900,
+    `bottom ${Math.round(box.y + box.height)}`,
+  );
+  const attrs = await p.locator('.hero input[type="email"]').evaluate((i) => ({
+    type: i.type,
+    name: i.name,
+    auto: i.autocomplete,
+    spell: i.spellcheck,
+    labelled: !!document.querySelector(`label[for="${i.id}"]`),
+  }));
+  ok('the field is a real email field', attrs.type === 'email' && attrs.name === 'email');
+  ok('it autofills and does not spellcheck', attrs.auto === 'email' && attrs.spell === false);
+  ok('it has a label', attrs.labelled);
+  await ctx.close();
+}
+
+// ---- 5. reduced motion gets the finished frame ----
+{
+  const { ctx, p } = await open('/', { reducedMotion: 'reduce' });
+  const hidden = await p
+    .locator('main .head, main .cell, main .cost, main .sheet')
+    .evaluateAll((els) => els.filter((e) => Number(getComputedStyle(e).opacity) < 0.9).length);
+  ok('nothing is left hidden', hidden === 0, `${hidden} under-opaque`);
+  await ctx.close();
+}
+
+// ---- 6. a phone gets the same document ----
+{
+  const { ctx, p } = await open('/', {
     viewport: { width: 390, height: 844 },
     isMobile: true,
     hasTouch: true,
   });
-  ok('island kept on mobile', (await p.locator('.journey [data-isle="crown"]').count()) >= 1);
-  ok('Mos renders on mobile', (await p.locator('.journey [data-anim="mos-fill"]').count()) === 1);
-  const cur = await p.evaluate(() => getComputedStyle(document.body).cursor);
-  ok('no cursor takeover on touch', cur === 'auto', cur);
-  await at(p, span, 0.8);
-  const crew = await p
-    .locator('.journey [data-crew]')
-    .evaluateAll((els) => els.filter((e) => Number(getComputedStyle(e).opacity) > 0.5).length);
-  ok('the crew appears on mobile too', crew >= 3, `${crew}/4`);
+  ok('sections survive the narrow layout', (await p.locator('section.map .cell').count()) === 5);
+  await p.evaluate(() => window.scrollTo({ left: 9999, top: 0, behavior: 'instant' }));
+  ok('never pans sideways', (await p.evaluate(() => window.scrollX)) === 0);
   await ctx.close();
 }
 
-// ---- 8. reduced motion gets a document, not a scrubbed scene ----
-{
-  const { ctx, p } = await open({ reducedMotion: 'reduce' });
-  ok('reduced motion does not pin', (await p.locator('.journey[data-pinned]').count()) === 0);
-  const acts = await p
-    .locator('.journey [data-act]')
-    .evaluateAll((els) => els.filter((e) => Number(getComputedStyle(e).opacity) > 0.9).length);
-  ok('every act is readable at once', acts === 3, `${acts}/3 visible`);
-  const d = await p.locator('.journey [data-isle="crown"]').first().getAttribute('d');
-  ok('reduced motion still draws the island', !!d && d.length > 400);
-  const mos = await p.locator('.journey [data-anim="mos-fill"]').getAttribute('d');
-  ok('reduced motion still draws Mos', !!mos && mos.length > 400);
-  const cur = await p.evaluate(() => getComputedStyle(document.body).cursor);
-  ok('reduced motion keeps native cursor', cur === 'auto', cur);
-  await ctx.close();
-}
-
-// ---- 9. locales ----
+// ---- 7. locales ----
 for (const [path, probe, label] of [
   ['/en', 'The AI that ge', 'en'],
   ['/ja', '使うほど', 'ja'],
 ]) {
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  const p = await ctx.newPage();
-  await p.goto(BASE + path, { waitUntil: 'networkidle' });
-  await p.waitForTimeout(1200);
-  const h1 = await p.locator('.journey h1').first().innerText();
+  const { ctx, p } = await open(path);
+  const h1 = await p.locator('main h1').first().innerText();
   ok(`${label} opening copy`, h1.includes(probe), JSON.stringify(h1.slice(0, 22)));
+  // The wireframe-sourced copy has to exist in every locale, not only Korean.
+  const memos = await p.locator('section.watch .memo li').allInnerTexts();
+  ok(
+    `${label} watch rules translated`,
+    memos.length === 4 && memos.every((t) => t.trim()),
+    memos[1],
+  );
   await ctx.close();
 }
 

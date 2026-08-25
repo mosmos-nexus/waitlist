@@ -94,6 +94,6 @@
     font-weight: var(--weight-medium);
   }
   .back:hover {
-    color: var(--bright-cyan);
+    color: var(--primary-strong);
   }
 </style>
