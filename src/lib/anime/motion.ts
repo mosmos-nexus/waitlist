@@ -38,7 +38,12 @@ export const reveal: Action<HTMLElement, RevealOptions | undefined> = (node, opt
       duration,
       delay,
       ease: 'out(3)',
-      autoplay: onScroll({ enter: 'bottom-=60 top', sync: 'play', repeat: false }),
+      // `bottom-=10`, not `bottom-=60`. The 60px inset was meant to hold the
+      // animation until the element was properly in view, but it also means
+      // anything sitting within 60px of the fold never enters — on a 568px
+      // screen that hid the gloss line, which the language rules require to be
+      // present, until the visitor happened to scroll.
+      autoplay: onScroll({ enter: 'bottom-=10 top', sync: 'play', repeat: false }),
     });
   };
 

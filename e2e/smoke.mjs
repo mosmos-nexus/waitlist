@@ -322,22 +322,33 @@ async function open(path = '/', o = {}) {
   await ctx.close();
 }
 
-// ---- 10. a phone gets the same document ----
-{
-  const { ctx, p } = await open('/', {
-    viewport: { width: 390, height: 844 },
-    isMobile: true,
-    hasTouch: true,
-  });
-  ok('every section survives the narrow layout', (await p.locator('section').count()) >= 6);
-  await p.evaluate(() => window.scrollTo({ left: 9999, top: 0, behavior: 'instant' }));
-  ok('never pans sideways', (await p.evaluate(() => window.scrollX)) === 0);
+// ---- 10. a phone gets the same document, at its real width ----
+//
+// Deliberately no `isMobile`: that option rewrites the viewport — 320x568
+// becomes 402x714 — so this used to pass by testing a width no phone has, and
+// missed a real 82px horizontal overflow at 320px.
+for (const [w, h] of [
+  [320, 568],
+  [360, 640],
+  [390, 844],
+  [430, 932],
+]) {
+  const { ctx, p } = await open('/', { viewport: { width: w, height: h }, hasTouch: true });
+  ok(`${w}px: every section survives`, (await p.locator('section').count()) >= 6);
+  const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  ok(`${w}px: nothing overflows sideways`, over <= 0, `${over}px wider than the viewport`);
   const field = await p.locator('.hero input[type="email"]').boundingBox();
   ok(
-    'the field is still above the fold',
-    field.y + field.height < 844,
+    `${w}px: the field is above the fold`,
+    field.y + field.height < h,
     `bottom ${Math.round(field.y + field.height)}`,
   );
+  // The gloss is required on first use, so it cannot start life invisible —
+  // which is what a scroll-reveal inset wider than the gap to the fold caused.
+  const glossOpacity = await p
+    .locator('.hero .gloss')
+    .evaluate((e) => Number(getComputedStyle(e).opacity));
+  ok(`${w}px: the gloss line is visible at rest`, glossOpacity > 0.9, `${glossOpacity}`);
   await ctx.close();
 }
 

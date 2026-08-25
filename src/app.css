@@ -681,6 +681,26 @@ body {
 }
 
 /*
+ * Registered so they resolve.
+ *
+ * `--isle-w` is authored as `min(560px, 132vw)`. An unregistered custom property
+ * is returned by `getComputedStyle` as that literal token, so the script that
+ * places the horizon parsed it as NaN and treated the island as zero-width.
+ * Registering it with a syntax makes the cascade resolve it to pixels, which is
+ * what a reader of the value needs.
+ */
+@property --isle-w {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+@property --mos-k {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
+/*
  * Pointer contract.
  *
  * The world is a fixed layer behind the document, and Mos is the one thing in

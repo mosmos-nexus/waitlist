@@ -302,6 +302,86 @@ function ok(l, c, e = '') {
   await ctx.close();
 }
 
+// ---- The hero holds together at every width ----
+{
+  // No `isMobile` anywhere here: it rewrites the viewport, so a layout audit
+  // run with it is measuring a size no device has.
+  const SIZES = [
+    [320, 568],
+    [360, 640],
+    [375, 667],
+    [390, 844],
+    [414, 896],
+    [430, 932],
+    [480, 800],
+    [600, 800],
+    [719, 900],
+    [768, 1024],
+    [834, 1112],
+    [844, 390],
+    [1024, 768],
+    [1280, 800],
+    [1440, 900],
+    [1920, 1080],
+  ];
+  let collisions = 0;
+  let overflows = 0;
+  let worstCollision = '';
+  const lowSurface = [];
+  for (const [w, h] of SIZES) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: w < 720 });
+    const p = await ctx.newPage();
+    p.on('pageerror', (e) => errors.push(`hero ${w}x${h}: ` + e.message));
+    await p.goto(BASE + '/', { waitUntil: 'networkidle' });
+    await p.waitForTimeout(1500);
+    const g = await p.evaluate(() => {
+      const mos = document.querySelector('.mos-svg').getBoundingClientRect();
+      // Real box intersection, block by block. A vertical overlap alone is not a
+      // collision: above 720px the copy sits beside the island by design.
+      let worst = 0;
+      let on = '';
+      for (const el of document.querySelectorAll('.hero .copy > *')) {
+        const b = el.getBoundingClientRect();
+        if (!b.width || !b.height) continue;
+        const ox = Math.min(mos.right, b.right) - Math.max(mos.left, b.left);
+        const oy = Math.min(mos.bottom, b.bottom) - Math.max(mos.top, b.top);
+        if (ox > 0 && oy > 0 && ox * oy > worst) {
+          worst = ox * oy;
+          on = el.className.split(' ')[0] || el.tagName.toLowerCase();
+        }
+      }
+      const svg = document.querySelector('.isle-svg').getBoundingClientRect();
+      const surface = svg.top + 454 * (svg.width / 1440);
+      const copyBottom = document.querySelector('.hero .copy').getBoundingClientRect().bottom;
+      return {
+        collide: Math.round(worst),
+        on,
+        overflow: document.documentElement.scrollWidth - window.innerWidth,
+        surfaceFrac: surface / window.innerHeight,
+        copyFrac: copyBottom / window.innerHeight,
+      };
+    });
+    if (g.collide > 200) {
+      collisions++;
+      worstCollision = `${w}x${h} .${g.on} ${g.collide}px²`;
+    }
+    if (g.overflow > 0) overflows++;
+    // Where there is room for it, the island belongs in view rather than
+    // pressed against the bottom edge — the complaint this replaced was an
+    // island parked at 93% of the fold on every phone.
+    if (g.copyFrac < 0.72 && g.surfaceFrac > 0.88)
+      lowSurface.push(`${w}x${h} ${Math.round(g.surfaceFrac * 100)}%`);
+    await ctx.close();
+  }
+  ok('the copy and the island never overlap', collisions === 0, worstCollision);
+  ok('nothing overflows sideways at any width', overflows === 0, `${overflows} widths`);
+  ok(
+    'the island stays in view where there is room',
+    lowSurface.length === 0,
+    lowSurface.join(', '),
+  );
+}
+
 await browser.close();
 console.log('\n--- errors ---');
 console.log(errors.length ? errors.join('\n') : 'none');

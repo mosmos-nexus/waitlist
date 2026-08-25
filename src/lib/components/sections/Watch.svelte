@@ -125,8 +125,17 @@
         </ul>
 
         <form class="add" onsubmit={add}>
+          <!--
+            `size="1"` is load-bearing, not cosmetic. An input with no `size`
+            has an intrinsic width of about 20 characters, and that width is
+            what a grid item's automatic minimum resolves to — `flex: 1` and
+            `min-width: 0` shrink the *used* width but not that floor. It pushed
+            this panel to 380px inside a 288px container and the whole document
+            panned sideways on any phone under 400px.
+          -->
           <input
             type="text"
+            size="1"
             bind:value={draft}
             placeholder={m.watch_add()}
             aria-label={m.watch_add()}

@@ -41,9 +41,16 @@
   .hero {
     position: relative;
     display: flex;
-    align-items: center;
+    /*
+     * Top-aligned while the layout is stacked. Centring made the copy's bottom
+     * edge move with the viewport height — on a tall phone it sank far enough
+     * to push the island off the bottom of the screen, and on a short one it
+     * ran into it. Pinned to the top, the copy ends at roughly the same place
+     * on every phone and the island can be placed once.
+     */
+    align-items: flex-start;
     min-height: 100svh;
-    padding-top: clamp(88px, 10vw, 128px);
+    padding-top: clamp(80px, 12vh, 108px);
     padding-bottom: var(--space-64);
   }
   .inner {
@@ -114,10 +121,20 @@
     background: linear-gradient(rgba(174, 184, 194, 0.5), transparent);
   }
 
-  /* On a phone the hint would land on Mos, and Mos is the better invitation. */
-  @media (max-width: 560px) {
+  /* While stacked the hint would land on the island, and the island is the
+     better invitation. */
+  @media (max-width: 719px) {
     .scroll-hint {
       display: none;
+    }
+  }
+  /* Side by side from here: the copy gives up the right-hand half. */
+  @media (min-width: 720px) {
+    .hero {
+      align-items: center;
+    }
+    .copy {
+      max-width: 24rem;
     }
   }
   @media (min-width: 1000px) {

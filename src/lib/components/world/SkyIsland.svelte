@@ -30,6 +30,78 @@
     world?.setBusy(busy);
   });
 
+  /**
+   * Where the horizon goes while the layout is stacked.
+   *
+   * Below 720px the copy runs the full width and the island sits underneath it,
+   * so the island's height depends on how tall the copy turned out — and that is
+   * something only layout knows. The same sentences wrap to 534px at 320px wide
+   * and 491px at 360px, while a `vh` horizon knows neither. Expressed in `vh` it
+   * failed at both ends: the island crossed the form on short screens and was
+   * pushed to 93% of the fold on tall ones, which is the "too low" this fixes.
+   *
+   * So measure the copy and place the surface just under it. On a screen with no
+   * room left — 320x568 leaves 34px for a 162px island — the result simply falls
+   * past the fold, which is the honest outcome rather than an overlap.
+   *
+   * Above 720px the island sits beside the copy and the CSS `60vh` is right;
+   * the override is removed so the stylesheet stays in charge.
+   */
+  onMount(() => {
+    const stacked = matchMedia('(max-width: 719px)');
+    let frame = 0;
+
+    const place = () => {
+      frame = 0;
+      const el = root;
+      if (!el) return;
+      const copy = document.querySelector<HTMLElement>('.hero .copy');
+      if (!stacked.matches || !copy) {
+        el.style.removeProperty('--horizon');
+        return;
+      }
+      const cs = getComputedStyle(el);
+      // Both are registered with `@property` in app.css so these resolve to
+      // numbers; unregistered, `--isle-w` comes back as the literal
+      // `min(560px, 132vw)` and parses as NaN.
+      const isleW = parseFloat(cs.getPropertyValue('--isle-w'));
+      const mosK = parseFloat(cs.getPropertyValue('--mos-k'));
+      if (!isleW || !mosK) return;
+      // 0.853 is the body's aspect (476:406); 0.011 is how far the island's top
+      // surface sits above `--horizon`, both as fractions of the island's width.
+      const mosH = isleW * mosK * 0.853;
+      const box = copy.getBoundingClientRect();
+      // The hero is the first thing in the document, so the copy's offset from
+      // the document top is where it sits at rest — which is what the fixed
+      // world measures against.
+      const copyBottom = box.bottom + window.scrollY;
+      // 30px of air, not 20: the body fills its own box, so a smaller gap left
+      // it clipping the last line of copy by a few pixels at every width.
+      el.style.setProperty('--horizon', `${Math.round(copyBottom + 30 + mosH + isleW * 0.011)}px`);
+    };
+
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(place);
+    };
+
+    place();
+    // The copy's height moves when the brand webfont swaps in, when the address
+    // bar collapses, and on rotation — all three land here.
+    const ro = new ResizeObserver(schedule);
+    const copy = document.querySelector('.hero .copy');
+    if (copy) ro.observe(copy);
+    window.addEventListener('resize', schedule);
+    stacked.addEventListener('change', schedule);
+    document.fonts?.ready.then(schedule).catch(() => {});
+
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      ro.disconnect();
+      window.removeEventListener('resize', schedule);
+      stacked.removeEventListener('change', schedule);
+    };
+  });
+
   let pokeTimer: ReturnType<typeof setTimeout> | undefined;
   function poke(event: MouseEvent | KeyboardEvent) {
     const point =
@@ -644,12 +716,21 @@
    */
   .world {
     /*
-     * A phone stacks the hero copy above the island rather than beside it, so
-     * the horizon sits near the bottom edge and Mos rises into the gap under
-     * the form. Any higher and the island crosses the consent line.
+     * Stacked layout — the copy runs the full width and the island sits below
+     * it.
+     *
+     * The horizon has to clear a copy block whose height barely changes with
+     * the viewport: on a 320px screen the same text simply wraps more. So a
+     * pure `vh` horizon fails at both ends — it drove the island into the form
+     * on short screens and shoved it to 93 % of the fold on tall ones. This
+     * tracks the fold with a floor: tall phones get the island at about 82 %,
+     * and below the floor it slides partly under the fold, which is the honest
+     * answer when 500px of copy has to fit in 568px of screen.
      */
-    --horizon: 94vh;
-    --isle-w: min(760px, 132vw);
+    --horizon: max(calc(100svh - 150px), 700px);
+    /* Capped: at 480–700px wide the old `132vw` grew the island faster than the
+       copy narrowed, and they met in the middle. */
+    --isle-w: min(560px, 132vw);
     /*
      * Mos's size is a fraction of the island, never of the viewport.
      *
@@ -665,20 +746,28 @@
        moves out from under the left-hand column instead of shrinking. */
     --isle-x: 0%;
   }
-  @media (min-width: 640px) {
+  /*
+   * Side-by-side from 720px, not 1000px. Between the two the hero was still
+   * stacking, so a tablet in portrait and a phone in landscape both put the
+   * island underneath a full-width copy block and the two collided. There is
+   * ample width for two columns well before 1000px; what changes at 1000px is
+   * only how far right the island can sit.
+   */
+  @media (min-width: 720px) {
     .world {
+      --horizon: 60vh;
+      --isle-w: min(1180px, 88vw);
+      --isle-x: 26%;
       /* The reference draft seats Mos at about a third of the disc's width. */
       --mos-k: 0.16;
+      --pool-y: 58%;
+      --sky-y: 120%;
+      --sky-size: 124% 94%;
     }
   }
   @media (min-width: 1000px) {
     .world {
-      --horizon: 60vh;
-      --isle-w: min(1180px, 88vw);
       --isle-x: 20%;
-      --pool-y: 58%;
-      --sky-y: 120%;
-      --sky-size: 124% 94%;
     }
   }
 
@@ -895,7 +984,7 @@
 
   /* A phone runs the same scene on a fraction of the pixels and a fraction of
      the power budget — the decorative layers are the first thing to go. */
-  @media (max-width: 560px) {
+  @media (max-width: 719px) {
     .stars,
     .mote,
     .ring-b {
