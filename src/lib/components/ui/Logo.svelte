@@ -5,11 +5,11 @@
   interface Props {
     height?: number;
     alt?: string;
-    /** The page is paper, so the black lockup is the default treatment. */
+    /** The shell is deep space, so the white lockup is the default treatment. */
     tone?: 'black' | 'color' | 'white';
   }
 
-  let { height = 28, alt = 'mosmos', tone = 'black' }: Props = $props();
+  let { height = 28, alt = 'mosmos', tone = 'white' }: Props = $props();
   const width = $derived(Math.round(height * RATIO));
   const src = $derived(`/brand/mosmos-horizontal-${tone}.svg`);
 </script>

@@ -73,13 +73,15 @@
   /* A plain bar on paper, in the wireframes' own chrome: a hairline under it
      and nothing else. Fixed, so the email field stays one gesture away all the
      way down the page. */
+  /* Monitor floats its bar over the world rather than banding it; the glass
+     is the only thing separating the two. */
   .site-header {
     position: fixed;
     inset: 0 0 auto 0;
-    z-index: 20;
-    background: rgba(239, 237, 232, 0.86);
-    backdrop-filter: blur(8px);
-    border-bottom: 1px solid var(--line-normal-alternative);
+    z-index: 30;
+    background: linear-gradient(rgba(7, 8, 12, 0.72), rgba(7, 8, 12, 0));
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
   }
   .bar {
     display: flex;
@@ -93,8 +95,12 @@
   }
 
   .site-footer {
-    border-top: 1.5px solid var(--line-normal-normal);
-    background: var(--panel);
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid var(--glass-line-soft);
+    background: rgba(7, 8, 12, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
   }
   .foot {
     display: flex;
@@ -109,14 +115,14 @@
     margin-right: auto;
   }
   .links a {
-    color: var(--label-alternative);
+    color: var(--shell-meta);
     font-size: var(--font-size-body-2);
   }
   .links a:hover {
-    color: var(--label-strong);
+    color: var(--shell-text);
   }
   .copy {
-    color: var(--label-assistive);
+    color: var(--shell-faint);
     font-size: var(--font-size-caption-1);
   }
 </style>

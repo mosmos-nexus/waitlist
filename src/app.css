@@ -606,78 +606,107 @@ textarea {
 }
 
 /* ============================================================
-   PAPER — the theme the product wireframes are drawn in.
+   APP CHROME — the deep-space shell the Monitor screen runs in.
    ------------------------------------------------------------
-   Every value here is lifted from the Mosmos wireframe set
-   (Monitor / Hub / Inventory / Storage / Studio), not invented:
-   warm paper grounds, one burnt-orange accent, hairline rules at
-   1.5px and dashed dividers, and IBM Plex Mono for the micro
-   labels that sit above everything.
-
-   It overrides the semantic layer rather than replacing it, so
-   every component that already speaks in `--label-*`,
-   `--line-*` and `--primary-*` follows without an edit.
+   Every value below is lifted from the Monitor interactive draft
+   and the design system's `Ungrouped` app-chrome collection, not
+   invented. Content inside a panel still speaks in the semantic
+   layer above; these tokens are for the full-bleed shell only.
    ============================================================ */
 :root {
-  /* Grounds */
-  --paper: #efede8;
-  --panel: #f4f3f0;
-  --card: #ffffff;
-  --chip: #f1efeb;
-  --app-bg: var(--paper);
-  --app-bg-hovered: rgba(42, 42, 40, 0.04);
-  --app-bg-selected: rgba(42, 42, 40, 0.08);
+  --app-bg: #07080c;
 
-  /* Ink */
-  --label-strong: #2a2a28;
-  --label-normal: #3f3d39;
-  --label-alternative: #57534e;
-  --label-assistive: #8a8781;
-  --label-faint: #a8a49d;
-  --static-white: #ffffff;
+  --gray1: rgb(236, 237, 246);
+  --gray3: rgb(154, 154, 175);
 
-  /* Rules — 1.5px solid for structure, dashed for grouping */
-  --line-normal-normal: #c4c0b9;
-  --line-normal-strong: #a8a49d;
-  --line-normal-alternative: #dcd9d3;
-  --line-faint: #e2dfda;
+  /* Glass — the recipe every HUD surface in Monitor uses. */
+  --glass: rgba(18, 20, 28, 0.86);
+  --glass-line: rgba(112, 115, 124, 0.32);
+  --glass-line-soft: rgba(112, 115, 124, 0.22);
 
-  /* One accent, used sparingly */
-  --primary-normal: #c2660f;
-  --primary-strong: #8c4c10;
-  --primary-light: #e8c79b;
-  --primary-bright: #b4651a;
-  --primary-wash: #fbf3ea;
+  /* Text on the shell. Monitor writes body copy at 78% and meta at 50–66%. */
+  --shell-text: rgb(236, 237, 246);
+  --shell-body: rgba(174, 184, 194, 0.86);
+  --shell-meta: rgba(174, 184, 194, 0.62);
+  --shell-faint: rgba(174, 184, 194, 0.42);
 
-  --fill-weak: #f1efeb;
-  --fill-normal: #e6e4df;
-
-  --status-error-fill: #b4321a;
-
-  /* The wireframes set every micro label in IBM Plex Mono. Plex carries no
-     Hangul or Kana, so Pretendard sits directly behind it: Latin and digits get
-     the monospace cut, everything else stays in the brand face instead of
-     dropping to a system mono that spaces Korean badly. */
-  --font-mono:
-    'IBM Plex Mono', 'Pretendard Variable', 'Pretendard JP Variable', Pretendard, ui-monospace,
-    monospace;
-
-  --shadow-e1: 0 1px 2px rgba(42, 42, 40, 0.06);
-  --shadow-e2: 0 6px 18px rgba(42, 42, 40, 0.08);
-  --shadow-e3: 0 20px 48px rgba(42, 42, 40, 0.16);
-  --shadow-focus: 0 0 0 3px rgba(194, 102, 15, 0.34);
+  --shadow-hud: 0 18px 44px rgba(0, 0, 0, 0.4);
 }
 
-/* The label that sits above a block, in the wireframes' own voice. */
+/* The label that sits above a block. Monitor sets these in Pretendard at
+   700/.1em rather than a second family — no mono webfont to load. */
 .eyebrow {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--label-assistive);
+  color: var(--gray3);
 }
 /* Figures line up in columns and change in place, so they need fixed widths. */
 .tnum {
   font-variant-numeric: tabular-nums;
+}
+
+/*
+ * A HUD panel: the one surface this page repeats.
+ *
+ * Deliberately not `backdrop-filter`. Monitor blurs its panels because Monitor
+ * is one still screen; here the same panels sit over a world that moves on
+ * every scroll frame, so the filter has no cacheable backdrop and re-samples
+ * continuously — measured at 33 ms per frame with blur against 17 ms without,
+ * i.e. the difference between 30 and 60 fps. The fill is raised to compensate,
+ * so the sky still shows through; it is simply not softened.
+ */
+.hud {
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-l);
+  background: var(--glass);
+  box-shadow: var(--shadow-hud);
+}
+/* The page is the shell. */
+html {
+  background: var(--app-bg);
+}
+body {
+  background: transparent;
+  color: var(--shell-body);
+  /* Hangul has no inter-word breaking rule of its own, so the default splits
+     words mid-token — "또 하 / 나의" instead of "또 / 하나의". keep-all breaks at
+     spaces only, and is a no-op for Latin, which already breaks at spaces. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/*
+ * Pointer contract.
+ *
+ * The world is a fixed layer behind the document, and Mos is the one thing in
+ * it that can be operated. The document's own wrapper covers the whole page, so
+ * without this it — not the copy — receives every click in the empty half of
+ * the hero, and Mos cannot be poked at all. So the wrapper lets the pointer
+ * through and each piece of content claims it back. `pointer-events: none` also
+ * blocks text selection, which is why every text block claims it too, not only
+ * the controls.
+ */
+.flow {
+  pointer-events: none;
+}
+.flow .section,
+.flow [data-claims-pointer] {
+  pointer-events: auto;
+}
+
+/* A fine pointer gets the Mana orb instead of an arrow; everything that can be
+   operated keeps its own affordance so the orb never hides a real state. */
+:root.orb-cursor,
+:root.orb-cursor body {
+  cursor: none;
+}
+:root.orb-cursor a,
+:root.orb-cursor button,
+:root.orb-cursor input,
+:root.orb-cursor label,
+:root.orb-cursor [role='button'],
+:root.orb-cursor [tabindex] {
+  cursor: none;
 }

@@ -11,226 +11,118 @@
   /**
    * The opening.
    *
-   * The visual is the product's own HUD, not an illustration of one: Monitor
-   * keeps today's flow, the Heartbeat state and the next scheduled run in the
-   * corners, and that is what a visitor will actually see on their first day.
-   * Showing it plainly says more than an atmosphere piece can.
+   * One promise and one field, nothing else — the pattern every high-converting
+   * waitlist in the research shares. The island behind it is the demonstration;
+   * the copy does not describe it, so the two never say the same thing twice.
    */
 </script>
 
-<section class="hero section" aria-labelledby="hero-title">
+<section class="hero" aria-labelledby="hero-title">
   <div class="container inner">
-    <div class="copy">
+    <div class="copy" data-claims-pointer>
       <span class="eyebrow" use:reveal>{m.hero_eyebrow()}</span>
-      <h1 class="t-display-2 title prewrap" id="hero-title" use:reveal={{ delay: 60 }}>
-        {m.hero_tagline()}
-      </h1>
-      <p class="t-subtitle-1 lead prewrap" use:reveal={{ delay: 110 }}>{m.hero_sub()}</p>
+      <h1 class="title" id="hero-title" use:reveal={{ delay: 60 }}>{m.hero_tagline()}</h1>
+      <p class="sub" use:reveal={{ delay: 110 }}>{m.hero_sub()}</p>
+      <p class="anchor" use:reveal={{ delay: 150 }}>{m.hero_anchor()}</p>
 
-      <div class="form-slot" use:reveal={{ delay: 160 }}>
+      <div class="form-slot" use:reveal={{ delay: 200 }}>
         <WaitlistForm {onSuccess} />
       </div>
 
-      <p class="trust" use:reveal={{ delay: 200 }}>
-        <i class="dot" aria-hidden="true"></i>{m.hero_trust()}
-      </p>
-    </div>
-
-    <!-- Monitor, at rest. Every figure here is the wireframe's own. -->
-    <div class="hud" use:reveal={{ delay: 120, scale: true }}>
-      <div class="hud-bar">
-        <img
-          class="mos"
-          src="/characters/mos-greeting.webp"
-          alt=""
-          width="44"
-          height="44"
-          fetchpriority="high"
-        />
-        <span class="mos-name">Mos</span>
-        <span class="mana tnum"><b translate="no">Mana</b> 1,420</span>
-      </div>
-
-      <div class="hud-body">
-        <section class="panel">
-          <h2 class="eyebrow">{m.hud_flow()}</h2>
-          <ul class="flow">
-            <li>
-              <span class="flow-t">{m.hud_flow_1()}</span>
-              <span class="flow-by tnum">{m.hud_flow_1_by()}</span>
-            </li>
-            <li>
-              <span class="flow-t">{m.hud_flow_2()}</span>
-              <span class="flow-by tnum">{m.hud_flow_2_by()}</span>
-            </li>
-          </ul>
-        </section>
-
-        <div class="strip">
-          <section class="tile">
-            <h2 class="eyebrow">{m.hud_beat()}</h2>
-            <p class="tile-line">{m.hud_beat_state()}</p>
-          </section>
-          <section class="tile">
-            <h2 class="eyebrow">{m.hud_cron()}</h2>
-            <p class="tile-line tnum">{m.hud_cron_state()}</p>
-          </section>
-        </div>
-      </div>
+      <!-- Glossed on first appearance, per the language rule for cold readers. -->
+      <p class="gloss" use:reveal={{ delay: 240 }}>{m.hero_gloss()}</p>
     </div>
   </div>
+
+  <span class="scroll-hint" aria-hidden="true">{m.hero_scroll()}</span>
 </section>
 
 <style>
   .hero {
-    /* Clears the fixed header, plus a little more air than the standard rhythm */
-    padding-top: clamp(104px, 11vw, 152px);
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 100svh;
+    padding-top: clamp(88px, 10vw, 128px);
+    padding-bottom: var(--space-64);
   }
   .inner {
-    display: grid;
-    gap: var(--space-40);
-    align-items: center;
+    width: 100%;
   }
-  @media (min-width: 1000px) {
-    .inner {
-      grid-template-columns: minmax(0, 46fr) minmax(0, 54fr);
-      gap: var(--space-64);
-    }
-  }
-
   .copy {
     display: flex;
     flex-direction: column;
-    gap: var(--space-16);
-    max-width: 44ch;
+    gap: var(--space-14);
+    max-width: 34rem;
   }
+
   .title {
-    color: var(--label-strong);
-    letter-spacing: -0.02em;
+    margin: 0;
+    font-size: clamp(38px, 6.4vw, 64px);
+    font-weight: 800;
+    line-height: 1.16;
+    letter-spacing: -0.03em;
+    color: var(--shell-text);
     text-wrap: balance;
+    /* The island is bright behind the copy on narrow screens. */
+    text-shadow: 0 4px 28px rgba(7, 8, 12, 0.7);
   }
-  .lead {
-    color: var(--label-alternative);
-  }
-  .form-slot {
-    margin-top: var(--space-8);
-    width: 100%;
-  }
-  .trust {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-8);
+  .sub {
     margin: 0;
-    font-size: var(--font-size-caption-1);
-    color: var(--label-assistive);
+    font-size: clamp(17px, 2.2vw, 21px);
+    line-height: 1.5;
+    color: var(--shell-body);
+    text-shadow: 0 2px 18px rgba(7, 8, 12, 0.7);
   }
-  .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--primary-normal);
-  }
-
-  /* ---- the HUD ---- */
-  .hud {
-    border: 1.5px solid var(--line-normal-normal);
-    border-radius: 24px;
-    background: var(--panel);
-    overflow: hidden;
-    box-shadow: var(--shadow-e2);
-  }
-  .hud-bar {
-    display: flex;
-    align-items: center;
-    gap: var(--space-10);
-    padding: var(--space-12) var(--space-16);
-    background: var(--card);
-    border-bottom: 1.5px solid var(--line-normal-normal);
-  }
-  .mos {
-    width: 44px;
-    height: 44px;
-    border-radius: 14px;
-    background: var(--fill-normal);
-    object-fit: contain;
-  }
-  .mos-name {
+  .anchor {
+    margin: 0;
     font-size: var(--font-size-body-2);
-    font-weight: var(--weight-semibold);
-    color: var(--label-strong);
-  }
-  .mana {
-    margin-left: auto;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--primary-strong);
-  }
-  .mana b {
-    font-weight: 500;
+    line-height: 1.6;
+    color: var(--shell-meta);
   }
 
-  .hud-body {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-12);
-    padding: var(--space-16);
+  .form-slot {
+    margin-top: var(--space-10);
+    width: 100%;
+    max-width: 30rem;
   }
-  .panel,
-  .tile {
-    padding: var(--space-14);
-    border: 1.5px solid var(--line-normal-normal);
-    border-radius: 18px;
-    background: var(--card);
-  }
-  .panel h2,
-  .tile h2 {
-    margin: 0 0 var(--space-10);
-  }
-
-  .flow {
-    list-style: none;
+  .gloss {
     margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-  }
-  .flow li {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-12);
-    padding: var(--space-8) 0;
-    border-top: 1px dashed var(--line-normal-alternative);
-  }
-  .flow li:first-child {
-    border-top: 0;
-    padding-top: 0;
-  }
-  .flow-t {
-    flex: 1;
-    min-width: 0;
     font-size: var(--font-size-caption-1);
-    color: var(--label-normal);
-  }
-  .flow-by {
-    flex: none;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--label-assistive);
+    line-height: 1.6;
+    color: var(--shell-faint);
   }
 
-  .strip {
-    display: grid;
-    gap: var(--space-12);
+  .scroll-hint {
+    position: absolute;
+    left: 50%;
+    bottom: var(--space-24);
+    translate: -50% 0;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--shell-faint);
+    white-space: nowrap;
   }
-  @media (min-width: 560px) {
-    .strip {
-      grid-template-columns: 1fr 1fr;
+  .scroll-hint::after {
+    content: '';
+    display: block;
+    width: 1px;
+    height: 26px;
+    margin: 8px auto 0;
+    background: linear-gradient(rgba(174, 184, 194, 0.5), transparent);
+  }
+
+  /* On a phone the hint would land on Mos, and Mos is the better invitation. */
+  @media (max-width: 560px) {
+    .scroll-hint {
+      display: none;
     }
   }
-  .tile-line {
-    margin: 0;
-    font-size: var(--font-size-caption-1);
-    line-height: var(--line-height-body-reading);
-    color: var(--label-alternative);
+  @media (min-width: 1000px) {
+    .copy {
+      max-width: 30rem;
+    }
   }
 </style>
