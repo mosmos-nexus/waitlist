@@ -115,31 +115,7 @@
 
 <style>
   .head {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-12);
-    max-width: 44ch;
     margin-bottom: var(--space-32);
-  }
-  .title {
-    margin: 0;
-    font-size: clamp(28px, 3.6vw, 40px);
-    font-weight: 700;
-    line-height: 1.2;
-    letter-spacing: -0.025em;
-    color: var(--shell-text);
-    text-wrap: balance;
-  }
-  .lead {
-    margin: 0;
-    font-size: var(--font-size-body-1);
-    line-height: 1.65;
-    color: var(--shell-body);
-  }
-  .note {
-    margin: var(--space-20) 0 0;
-    font-size: var(--font-size-caption-1);
-    color: var(--shell-faint);
   }
 
   /* Two columns with a dashed gutter and nothing spanning it — the Pricing
@@ -295,9 +271,12 @@
   .slider {
     display: block;
   }
+  /* The track stays thin; the box does not. A 16px-tall range is a control you
+     cannot reliably grab, and the design system's floor is 44. */
   .slider input {
     display: block;
     width: 100%;
+    height: var(--control-m);
     margin: 0;
     accent-color: var(--primary-normal);
     cursor: pointer;

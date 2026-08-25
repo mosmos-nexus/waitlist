@@ -183,7 +183,7 @@
           {/each}
         </ul>
 
-        <p class="note">{m.watch_note()}</p>
+        <p class="panel-note">{m.watch_note()}</p>
       </div>
     </div>
   </div>
@@ -191,26 +191,7 @@
 
 <style>
   .head {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-12);
-    max-width: 40ch;
     margin-bottom: var(--space-32);
-  }
-  .title {
-    margin: 0;
-    font-size: clamp(28px, 3.6vw, 40px);
-    font-weight: 700;
-    line-height: 1.2;
-    letter-spacing: -0.025em;
-    color: var(--shell-text);
-    text-wrap: balance;
-  }
-  .lead {
-    margin: 0;
-    font-size: var(--font-size-body-1);
-    line-height: 1.65;
-    color: var(--shell-body);
   }
 
   .grid {
@@ -275,10 +256,17 @@
     flex: 1;
     min-width: 0;
   }
+  /*
+   * 26px of glyph, 44px of target. The design system's floor is 44 and this was
+   * 22 — a control you have to hit precisely to delete a line you just typed.
+   * The pseudo-element grows the hit area without growing the row, so the memo
+   * stays as tight as the wireframe's.
+   */
   .x {
+    position: relative;
     flex: none;
-    width: 22px;
-    height: 22px;
+    width: 26px;
+    height: 26px;
     border: 0;
     border-radius: 8px;
     background: transparent;
@@ -286,6 +274,11 @@
     font-size: 10px;
     cursor: pointer;
     transition: var(--transition-base);
+  }
+  .x::after {
+    content: '';
+    position: absolute;
+    inset: -9px;
   }
   .x:hover {
     background: rgba(112, 115, 124, 0.24);
@@ -404,6 +397,7 @@
   }
 
   .switch {
+    position: relative;
     margin-left: auto;
     flex: none;
     width: 44px;
@@ -421,6 +415,12 @@
     background: var(--primary-normal);
     justify-content: flex-end;
   }
+  /* 44x26 drawn, 44x44 to hit. */
+  .switch::after {
+    content: '';
+    position: absolute;
+    inset: -9px 0;
+  }
   .switch:focus-visible {
     outline: none;
     box-shadow: var(--shadow-focus);
@@ -433,12 +433,15 @@
     background: #fff;
   }
 
-  .note {
+  /* A footnote inside the panel, so it takes the panel's measure — not the
+     section-closing `.note`, which spans the container. */
+  .panel-note {
     margin: 0;
     padding-top: var(--space-12);
     border-top: 1px solid var(--glass-line-soft);
     font-size: 11.5px;
     line-height: 1.6;
     color: var(--shell-faint);
+    text-wrap: pretty;
   }
 </style>

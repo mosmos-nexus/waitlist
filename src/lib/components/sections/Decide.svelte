@@ -235,35 +235,6 @@
     }
   }
 
-  .head {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-12);
-    max-width: 36ch;
-  }
-  .title {
-    margin: 0;
-    font-size: clamp(28px, 3.6vw, 40px);
-    font-weight: 700;
-    line-height: 1.2;
-    letter-spacing: -0.025em;
-    color: var(--shell-text);
-    text-wrap: balance;
-  }
-  .lead {
-    margin: 0;
-    font-size: var(--font-size-body-1);
-    line-height: 1.65;
-    color: var(--shell-body);
-  }
-  .note {
-    margin: 0;
-    max-width: 62ch;
-    font-size: var(--font-size-caption-1);
-    line-height: 1.65;
-    color: var(--shell-faint);
-  }
-
   .panel {
     overflow: hidden;
   }
@@ -348,8 +319,9 @@
   .goal,
   .opt {
     width: 100%;
+    min-height: var(--control-m);
     text-align: left;
-    padding: 11px 13px;
+    padding: 12px 14px;
     border: 1px solid var(--glass-line);
     border-radius: var(--radius-xs);
     background: transparent;
@@ -379,7 +351,7 @@
   .opt {
     width: auto;
     border-radius: var(--radius-full);
-    padding: 9px 16px;
+    padding: 10px 18px;
   }
 
   .agreed {

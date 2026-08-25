@@ -45,20 +45,59 @@
 
     // Scale lives on the inner span so the follow transform is never touched.
     const inner = ringEl.firstElementChild as HTMLElement;
+
+    /**
+     * Three states, not two.
+     *
+     * `text` is the one that was missing. Over a field the orb replaced the
+     * system I-beam with a 57px ring sitting inside the box — on the one control
+     * the page exists to collect. The caret is the strongest signal that
+     * something can be typed into, so there the orb steps aside entirely and CSS
+     * hands the native cursor back.
+     */
+    const TEXT_FIELD =
+      'textarea, input:not([type]), ' +
+      'input[type=text], input[type=email], input[type=search], ' +
+      'input[type=tel], input[type=url], input[type=password], input[type=number]';
+
+    type Mode = 'idle' | 'hot' | 'text';
+    let mode: Mode = 'idle';
     // Written imperatively rather than through a class: a class only added at
     // runtime is invisible to Svelte's selector analysis, so the rule for it
     // gets pruned from the scoped stylesheet as unused.
-    const setHover = (on: boolean) => {
-      inner.style.borderColor = on ? 'rgba(49,220,220,.85)' : 'rgba(49,220,220,.45)';
-      inner.style.background = on ? 'rgba(31,206,206,.14)' : 'rgba(15,111,218,.08)';
-      animate(inner, { scale: on ? 1.9 : 1, duration: 420, ease: 'out(3)' });
+    const setMode = (next: Mode) => {
+      if (next === mode) return;
+      mode = next;
+      const hot = next === 'hot';
+      inner.style.borderColor = hot ? 'rgba(49,220,220,.85)' : 'rgba(49,220,220,.45)';
+      inner.style.background = hot ? 'rgba(31,206,206,.14)' : 'rgba(15,111,218,.08)';
+      // 1.5, not 1.9: at 57px the ring stopped reading as a cursor and started
+      // reading as a component.
+      animate(inner, {
+        scale: next === 'text' ? 0.4 : hot ? 1.5 : 1,
+        opacity: next === 'text' ? 0 : 1,
+        duration: 380,
+        ease: 'out(3)',
+      });
+      animate(coreEl, { opacity: next === 'text' ? 0 : 1, duration: 280, ease: 'out(3)' });
     };
-    const interactive = (t: EventTarget | null) =>
-      t instanceof Element && !!t.closest('a, button, input, select, textarea, label, [tabindex]');
-    const onOver = (e: PointerEvent) => setHover(interactive(e.target));
-    const onDown = () => animate(inner, { scale: 0.7, duration: 140, ease: 'out(2)' });
-    const onUp = (e: PointerEvent) =>
-      animate(inner, { scale: interactive(e.target) ? 1.9 : 1, duration: 320, ease: 'out(3)' });
+
+    const modeFor = (t: EventTarget | null): Mode => {
+      if (!(t instanceof Element)) return 'idle';
+      // Only fields you type into. A range or a checkbox is a control you aim
+      // at, so it keeps the ring.
+      if (t.closest(TEXT_FIELD)) return 'text';
+      return t.closest('a, button, select, label, [role="button"], [tabindex]') ? 'hot' : 'idle';
+    };
+    const onOver = (e: PointerEvent) => setMode(modeFor(e.target));
+    const onDown = () => {
+      if (mode !== 'text') animate(inner, { scale: 0.7, duration: 140, ease: 'out(2)' });
+    };
+    const onUp = (e: PointerEvent) => {
+      const next = modeFor(e.target);
+      if (next === 'text') return;
+      animate(inner, { scale: next === 'hot' ? 1.5 : 1, duration: 320, ease: 'out(3)' });
+    };
 
     const onLeave = () => {
       live = false;
@@ -133,7 +172,6 @@
     height: 30px;
     border: 1.5px solid rgba(49, 220, 220, 0.45);
     background: rgba(15, 111, 218, 0.08);
-    backdrop-filter: blur(1px);
     transition:
       border-color var(--duration-base) var(--ease-out),
       background var(--duration-base) var(--ease-out);

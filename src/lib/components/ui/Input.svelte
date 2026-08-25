@@ -61,7 +61,7 @@
 
   .control {
     width: 100%;
-    background: var(--card);
+    background: var(--field);
     border: 1px solid var(--line-normal-normal);
     border-radius: var(--radius-s);
     color: var(--label-strong);
@@ -96,7 +96,7 @@
   .control:focus {
     outline: none;
     border-color: var(--primary-light);
-    background: var(--card);
+    background: var(--field);
     box-shadow: var(--shadow-focus);
   }
 

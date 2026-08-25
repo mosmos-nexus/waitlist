@@ -98,33 +98,7 @@
 
 <style>
   .head {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-12);
-    max-width: 40ch;
     margin-bottom: var(--space-32);
-  }
-  .title {
-    margin: 0;
-    font-size: clamp(28px, 3.6vw, 40px);
-    font-weight: 700;
-    line-height: 1.2;
-    letter-spacing: -0.025em;
-    color: var(--shell-text);
-    text-wrap: balance;
-  }
-  .lead {
-    margin: 0;
-    font-size: var(--font-size-body-1);
-    line-height: 1.65;
-    color: var(--shell-body);
-  }
-  .note {
-    margin: var(--space-20) 0 0;
-    max-width: 62ch;
-    font-size: var(--font-size-caption-1);
-    line-height: 1.65;
-    color: var(--shell-faint);
   }
 
   .grid {

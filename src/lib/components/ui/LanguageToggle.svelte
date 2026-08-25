@@ -59,7 +59,7 @@
     align-items: center;
     gap: 2px;
     padding: 3px;
-    background: var(--card);
+    background: var(--field);
     border: 1px solid var(--line-normal-normal);
     border-radius: var(--radius-full);
     backdrop-filter: blur(10px);

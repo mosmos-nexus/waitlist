@@ -755,22 +755,37 @@ function attachDrift(root: HTMLElement, hooks: DriftHooks = {}): () => void {
   /** The eased, signed version the scene reacts to. */
   let velEased = 0;
   let lastY = 0;
+  /**
+   * How far the world sinks over the whole page.
+   *
+   * Less while the layout is stacked. There the horizon is placed just below the
+   * copy, so a desktop-sized descent carried Mos down behind the footer — 54% of
+   * it was hidden at the bottom of the page on a 640px screen. Side by side
+   * there is room above and below for the full travel.
+   */
+  let travel = 300;
+  const readTravel = () => {
+    travel = window.innerWidth >= 720 ? 300 : 100;
+  };
+  readTravel();
+
   let raf = 0;
   let scrolling = false;
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
 
   const apply = () => {
     for (const { set, near, sink, pan, recede } of drivers) {
-      set.x(-px * 34 * near + scrollEased * 150 * pan);
+      set.x(-px * 34 * near + scrollEased * travel * 0.5 * pan);
       // Positive: the island *sinks* as the page is read. Rising would drive it
       // straight up through the panels it sits behind, and the descent also
       // reads as the reader climbing away from where they started.
-      set.y(-py * 20 * near + scrollEased * 300 * sink);
+      set.y(-py * 20 * near + scrollEased * travel * sink);
       if (recede) set.scale(1 - scrollEased * 0.09 * recede);
     }
   };
 
   const readScroll = () => {
+    readTravel();
     const span = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
     const y = window.scrollY;
     velRaw += y - lastY;

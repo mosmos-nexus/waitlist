@@ -53,7 +53,6 @@
           {m.social_count_pre()}<b>{shown.toLocaleString()}</b>{m.social_count_post()}
         </p>
       {/if}
-      <p class="care" use:reveal={{ delay: 200 }}>{m.trust_care()}</p>
     </div>
 
     <aside class="founder hud" use:reveal={{ delay: 120, scale: true }}>
@@ -114,12 +113,6 @@
   .count b {
     color: var(--bright-cyan);
     font-weight: 700;
-  }
-  .care {
-    margin: 0;
-    font-size: var(--font-size-caption-1);
-    line-height: 1.6;
-    color: var(--shell-faint);
   }
 
   .founder {

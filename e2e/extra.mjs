@@ -66,6 +66,17 @@ function ok(l, c, e = '') {
   await p.goto(BASE + '/', { waitUntil: 'networkidle' });
   await p.waitForTimeout(1500);
 
+  // Warm-up pass, discarded. The first browser context in a process rasterises
+  // its first frames noticeably slower on a GPU-less runner — measured at
+  // p50 33ms for that one context and 16.7ms for every cold page load after it,
+  // which is Chromium warming up rather than anything about this page.
+  for (let i = 0; i < 20; i++) {
+    await p.mouse.wheel(0, 90);
+    await p.waitForTimeout(8);
+  }
+  await p.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await p.waitForTimeout(500);
+
   // Real rAF gaps while the wheel is turning. This is the only honest measure
   // of "plays" versus "steps": counting distinct positions passes at 15 fps.
   await p.evaluate(() => {
@@ -380,6 +391,148 @@ function ok(l, c, e = '') {
     lowSurface.length === 0,
     lowSurface.join(', '),
   );
+}
+
+// ---- Controls are reachable, and the cursor does not hide a caret ----
+{
+  const ctx = await browser.newContext({ viewport: { width: 640, height: 800 } });
+  const p = await ctx.newPage();
+  p.on('pageerror', (e) => errors.push('ux: ' + e.message));
+  await p.goto(BASE + '/', { waitUntil: 'networkidle' });
+  await p.waitForTimeout(1500);
+  await p.evaluate(async () => {
+    for (let y = 0; y < document.documentElement.scrollHeight; y += 400) {
+      window.scrollTo({ top: y, behavior: 'instant' });
+      await new Promise((r) => setTimeout(r, 40));
+    }
+  });
+  await p.waitForTimeout(400);
+
+  // Hit-tested, not measured. Several of these grow their target with a
+  // pseudo-element, which `getBoundingClientRect` cannot see.
+  const controls = await p
+    .locator('main button, main input, main [role="switch"], main label')
+    .all();
+  const small = [];
+  for (const h of controls) {
+    const r = await h.evaluate((el) => {
+      if (el.classList.contains('visually-hidden')) return null;
+      // A checkbox wrapped in its own label is targeted through that label,
+      // which is probed separately.
+      if (
+        el instanceof HTMLInputElement &&
+        (el.type === 'checkbox' || el.type === 'radio') &&
+        el.closest('label')
+      )
+        return null;
+      const first = el.getBoundingClientRect();
+      if (!first.width || !first.height) return null;
+      el.scrollIntoView({ block: 'center', behavior: 'instant' });
+      const b = el.getBoundingClientRect();
+      const cx = b.left + b.width / 2;
+      const cy = b.top + b.height / 2;
+      const owns = (x, y) => {
+        const t = document.elementFromPoint(x, y);
+        return (
+          !!t &&
+          (t === el ||
+            el.contains(t) ||
+            (t.closest && t.closest('button, label, [role="switch"], input') === el))
+        );
+      };
+      if (!owns(cx, cy)) return null;
+      const reach = (dx, dy, max) => {
+        let d = 0;
+        for (let i = 1; i <= max; i++) {
+          if (owns(cx + dx * i, cy + dy * i)) d = i;
+          else break;
+        }
+        return d;
+      };
+      const hh = reach(0, -1, 34) + reach(0, 1, 34) + 1;
+      const hw = reach(-1, 0, 80) + reach(1, 0, 80) + 1;
+      return hh < 44 || hw < 44
+        ? {
+            cls: [...el.classList].filter((c) => !c.startsWith('svelte-')).join('.') || el.tagName,
+            hit: `${hw}x${hh}`,
+          }
+        : null;
+    });
+    if (r) small.push(`${r.cls} ${r.hit}`);
+  }
+  ok('every control clears the 44px target floor', small.length === 0, small.join(', '));
+
+  // The orb replaced the system I-beam on the one control the page exists to
+  // collect, which read as a stray element sitting inside the field.
+  await p.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await p.waitForTimeout(300);
+  const box = await p.locator('.hero input[type="email"]').boundingBox();
+  await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await p.waitForTimeout(500);
+  const overField = await p.evaluate(() => ({
+    ring: Number(getComputedStyle(document.querySelector('.orb .ring span')).opacity),
+    cursor: getComputedStyle(document.querySelector('.hero input[type="email"]')).cursor,
+  }));
+  ok('the orb steps aside over a text field', overField.ring < 0.1, `ring ${overField.ring}`);
+  ok('and the caret comes back', overField.cursor !== 'none', overField.cursor);
+
+  const cta = await p.locator('.hero button[type="submit"]').boundingBox();
+  await p.mouse.move(cta.x + cta.width / 2, cta.y + cta.height / 2);
+  await p.waitForTimeout(500);
+  const overCta = await p.evaluate(() => {
+    const s = document.querySelector('.orb .ring span');
+    const m = new DOMMatrixReadOnly(getComputedStyle(s).transform);
+    return { opacity: Number(getComputedStyle(s).opacity), scale: Math.hypot(m.a, m.b) };
+  });
+  ok(
+    'but shows over a button',
+    overCta.opacity > 0.9 && overCta.scale > 1.2,
+    `scale ${overCta.scale.toFixed(2)}`,
+  );
+  ok(
+    'at a size that still reads as a cursor',
+    overCta.scale < 1.7,
+    `scale ${overCta.scale.toFixed(2)}`,
+  );
+  await ctx.close();
+}
+
+// ---- Type roles resolve, and read the same in every section ----
+{
+  const ctx = await browser.newContext({ viewport: { width: 640, height: 800 } });
+  const p = await ctx.newPage();
+  p.on('pageerror', (e) => errors.push('type: ' + e.message));
+  await p.goto(BASE + '/', { waitUntil: 'networkidle' });
+  await p.waitForTimeout(1400);
+
+  const g = await p.evaluate(() => {
+    const probe = (name) => {
+      const el = document.createElement('span');
+      el.style.color = `var(${name})`;
+      document.body.append(el);
+      const v = getComputedStyle(el).color;
+      el.remove();
+      return v;
+    };
+    // An undefined custom property makes its declaration invalid, which is how
+    // the form controls ended up with no intended surface at all.
+    const dangling = ['--field', '--glass', '--shell-text', '--shell-body'].filter(
+      (n) => probe(n) === 'rgba(0, 0, 0, 0)' || !probe(n),
+    );
+    const heads = [...document.querySelectorAll('main section .head')].map((h) =>
+      Math.round(h.getBoundingClientRect().width),
+    );
+    // Section-closing notes only. A footnote inside a panel takes the panel's
+    // measure and is a different role.
+    const notes = [...document.querySelectorAll('main section > .container > .note')].map((n) =>
+      Math.round(n.getBoundingClientRect().width),
+    );
+    return { dangling, heads, notes };
+  });
+  ok('the shell tokens all resolve', g.dangling.length === 0, g.dangling.join(', '));
+  ok('every section head shares one measure', new Set(g.heads).size === 1, g.heads.join('/'));
+  ok('and every closing note does too', new Set(g.notes).size === 1, g.notes.join('/'));
+  await ctx.close();
 }
 
 await browser.close();

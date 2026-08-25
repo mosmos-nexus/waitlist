@@ -624,6 +624,10 @@ textarea {
      directly behind, which looks like a mistake rather than like depth. Any
      higher and the panels stop reading as glass over the sky at all. */
   --glass: rgba(18, 20, 28, 0.9);
+  /* Form controls. Monitor sets its fields on a faint neutral wash rather than a
+     card, so they read as recessed into the panel instead of stacked on it. */
+  --field: rgba(112, 115, 124, 0.12);
+  --field-hover: rgba(112, 115, 124, 0.18);
   --glass-line: rgba(112, 115, 124, 0.32);
   --glass-line-soft: rgba(112, 115, 124, 0.22);
 
@@ -680,6 +684,57 @@ body {
   overflow-wrap: break-word;
 }
 
+/* ============================================================
+   SECTION TYPE ROLES
+   ------------------------------------------------------------
+   Every section opens the same way — eyebrow, title, lead — and
+   closes with a note. Those four were declared identically in
+   five components and drifted anyway: heads at 36 / 40 / 40 / 40
+   / 44ch and notes at 62ch or nothing, which reads as columns
+   that do not line up. They live here now; the components only
+   place them.
+   ============================================================ */
+main .head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  max-width: 42ch;
+}
+main .title {
+  margin: 0;
+  font-size: clamp(28px, 3.6vw, 40px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  color: var(--shell-text);
+  text-wrap: balance;
+}
+main .lead {
+  margin: 0;
+  font-size: var(--font-size-body-1);
+  line-height: 1.65;
+  color: var(--shell-body);
+  /* Korean with `keep-all` breaks only at spaces, which strands very short last
+     lines — measured at 8-15% of the measure across these blocks. `balance` is
+     built for runs of a few lines, which is exactly what a lead is. */
+  text-wrap: balance;
+}
+main .note {
+  margin: var(--space-20) 0 0;
+  max-width: 66ch;
+  font-size: var(--font-size-caption-1);
+  line-height: 1.65;
+  color: var(--shell-faint);
+  text-wrap: pretty;
+}
+/* Everything else that can run past one line. */
+main p,
+main li,
+main dd,
+main blockquote {
+  text-wrap: pretty;
+}
+
 /*
  * Registered so they resolve.
  *
@@ -727,9 +782,33 @@ body {
 }
 :root.orb-cursor a,
 :root.orb-cursor button,
-:root.orb-cursor input,
 :root.orb-cursor label,
 :root.orb-cursor [role='button'],
 :root.orb-cursor [tabindex] {
+  cursor: none;
+}
+/*
+ * Text fields keep the system caret.
+ *
+ * The I-beam is the strongest signal that a box can be typed into, and the orb
+ * replaced it with a 57px ring sitting inside the field — which reads as a
+ * stray element rather than a cursor, on the one control the page exists to
+ * collect. The orb hides itself over these; see ManaCursor.
+ */
+:root.orb-cursor textarea,
+:root.orb-cursor input:not([type]),
+:root.orb-cursor input[type='text'],
+:root.orb-cursor input[type='email'],
+:root.orb-cursor input[type='search'],
+:root.orb-cursor input[type='tel'],
+:root.orb-cursor input[type='url'],
+:root.orb-cursor input[type='password'],
+:root.orb-cursor input[type='number'] {
+  cursor: auto;
+}
+/* A range or a checkbox is aimed at, not typed into, so it keeps the orb. */
+:root.orb-cursor input[type='range'],
+:root.orb-cursor input[type='checkbox'],
+:root.orb-cursor input[type='radio'] {
   cursor: none;
 }

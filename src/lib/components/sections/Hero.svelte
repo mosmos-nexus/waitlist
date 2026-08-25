@@ -50,7 +50,8 @@
      */
     align-items: flex-start;
     min-height: 100svh;
-    padding-top: clamp(80px, 12vh, 108px);
+    /* Clears the 96px header scrim, so the eyebrow is never read through it. */
+    padding-top: clamp(84px, 12vh, 108px);
     padding-bottom: var(--space-64);
   }
   .inner {

@@ -23,7 +23,13 @@
   const fieldId = $derived(id ?? `cb-${uid}`);
 </script>
 
-<div class="row" class:invalid>
+<!--
+  The row is the label, not a div holding one.
+  A 20px box beside a line of text is a 20px target, and clicking the empty
+  space above or below it did nothing. Wrapping the input makes the whole 44px
+  row toggle it, and the association is implicit so nothing needs `for`.
+-->
+<label class="row" class:invalid>
   <input
     type="checkbox"
     id={fieldId}
@@ -32,14 +38,19 @@
     bind:checked
     aria-invalid={invalid || undefined}
   />
-  <label for={fieldId}>{@render children()}</label>
-</div>
+  <span class="text">{@render children()}</span>
+</label>
 
 <style>
+  /* Negative margins keep the row's visual density while the box grows to the
+     44px floor the design system asks for. */
   .row {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: var(--space-10);
+    min-height: var(--control-m);
+    margin-block: calc(var(--space-10) * -1);
+    cursor: pointer;
   }
 
   input {
@@ -47,10 +58,10 @@
     appearance: none;
     width: 20px;
     height: 20px;
-    margin: 2px 0 0;
+    margin: 0;
     border: 1.5px solid var(--line-normal-strong);
     border-radius: 6px;
-    background: var(--card);
+    background: var(--field);
     cursor: pointer;
     transition:
       background var(--duration-fast) var(--ease-out),
@@ -73,17 +84,17 @@
     box-shadow: var(--shadow-focus);
   }
 
-  label {
+  /* The row is the label now, so the type belongs on the text inside it. */
+  .text {
     font-size: var(--font-size-body-2);
     line-height: var(--line-height-body-reading);
     color: var(--label-alternative);
-    cursor: pointer;
   }
 
   .invalid input {
     border-color: var(--status-error-fill);
   }
-  .invalid label {
+  .invalid .text {
     color: var(--status-error-fill);
   }
 </style>
