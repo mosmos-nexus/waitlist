@@ -199,109 +199,155 @@ async function open(path = '/', o = {}) {
   await ctx.close();
 }
 
-// ---- 5. Studio: nothing that has no choice in it is a control ----
+// ---- 5. Studio is a node canvas you can actually wire ----
 {
   const { ctx, p } = await open();
   const s = p.locator('section.make');
   await s.scrollIntoViewIfNeeded();
-  await p.waitForTimeout(500);
+  await p.waitForTimeout(600);
 
-  // What goes in and comes out is the same for every Mon, so those two are
-  // read-only rails. If a control ever appears inside one, the section has gone
-  // back to asking the visitor to make a decision that does not exist.
-  ok('two read-only rails', (await s.locator('.rails .rail').count()) === 2);
+  // The nodes are positioned in absolute pixels inside a fixed coordinate
+  // space while the wires are an SVG with a viewBox. If the box is ever allowed
+  // to stretch, the two disagree and every wire leaves its node — which is what
+  // happened the first time this was built. So the canvas must not scale.
+  const geom = await s.locator('.canvas').evaluate((el) => {
+    const svg = el.querySelector('svg.wires');
+    const r = el.getBoundingClientRect();
+    return {
+      w: Math.round(r.width),
+      h: Math.round(r.height),
+      vb: svg.getAttribute('viewBox'),
+      sw: Math.round(svg.getBoundingClientRect().width),
+    };
+  });
+  const [, , vbW, vbH] = geom.vb.split(/\s+/).map(Number);
+  // Tolerance of 1: a fractional layout rounds the client rect. What is being
+  // checked is that the box is not *scaled*, not that it is pixel-exact.
+  const near = (a, b) => Math.abs(a - b) <= 1;
+  ok(
+    'the canvas is its coordinate space, unscaled',
+    near(geom.w, vbW) && near(geom.h, vbH),
+    JSON.stringify(geom),
+  );
+  ok('and the wire layer matches it', near(geom.sw, vbW), `${geom.sw} vs ${vbW}`);
+
+  // The two read-only side nodes hold no control: a Mon takes work only from
+  // Mos and returns it only to Mos, so there is nothing here to choose.
+  ok('two read-only side nodes', (await s.locator('.canvas .node.fixed').count()) === 2);
   ok(
     'and neither holds a control',
-    (await s.locator('.rails .rail button, .rails .rail input, .rails .rail a').count()) === 0,
+    (await s.locator('.canvas .node.fixed button, .canvas .node.fixed input').count()) === 0,
   );
+  ok('the core exposes two ports', (await s.locator('.core .port').count()) === 2);
+  ok('nothing is wired yet', (await s.locator('.canvas .node.placed').count()) === 0);
+  // Two dashed wires for the fixed sides, and no others.
+  ok('only the fixed wires are drawn', (await s.locator('.canvas svg.wires > path').count()) === 2);
 
-  // Nothing is wired to begin with.
-  ok('no tool nodes to begin with', (await s.locator('.nodes li').count()) === 0);
-  ok('and no documents either', (await s.locator('.board .doc').count()) === 0);
-
-  // A connector attaches from the palette and wires into the core.
+  // Click to attach: a connector becomes a node, wired to the core.
   const firstCard = (await s.locator('.palette .card-n').first().innerText()).trim();
   await s.locator('.palette .card').first().click();
   await p.waitForTimeout(350);
-  ok('attaching a tool adds a node', (await s.locator('.nodes li').count()) === 1);
-  const nodeName = (await s.locator('.nodes .node-n').first().innerText()).trim();
-  ok('and the node names what was attached', nodeName === firstCard, `${nodeName} / ${firstCard}`);
-  ok('the core counts what feeds it', (await s.locator('.core .badge').innerText()) === '1');
-  await s.locator('.nodes .off').first().click();
-  await p.waitForTimeout(300);
-  ok('detaching removes the node', (await s.locator('.nodes li').count()) === 0);
-  ok('and the count goes with it', (await s.locator('.core .badge').count()) === 0);
+  ok('attaching adds a node', (await s.locator('.canvas .node.placed').count()) === 1);
+  ok('and a wire with it', (await s.locator('.canvas svg.wires > path').count()) === 3);
+  const nodeName = (await s.locator('.node.placed .p-n').first().innerText()).split('\n')[0].trim();
+  ok('the node names what was attached', nodeName === firstCard, `${nodeName} / ${firstCard}`);
+  ok('the core counts what feeds it', /1/.test(await s.locator('.core .c-row').last().innerText()));
 
-  // A Mon Skill lands among the documents, never among the tool nodes.
-  await s.locator('.tabs .tab').last().click();
-  await p.waitForTimeout(250);
-  await s.locator('.palette .card').first().click();
-  await p.waitForTimeout(350);
-  ok('a Mon Skill lands in the document area', (await s.locator('.board .doc').count()) === 1);
-  ok('and not among the tool nodes', (await s.locator('.nodes li').count()) === 0);
-
-  // Attaching a tool that has settings opens them — the no-code moment. And a
-  // required setting left unset has to stay visible on the node itself.
-  await s.locator('.tabs .tab').nth(2).click(); // 찾기 / find
-  await p.waitForTimeout(200);
-  const cards = await s.locator('.palette .card-n').allInnerTexts();
-  const readerIdx = cards.length - 1; // page reading is the required one
-  await s.locator('.palette .card').nth(readerIdx).click();
-  await p.waitForTimeout(350);
-  ok('a tool with settings opens its panel', (await s.locator('.palette .cfg').count()) === 1);
-  ok('and the panel says the setting is required', (await s.locator('.cfg .req').count()) === 1);
-  ok('the node warns until it is set', (await s.locator('.nodes li.warn').count()) === 1);
+  // Its settings opened with it — nothing was typed, and there is a real
+  // decision on screen. That is the no-code claim, demonstrated.
+  ok('a tool with settings opens them', (await s.locator('.palette .cfg').count()) === 1);
   await s.locator('.cfg .opts .opt').first().click();
-  await p.waitForTimeout(300);
-  ok('choosing a value clears the warning', (await s.locator('.nodes li.warn').count()) === 0);
-  const nodeState = await s.locator('.nodes li').last().locator('.node-s').innerText();
-  ok('and the node shows what was chosen', nodeState.trim().length > 1, nodeState);
+  await p.waitForTimeout(250);
+  const chosen = (await s.locator('.node.placed .p-s').first().innerText()).trim();
+  ok('choosing a value shows on the node', chosen.length > 0, chosen);
   await s.locator('.cfg .back').click();
   await p.waitForTimeout(250);
-  ok('the list comes back', (await s.locator('.palette .cards').count()) === 1);
 
-  // Group counts, so the palette reports its own state.
-  const counts = await s.locator('.tabs .tab .n').allInnerTexts();
-  ok('every group carries a count', counts.length === 5, counts.join(','));
+  // A required setting left unset marks the node.
+  await s.locator('.palette .tabs .tab').nth(2).click();
+  await p.waitForTimeout(200);
+  await s.locator('.palette .card').last().click();
+  await p.waitForTimeout(350);
+  ok('a required setting is flagged', (await s.locator('.cfg .req').count()) === 1);
+  ok('and the node warns until it is set', (await s.locator('.node.placed.warn').count()) === 1);
+  await s.locator('.cfg .back').click();
+  await p.waitForTimeout(250);
+
+  // Drag from the palette onto the canvas: the node lands where it was dropped.
+  await s.locator('.palette .tabs .tab').nth(1).click();
+  await p.waitForTimeout(200);
+  const card = s.locator('.palette .card').first();
+  const cb = await card.boundingBox();
+  const cv = await s.locator('.canvas').boundingBox();
+  const before = await s.locator('.canvas .node.placed').count();
+  await p.mouse.move(cb.x + cb.width / 2, cb.y + cb.height / 2);
+  await p.mouse.down();
+  await p.mouse.move(cv.x + cv.width * 0.2, cv.y + cv.height * 0.62, { steps: 12 });
+  await p.waitForTimeout(200);
+  ok('dragging shows a ghost node', (await s.locator('.canvas .node.ghost').count()) === 1);
   ok(
-    'and they add up to what is attached',
-    counts.reduce((n, t) => n + Number(t), 0) === (await s.locator('.nodes li, .doc').count()),
-    counts.join(','),
+    'and a ghost wire to its port',
+    (await s.locator('.canvas svg.wires > path.ghost').count()) === 1,
   );
+  await p.mouse.up();
+  await p.waitForTimeout(350);
+  ok('dropping attaches it', (await s.locator('.canvas .node.placed').count()) === before + 1);
+  const dropped = await s
+    .locator('.canvas .node.placed')
+    .last()
+    .evaluate((el) => ({ x: parseFloat(el.style.left), y: parseFloat(el.style.top) }));
+  ok(
+    'where it was dropped, not in a slot',
+    dropped.y > 150,
+    `${Math.round(dropped.x)},${Math.round(dropped.y)}`,
+  );
+  // The drop may have opened that tool's settings, which replaces the palette
+  // list. Close it before touching the tabs again.
+  if (await s.locator('.cfg .back').count()) {
+    await s.locator('.cfg .back').click();
+    await p.waitForTimeout(250);
+  }
 
-  // A Mon Skill is a document, not a second kind of agent. Its board entry has
-  // to name its parts rather than look like a tool node.
-  await s.locator('.tabs .tab').last().click();
+  // A Mon Skill is a document, not a second kind of agent. It wires to its own
+  // port and carries the document mark; only the agent has a face.
+  await s.locator('.palette .tabs .tab').last().click();
   await p.waitForTimeout(250);
   ok(
     'the Skill tab explains the two nouns apart',
     (await s.locator('.palette .what div').count()) === 2,
   );
-  const doc = s.locator('.board .doc');
-  ok('the attached Skill is drawn as a document', (await doc.count()) === 1);
-  ok('with its parts named', (await doc.locator('.doc-parts div').count()) === 3);
+  await s.locator('.palette .card').first().click();
+  await p.waitForTimeout(350);
+  ok('a Skill lands as a document node', (await s.locator('.node.placed.skill').count()) === 1);
+  ok('marked as a document', (await s.locator('.node.placed.skill .tag').count()) === 1);
+  const tools = await s.locator('.node.placed:not(.skill)').count();
   ok(
-    'and it says it does not run on its own',
-    (await doc.locator('.doc-note').innerText()).trim().length > 4,
+    'and tools are not',
+    (await s.locator('.node.placed:not(.skill) .tag').count()) === 0,
+    String(tools),
   );
-  ok('a Skill is never a tool node', (await s.locator('.nodes li .doc-tag').count()) === 0);
 
-  // Every palette group carries something, so no tab is a dead end.
-  const tabs = await s.locator('.tabs .tab').count();
+  // Every palette group carries something, and reports its own count.
+  const tabs = await s.locator('.palette .tabs .tab').count();
   ok('five palette groups', tabs === 5, String(tabs));
-  let emptyGroups = 0;
+  let empty = 0;
   for (let i = 0; i < tabs; i++) {
-    await s.locator('.tabs .tab').nth(i).click();
+    await s.locator('.palette .tabs .tab').nth(i).click();
     await p.waitForTimeout(150);
-    if ((await s.locator('.palette .card').count()) === 0) emptyGroups++;
+    if ((await s.locator('.palette .card').count()) === 0) empty++;
   }
-  ok('and none of them is empty', emptyGroups === 0);
+  ok('and none is a dead end', empty === 0);
+  const counts = await s.locator('.palette .tabs .tab .n').allInnerTexts();
+  ok(
+    'the counts add up to what is on the canvas',
+    counts.reduce((n, t) => n + Number(t), 0) === (await s.locator('.node.placed').count()),
+    counts.join(','),
+  );
 
-  // The prompt is three pieces plus a read-only join of them. The join has to
-  // be derived, not a fourth stored body, or the two can disagree.
-  ok('three prompt pieces plus a join', (await s.locator('.ptabs .ptab').count()) === 4);
+  // The prompt: three pieces plus a derived read-only join.
+  ok('three prompt pieces plus a join', (await s.locator('.prompt .tab').count()) === 4);
   const bodyOf = async (i) => {
-    await s.locator('.ptabs .ptab').nth(i).click();
+    await s.locator('.prompt .tab').nth(i).click();
     await p.waitForTimeout(200);
     return (await s.locator('.pbody').innerText()).trim();
   };
@@ -319,26 +365,8 @@ async function open(path = '/', o = {}) {
   );
   ok('and the join is read-only', (await s.locator('.pbody.joined textarea').count()) === 0);
 
-  // Guards and I/O parts are gone — they were categories this page invented.
   const body = await s.innerText();
   ok('no guard category remains', !/안전장치|Guardrail/i.test(body));
-
-  // The brain changes what a run costs, and says so as a level rather than a
-  // number — the per-run Mana coefficient is not decided yet.
-  const level = async () => (await s.locator('.tiers .tier.on .tier-m').innerText()).trim();
-  const mid = await level();
-  await s.locator('.tiers .tier').nth(2).click();
-  await p.waitForTimeout(300);
-  const deep = await level();
-  await s.locator('.tiers .tier').nth(0).click();
-  await p.waitForTimeout(300);
-  const fast = await level();
-  ok(
-    'each brain reads differently',
-    new Set([mid, deep, fast]).size === 3,
-    [fast, mid, deep].join(' / '),
-  );
-  ok('and none of them quotes a figure', ![mid, deep, fast].some((t) => /\d/.test(t)));
   await ctx.close();
 }
 

@@ -1,46 +1,72 @@
 <script lang="ts">
   import { m } from '$lib/locale.svelte';
-  import { reveal, scrub, animate, prefersReduced } from '$lib/anime/motion';
+  import { reveal, animate, prefersReduced } from '$lib/anime/motion';
   import { spring } from 'animejs';
   import Mon from '$lib/components/world/Mon.svelte';
 
   /**
-   * Studio, small enough to fit in a section and real enough to try.
+   * Studio as the editor it is: a canvas you drag nodes onto and wire up.
    *
-   * Four things carried over from the editor, because they are what make it a
-   * tool rather than a picture of one:
+   * The previous version listed attached tools beside the core with CSS stubs
+   * for wires. That is a picture of a node editor, not one — you cannot place
+   * anything, nothing connects, and the thing being claimed (no code, you just
+   * connect blocks) is exactly what a list fails to demonstrate.
    *
-   * 1. Attached tools are nodes wired into the core, not a list beside it. The
-   *    wires are CSS stubs meeting a bus line rather than SVG paths — a graph
-   *    drawn with real geometry needs layout maths that breaks at every width,
-   *    and what has to read is "these feed that", which a stub and a bus say.
-   * 2. Attaching a tool that needs configuring opens its panel. That is the
-   *    no-code moment: you did not write anything, and yet there is a decision
-   *    in front of you with the consequence spelled out.
-   * 3. A required setting left unset marks the node. The page-reading tool can
-   *    open anything until you say which places are allowed, so it says so — on
-   *    the node, not in a footnote.
-   * 4. What goes in and out is read-only, because a Mon only ever takes work
-   *    from Mos and hands the result back to Mos. Talking to a person is Mos's
-   *    job. That is the same for every Mon, so there is nothing to choose.
+   * Geometry lives in one fixed coordinate space (W x H below) rather than in
+   * layout. Every node position, port and wire is a number in that space, so
+   * none of it has to be recomputed per breakpoint — the canvas simply scrolls
+   * inside its frame on narrow screens, which is how these editors behave on a
+   * phone anyway. Wires are cubic beziers between port coordinates.
    *
-   * And the distinction the old version blurred: a Mon is the specialist that
-   * runs, rented on the Hub. A Mon Skill is a written procedure you attach to
-   * one — bought once, opened by the Mon when a task matches its one-line
-   * description, and it never runs by itself. They looked identical here, which
-   * made the Hub's rent-versus-buy split meaningless. The Skill now carries a
-   * document treatment and says what it is.
+   * Both input paths work, because drag alone would exclude keyboard users:
+   * press and move to drag a node in and place it, or click a palette card to
+   * have it land in the next free slot. A pointer that moves less than DRAG_MIN
+   * counts as a click.
+   *
+   * The read-only side nodes are read-only for a product reason, not a design
+   * one: a Mon takes work only from Mos and returns it only to Mos, so what
+   * goes in and comes out is identical for every Mon and there is nothing to
+   * choose. And a Mon Skill is not a second kind of agent — it is a procedure
+   * document the Mon opens when a task matches its one-line description, which
+   * is why it wires into its own port below the core and is drawn as a page.
    */
-  type Slot = 'tool' | 'skill';
+
+  /* ---- the coordinate space ---- */
+  const W = 720;
+  const H = 470;
+  const NODE_W = 168;
+  const NODE_H = 54;
+  const CORE = { x: 262, y: 168, w: 196, h: 134 };
+  /** Where each kind of node wires into. */
+  const PORT = {
+    tool: { x: CORE.x + CORE.w / 2, y: CORE.y },
+    skill: { x: CORE.x + CORE.w / 2, y: CORE.y + CORE.h },
+  };
+  const IN = { x: 16, y: 186, w: 150, h: 98 };
+  const OUT = { x: W - 166, y: 186, w: 150, h: 98 };
+  /** Where a click-to-attach node lands, per kind. */
+  const SLOT = {
+    tool: [
+      { x: 30, y: 26 },
+      { x: 216, y: 26 },
+      { x: 402, y: 26 },
+    ],
+    skill: [
+      { x: 190, y: 372 },
+      { x: 390, y: 372 },
+    ],
+  };
+
+  type Kind = 'tool' | 'skill';
   interface Part {
-    slot: Slot;
+    kind: Kind;
     name: string;
     desc: string;
-    /** Skills only: the three parts of the document itself. `desc` stays the
-     *  provenance line the palette card shows. */
     doc?: { when: string; steps: string; files: string };
   }
-  interface Attached extends Part {
+  interface Placed extends Part {
+    x: number;
+    y: number;
     setting: string | null;
   }
 
@@ -55,31 +81,31 @@
 
   const CATALOG = $derived<Record<string, Part[]>>({
     link: [
-      { slot: 'tool', name: m.make_c_notion(), desc: m.make_c_notion_d() },
-      { slot: 'tool', name: m.make_c_github(), desc: m.make_c_github_d() },
+      { kind: 'tool', name: m.make_c_notion(), desc: m.make_c_notion_d() },
+      { kind: 'tool', name: m.make_c_github(), desc: m.make_c_github_d() },
     ],
     gen: [
-      { slot: 'tool', name: m.make_c_img(), desc: m.make_c_img_d() },
-      { slot: 'tool', name: m.make_c_video(), desc: m.make_c_video_d() },
-      { slot: 'tool', name: m.make_c_audio(), desc: m.make_c_audio_d() },
+      { kind: 'tool', name: m.make_c_img(), desc: m.make_c_img_d() },
+      { kind: 'tool', name: m.make_c_video(), desc: m.make_c_video_d() },
+      { kind: 'tool', name: m.make_c_audio(), desc: m.make_c_audio_d() },
     ],
     search: [
-      { slot: 'tool', name: m.make_c_ppx(), desc: m.make_c_ppx_d() },
-      { slot: 'tool', name: m.make_c_exa(), desc: m.make_c_exa_d() },
+      { kind: 'tool', name: m.make_c_ppx(), desc: m.make_c_ppx_d() },
+      { kind: 'tool', name: m.make_c_exa(), desc: m.make_c_exa_d() },
     ],
     run: [
-      { slot: 'tool', name: m.make_c_browser(), desc: m.make_c_browser_d() },
-      { slot: 'tool', name: m.make_c_code(), desc: m.make_c_code_d() },
+      { kind: 'tool', name: m.make_c_browser(), desc: m.make_c_browser_d() },
+      { kind: 'tool', name: m.make_c_code(), desc: m.make_c_code_d() },
     ],
     skill: [
       {
-        slot: 'skill',
+        kind: 'skill',
         name: m.make_c_s1(),
         desc: m.make_c_s1_d(),
         doc: { when: m.make_c_s1_when(), steps: m.make_c_s1_steps(), files: m.make_c_s1_files() },
       },
       {
-        slot: 'skill',
+        kind: 'skill',
         name: m.make_c_s2(),
         desc: m.make_c_s2_d(),
         doc: { when: m.make_c_s2_when(), steps: m.make_c_s2_steps(), files: m.make_c_s2_files() },
@@ -87,14 +113,9 @@
     ],
   });
 
-  /**
-   * Per-tool settings. Only three carry one, which is the honest shape: most
-   * connectors have nothing to decide, and a panel that appeared for everything
-   * would be theatre.
-   *
-   * `required` is the one that matters. Which places a tool may read is the
-   * setting you cannot leave blank, so leaving it blank stays visible.
-   */
+  /** Only three tools carry a setting. Most connectors have nothing to decide,
+   *  and a panel that appeared for everything would be theatre. `required` is
+   *  the one that matters: which places a tool may read cannot be left blank. */
   const CONFIG = $derived<
     Record<
       string,
@@ -135,7 +156,7 @@
   ]);
   let tier = $state(1);
 
-  const PARTS = $derived([
+  const PROMPT = $derived([
     { key: 'role', label: m.make_pp_role(), hint: m.make_pp_role_h(), body: m.make_pp_role_b() },
     {
       key: 'steps',
@@ -146,53 +167,157 @@
     { key: 'keep', label: m.make_pp_keep(), hint: m.make_pp_keep_h(), body: m.make_pp_keep_b() },
   ]);
   let promptTab = $state('steps');
-  const joined = $derived(PARTS.map((p) => `${p.label}\n${p.body}`).join('\n\n'));
+  const joined = $derived(PROMPT.map((p) => `${p.label}\n${p.body}`).join('\n\n'));
   const shown = $derived(
     promptTab === 'all'
-      ? { label: m.make_pp_all(), hint: m.make_pp_all_h(), body: joined }
-      : (PARTS.find((p) => p.key === promptTab) ?? PARTS[0]),
+      ? { hint: m.make_pp_all_h(), body: joined }
+      : (PROMPT.find((p) => p.key === promptTab) ?? PROMPT[0]),
   );
 
-  let attached = $state<Attached[]>([]);
-  /** Which tool's settings panel is open, by name. */
+  let placed = $state<Placed[]>([]);
   let open = $state<string | null>(null);
   let core = $state<HTMLElement | null>(null);
+  let canvas = $state<HTMLElement | null>(null);
 
-  const tools = $derived(attached.filter((a) => a.slot === 'tool'));
-  const skills = $derived(attached.filter((a) => a.slot === 'skill'));
-  const isOn = (p: Part) => attached.some((a) => a.name === p.name);
-  const needsSetup = (a: Attached) => !!CONFIG[a.name]?.required && a.setting === null;
-  const unset = $derived(tools.filter(needsSetup).length);
+  const tools = $derived(placed.filter((n) => n.kind === 'tool'));
+  const skills = $derived(placed.filter((n) => n.kind === 'skill'));
+  const isOn = (p: Part) => placed.some((n) => n.name === p.name);
+  const needsSetup = (n: Placed) => !!CONFIG[n.name]?.required && n.setting === null;
+  const unset = $derived(placed.filter(needsSetup).length);
   const openCfg = $derived(open ? CONFIG[open] : null);
-  const openItem = $derived(attached.find((a) => a.name === open) ?? null);
+  const openNode = $derived(placed.find((n) => n.name === open) ?? null);
   const countFor = (key: string) => CATALOG[key].filter((p) => isOn(p)).length;
 
-  function toggle(part: Part, el: HTMLElement) {
-    if (isOn(part)) {
-      attached = attached.filter((a) => a.name !== part.name);
-      if (open === part.name) open = null;
+  /* ---- wires ---- */
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  /** Vertical cubic between a node edge and its port. */
+  function wireV(nx: number, ny: number, kind: Kind) {
+    const x = nx + NODE_W / 2;
+    const y = kind === 'tool' ? ny + NODE_H : ny;
+    const p = PORT[kind];
+    const bend = kind === 'tool' ? 46 : -46;
+    return `M ${x},${y} C ${x},${y + bend} ${p.x},${p.y - bend} ${p.x},${p.y}`;
+  }
+  /** Horizontal cubic for the two fixed side nodes. */
+  const wireIn = `M ${IN.x + IN.w},${IN.y + IN.h / 2} C ${IN.x + IN.w + 44},${IN.y + IN.h / 2} ${CORE.x - 44},${CORE.y + CORE.h / 2} ${CORE.x},${CORE.y + CORE.h / 2}`;
+  const wireOut = `M ${CORE.x + CORE.w},${CORE.y + CORE.h / 2} C ${CORE.x + CORE.w + 44},${CORE.y + CORE.h / 2} ${OUT.x - 44},${OUT.y + OUT.h / 2} ${OUT.x},${OUT.y + OUT.h / 2}`;
+
+  const wires = $derived(placed.map((n) => ({ name: n.name, d: wireV(n.x, n.y, n.kind) })));
+
+  /* ---- dragging ---- */
+  const DRAG_MIN = 6;
+  interface Drag {
+    part: Part;
+    /** Existing node being moved, versus a new one coming from the palette. */
+    moving: boolean;
+    x: number;
+    y: number;
+    from: { x: number; y: number };
+    live: boolean;
+  }
+  let drag = $state<Drag | null>(null);
+  const ghostWire = $derived(drag?.live ? wireV(drag.x, drag.y, drag.part.kind) : '');
+
+  /** Pointer position in canvas coordinates, accounting for scroll and scale. */
+  function toCanvas(event: PointerEvent) {
+    if (!canvas) return { x: 0, y: 0 };
+    const r = canvas.getBoundingClientRect();
+    const scale = r.width / W;
+    return { x: (event.clientX - r.left) / scale, y: (event.clientY - r.top) / scale };
+  }
+
+  function freeSlot(kind: Kind) {
+    const used = placed.filter((n) => n.kind === kind).length;
+    const list = SLOT[kind];
+    return list[Math.min(used, list.length - 1)];
+  }
+
+  function attach(part: Part, at?: { x: number; y: number }) {
+    const same = placed.filter((n) => n.kind === part.kind);
+    const cap = part.kind === 'tool' ? 3 : 2;
+    const dropped = same.length >= cap ? same[0].name : null;
+    const spot = at ?? freeSlot(part.kind);
+    placed = [
+      ...placed.filter((n) => n.name !== dropped && n.name !== part.name),
+      {
+        ...part,
+        x: clamp(spot.x, 4, W - NODE_W - 4),
+        y: clamp(spot.y, 4, H - NODE_H - 4),
+        setting: null,
+      },
+    ];
+    open = CONFIG[part.name] ? part.name : null;
+    if (prefersReduced() || !core) return;
+    animate(core, {
+      scale: [1, 1.03, 1],
+      duration: 620,
+      ease: spring({ stiffness: 190, damping: 16 }),
+    });
+  }
+
+  function detach(name: string) {
+    placed = placed.filter((n) => n.name !== name);
+    if (open === name) open = null;
+  }
+
+  /* Listeners go on the window for the life of a drag, not on the canvas.
+     A pointer that leaves the canvas mid-drag would otherwise strand the node,
+     and a div carrying pointer handlers needs an ARIA role it has no business
+     claiming. */
+  function bind() {
+    window.addEventListener('pointermove', moveDrag);
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
+  }
+  function unbind() {
+    window.removeEventListener('pointermove', moveDrag);
+    window.removeEventListener('pointerup', endDrag);
+    window.removeEventListener('pointercancel', endDrag);
+  }
+
+  function startDrag(event: PointerEvent, part: Part, moving: boolean) {
+    if (event.button != null && event.button !== 0) return;
+    const p = toCanvas(event);
+    const node = moving ? placed.find((n) => n.name === part.name) : null;
+    drag = {
+      part,
+      moving,
+      x: node ? node.x : p.x - NODE_W / 2,
+      y: node ? node.y : p.y - NODE_H / 2,
+      from: node ? { x: p.x - node.x, y: p.y - node.y } : { x: NODE_W / 2, y: NODE_H / 2 },
+      live: false,
+    };
+    bind();
+  }
+
+  function moveDrag(event: PointerEvent) {
+    if (!drag) return;
+    const p = toCanvas(event);
+    const nx = clamp(p.x - drag.from.x, 4, W - NODE_W - 4);
+    const ny = clamp(p.y - drag.from.y, 4, H - NODE_H - 4);
+    if (!drag.live && Math.hypot(nx - drag.x, ny - drag.y) < DRAG_MIN) return;
+    drag = { ...drag, x: nx, y: ny, live: true };
+    if (drag.moving) {
+      placed = placed.map((n) => (n.name === drag!.part.name ? { ...n, x: nx, y: ny } : n));
+    }
+  }
+
+  function endDrag() {
+    unbind();
+    if (!drag) return;
+    const { part, moving, live, x, y } = drag;
+    drag = null;
+    if (!live) {
+      // A press that never moved is a click.
+      if (moving) open = CONFIG[part.name] ? part.name : null;
+      else if (isOn(part)) detach(part.name);
+      else attach(part);
       return;
     }
-    const same = attached.filter((a) => a.slot === part.slot);
-    const drop = same.length >= 3 ? same[0].name : null;
-    attached = [...attached.filter((a) => a.name !== drop), { ...part, setting: null }];
-    // A tool with settings opens them. Nothing was typed and yet there is a
-    // real decision on screen — that is the no-code claim, demonstrated.
-    open = CONFIG[part.name] ? part.name : null;
-
-    if (prefersReduced()) return;
-    animate(el, { scale: [1, 0.94, 1], duration: 420, ease: 'out(3)' });
-    if (core)
-      animate(core, {
-        scale: [1, 1.02, 1],
-        duration: 620,
-        ease: spring({ stiffness: 190, damping: 16 }),
-      });
+    if (!moving) attach(part, { x, y });
   }
 
-  function choose(name: string, value: string) {
-    attached = attached.map((a) => (a.name === name ? { ...a, setting: value } : a));
-  }
+  $effect(() => unbind);
 </script>
 
 <section class="make section" aria-labelledby="make-title">
@@ -204,129 +329,131 @@
     </div>
 
     <div class="grid">
-      <div class="board hud" use:reveal={{ delay: 60, scale: true }} use:scrub={{ y: 14 }}>
-        <!-- Tool nodes, wired down into the core. -->
-        <div class="wired">
-          <span class="wired-k">
-            {m.make_wired()}
-            {#if tools.length}<b>{tools.length}</b>{/if}
-          </span>
-          {#if unset}
-            <span class="warn-n">{m.make_needs()} {unset}</span>
-          {/if}
+      <div class="stage hud" use:reveal={{ delay: 60, scale: true }}>
+        <div class="bar">
+          <span class="eyebrow">Studio</span>
+          <span class="hint">{m.make_canvas_hint()}</span>
+          {#if unset}<span class="warn-n">{m.make_needs()} {unset}</span>{/if}
         </div>
-        {#if tools.length}
-          <ul class="nodes">
-            {#each tools as t (t.name)}
-              <li class:warn={needsSetup(t)} class:open={open === t.name}>
+
+        <div class="frame">
+          <div class="canvas" bind:this={canvas} style="width:{W}px;height:{H}px">
+            <svg class="wires" width={W} height={H} viewBox="0 0 {W} {H}" aria-hidden="true">
+              <path class="w fixed" d={wireIn} />
+              <path class="w fixed" d={wireOut} />
+              {#each wires as w (w.name)}
+                <path class="w" d={w.d} />
+              {/each}
+              {#if ghostWire}
+                <path class="w ghost" d={ghostWire} />
+              {/if}
+            </svg>
+
+            <!-- read-only side nodes -->
+            <div
+              class="node fixed"
+              style="left:{IN.x}px;top:{IN.y}px;width:{IN.w}px;height:{IN.h}px"
+            >
+              <span class="n-k">{m.make_in()}</span>
+              <span class="n-r"><i>TEXT</i>{m.make_in_v()}</span>
+              <span class="n-r"><i>LINK</i>{m.make_in_v2()}</span>
+            </div>
+            <div
+              class="node fixed"
+              style="left:{OUT.x}px;top:{OUT.y}px;width:{OUT.w}px;height:{OUT.h}px"
+            >
+              <span class="n-k">{m.make_out()}</span>
+              <span class="n-r"><i>TEXT</i>{m.make_out_v()}</span>
+              <span class="n-r"><i>FILE</i>{m.make_out_v2()}</span>
+            </div>
+
+            <!-- the core -->
+            <div
+              class="core"
+              bind:this={core}
+              style="left:{CORE.x}px;top:{CORE.y}px;width:{CORE.w}px;height:{CORE.h}px"
+            >
+              <header>
+                <Mon tone="research" size={30} active={placed.length > 0} />
+                <span class="c-n">Mon</span>
+                <span class="c-kind">{m.make_agent()}</span>
+              </header>
+              <div class="c-row">
+                <span class="c-k">{m.make_brain()}</span>
+                <span class="c-v">{TIERS[tier].name}</span>
+              </div>
+              <div class="c-row">
+                <span class="c-k">{m.make_tools_n()}</span>
+                <span class="c-v tnum">{tools.length}</span>
+                <span class="c-k">{m.make_skills_n()}</span>
+                <span class="c-v tnum">{skills.length}</span>
+              </div>
+              <span class="port top" aria-hidden="true"></span>
+              <span class="port bottom" aria-hidden="true"></span>
+            </div>
+
+            <!-- placed nodes -->
+            {#each placed as n (n.name)}
+              <div
+                class="node placed"
+                class:skill={n.kind === 'skill'}
+                class:warn={needsSetup(n)}
+                class:open={open === n.name}
+                class:held={drag?.live && drag.part.name === n.name}
+                style="left:{n.x}px;top:{n.y}px;width:{NODE_W}px"
+              >
                 <button
                   type="button"
-                  class="node"
-                  onclick={() => (open = CONFIG[t.name] ? t.name : null)}
+                  class="grip"
+                  onpointerdown={(e) => startDrag(e, n, true)}
+                  aria-label={n.name}
                 >
-                  <span class="node-n">{t.name}</span>
-                  <span class="node-s">
-                    {#if needsSetup(t)}
-                      {m.make_needs()}
-                    {:else if t.setting}
-                      {t.setting}
-                    {:else}
-                      {m.make_cfg_none()}
-                    {/if}
+                  <span class="p-n">
+                    {n.name}
+                    {#if n.kind === 'skill'}<i class="tag">{m.make_skill_doc()}</i>{/if}
+                  </span>
+                  <span class="p-s">
+                    {#if needsSetup(n)}{m.make_needs()}
+                    {:else if n.setting}{n.setting}
+                    {:else if n.kind === 'skill'}{n.doc?.when}
+                    {:else}{m.make_cfg_none()}{/if}
                   </span>
                 </button>
                 <button
                   type="button"
                   class="off"
-                  onclick={(e) => toggle(t, e.currentTarget)}
-                  aria-label="{t.name} — {m.make_remove()}"
+                  onclick={() => detach(n.name)}
+                  aria-label="{n.name} — {m.make_remove()}"
+                  ><span aria-hidden="true">✕</span></button
                 >
-                  <span aria-hidden="true">✕</span>
-                </button>
-              </li>
+              </div>
             {/each}
-          </ul>
-        {:else}
-          <p class="none">{m.make_none_yet()}</p>
-        {/if}
-        <div class="bus" aria-hidden="true"></div>
 
-        <!-- Read-only rails either side of the core. -->
-        <div class="rails">
-          <div class="rail">
-            <span class="rail-k">{m.make_in()}</span>
-            <span class="rail-r"><i>TEXT</i>{m.make_in_v()}</span>
-            <span class="rail-r"><i>LINK</i>{m.make_in_v2()}</span>
-          </div>
-          <span class="arrow" aria-hidden="true">→</span>
-          <div class="core" bind:this={core}>
-            {#if tools.length}<span class="badge" aria-hidden="true">{tools.length}</span>{/if}
-            <Mon tone="research" size={40} active={attached.length > 0} />
-            <div class="core-meta">
-              <span class="core-t">{m.make_core()}</span>
-              <span class="core-s">{TIERS[tier].name}</span>
-            </div>
-          </div>
-          <span class="arrow" aria-hidden="true">→</span>
-          <div class="rail">
-            <span class="rail-k">{m.make_out()}</span>
-            <span class="rail-r"><i>TEXT</i>{m.make_out_v()}</span>
-            <span class="rail-r"><i>FILE</i>{m.make_out_v2()}</span>
+            {#if drag?.live && !drag.moving}
+              <div
+                class="node ghost"
+                style="left:{drag.x}px;top:{drag.y}px;width:{NODE_W}px"
+                aria-hidden="true"
+              >
+                <span class="p-n">{drag.part.name}</span>
+                <span class="p-s">{m.make_drop()}</span>
+              </div>
+            {/if}
           </div>
         </div>
-        <p class="rail-note">{m.make_io_note()}</p>
+        <p class="pan">{m.make_pan_hint()}</p>
 
-        <!-- Attached Mon Skills. A document, drawn as one. -->
-        <div class="skills">
-          <span class="slot-k">{m.make_slot_skill()}</span>
-          {#if skills.length}
-            {#each skills as sk (sk.name)}
-              <article class="doc">
-                <header>
-                  <span class="doc-tag">{m.make_skill_doc()}</span>
-                  <span class="doc-n">{sk.name}</span>
-                  <button
-                    type="button"
-                    class="off"
-                    onclick={(e) => toggle(sk, e.currentTarget)}
-                    aria-label="{sk.name} — {m.make_remove()}"
-                  >
-                    <span aria-hidden="true">✕</span>
-                  </button>
-                </header>
-                <dl class="doc-parts">
-                  <div>
-                    <dt>{m.make_skill_when()}</dt>
-                    <dd>{m.make_skill_when_d()}</dd>
-                  </div>
-                  <div>
-                    <dt>{m.make_skill_steps()}</dt>
-                    <dd>{sk.desc}</dd>
-                  </div>
-                  <div>
-                    <dt>{m.make_skill_files()}</dt>
-                    <dd>checklist.md · report.md</dd>
-                  </div>
-                </dl>
-                <p class="doc-note">{m.make_skill_norun()}</p>
-              </article>
-            {/each}
-          {:else}
-            <span class="slot-empty">{m.make_slot_empty()}</span>
-          {/if}
-        </div>
-
-        <!-- The prompt, in three pieces plus a read-only join. -->
+        <!-- the prompt lives with the Mon, so it sits under the canvas -->
         <div class="prompt">
-          <div class="prompt-head">
+          <div class="bar">
             <span class="eyebrow">{m.make_prompt()}</span>
             <span class="hint">{m.make_prompt_hint()}</span>
           </div>
-          <div class="ptabs" role="group" aria-label={m.make_prompt()}>
-            {#each PARTS as p (p.key)}
+          <div class="tabs" role="group" aria-label={m.make_prompt()}>
+            {#each PROMPT as p (p.key)}
               <button
                 type="button"
-                class="ptab"
+                class="tab"
                 class:on={promptTab === p.key}
                 aria-pressed={promptTab === p.key}
                 onclick={() => (promptTab = p.key)}
@@ -337,31 +464,33 @@
             {/each}
             <button
               type="button"
-              class="ptab all"
+              class="tab"
               class:on={promptTab === 'all'}
               aria-pressed={promptTab === 'all'}
-              onclick={() => (promptTab = 'all')}
+              onclick={() => (promptTab = 'all')}>{m.make_pp_all()}</button
             >
-              {m.make_pp_all()}
-            </button>
+          </div>
+          <!-- The counter used to sit at the end of the tab row on
+               `margin-left: auto`, where a wrapped row put it over the active
+               tab's fill and it measured 1.8:1. It belongs with the hint. -->
+          <div class="phint-row">
+            <p class="phint">{shown.hint}</p>
             <span class="chars tnum">{shown.body.length}{m.make_chars()}</span>
           </div>
-          <p class="phint">{shown.hint}</p>
           <p class="pbody" class:joined={promptTab === 'all'}>{shown.body}</p>
         </div>
       </div>
 
       <div class="side">
         <div class="palette hud" use:reveal={{ delay: 100 }}>
-          {#if openCfg && openItem}
-            <!-- Settings for one tool, in place of the list. -->
+          {#if openCfg && openNode}
             <div class="cfg">
               <button type="button" class="back" onclick={() => (open = null)}>
                 <span aria-hidden="true">‹</span>
                 {m.make_cfg_back()}
               </button>
               <div class="cfg-head">
-                <span class="cfg-n">{openItem.name}</span>
+                <span class="cfg-n">{openNode.name}</span>
                 {#if openCfg.required}<span class="req">{m.make_cfg_req()}</span>{/if}
               </div>
               <p class="cfg-t">{openCfg.title}</p>
@@ -371,24 +500,25 @@
                   <button
                     type="button"
                     class="opt"
-                    class:on={openItem.setting === o}
-                    aria-pressed={openItem.setting === o}
-                    onclick={() => choose(openItem.name, o)}
+                    class:on={openNode.setting === o}
+                    aria-pressed={openNode.setting === o}
+                    onclick={() =>
+                      (placed = placed.map((n) =>
+                        n.name === openNode.name ? { ...n, setting: o } : n,
+                      ))}>{o}</button
                   >
-                    {o}
-                  </button>
                 {/each}
               </div>
               {#if openCfg.fixed}
-                <div class="fixed">
-                  <span class="fixed-k">{openCfg.fixed.label}</span>
-                  <span class="fixed-v">{openCfg.fixed.value}</span>
+                <div class="fixed-row">
+                  <span class="f-k">{openCfg.fixed.label}</span>
+                  <span class="f-v">{openCfg.fixed.value}</span>
                 </div>
               {/if}
               {#if openCfg.note}<p class="cfg-note">{openCfg.note}</p>{/if}
             </div>
           {:else}
-            <div class="prompt-head">
+            <div class="bar">
               <span class="eyebrow">{m.make_palette()}</span>
               <span class="hint">{m.make_palette_hint()}</span>
             </div>
@@ -401,15 +531,12 @@
                   class:on={tab === t.key}
                   aria-pressed={tab === t.key}
                   onclick={() => (tab = t.key)}
+                  >{t.label}<i class="n" class:has={n > 0}>{n}</i></button
                 >
-                  {t.label}<i class="n" class:has={n > 0}>{n}</i>
-                </button>
               {/each}
             </div>
 
             {#if tab === 'skill'}
-              <!-- The one place the two nouns sit side by side, because this is
-                   where a visitor would otherwise assume they are the same. -->
               <dl class="what">
                 <div>
                   <dt>{m.make_what_mon()}</dt>
@@ -429,13 +556,13 @@
                     type="button"
                     class="card"
                     class:on={isOn(part)}
-                    class:skill={part.slot === 'skill'}
+                    class:skill={part.kind === 'skill'}
                     aria-pressed={isOn(part)}
-                    onclick={(e) => toggle(part, e.currentTarget)}
+                    onpointerdown={(e) => startDrag(e, part, false)}
                   >
                     <span class="card-n">
                       {part.name}
-                      {#if part.slot === 'skill'}<i class="doc-tag">{m.make_skill_doc()}</i>{/if}
+                      {#if part.kind === 'skill'}<i class="tag">{m.make_skill_doc()}</i>{/if}
                     </span>
                     <span class="card-d">{part.desc}</span>
                   </button>
@@ -446,7 +573,7 @@
         </div>
 
         <div class="tiers hud" use:reveal={{ delay: 140 }}>
-          <div class="prompt-head">
+          <div class="bar">
             <span class="eyebrow">{m.make_brain()}</span>
             <span class="hint">{m.make_brain_hint()}</span>
           </div>
@@ -469,6 +596,7 @@
       </div>
     </div>
 
+    <p class="io-note" use:reveal={{ delay: 150 }}>{m.make_io_note()}</p>
     <p class="note" use:reveal={{ delay: 160 }}>{m.make_note()}</p>
   </div>
 </section>
@@ -482,349 +610,27 @@
     gap: var(--space-20);
     align-items: start;
   }
-  @media (min-width: 900px) {
-    .grid {
+  .side {
+    display: grid;
+    gap: var(--space-20);
+  }
+  @media (min-width: 860px) {
+    .side {
       grid-template-columns: minmax(0, 56fr) minmax(0, 44fr);
     }
   }
-  .side {
+  /* `min-width: 0` on both, or the fixed-size canvas wins.
+     A grid item defaults to `min-width: auto`, so the stage refuses to shrink
+     below its 720px content and the page itself scrolls sideways instead of the
+     canvas frame doing it — measured 452px of page overflow at 320px wide. */
+  .stage {
     display: flex;
     flex-direction: column;
-    gap: var(--space-20);
-  }
-  .board {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-10);
-    padding: var(--space-20);
-  }
-
-  /* ---- tool nodes + the bus they feed ---- */
-  .wired {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--space-8);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-  }
-  .wired-k {
-    color: var(--gray3);
-  }
-  .wired-k b {
-    color: var(--bright-cyan);
-  }
-  .warn-n {
-    margin-left: auto;
-    color: var(--coral-red);
-  }
-  .nodes {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-8);
-  }
-  .nodes li {
-    position: relative;
-    display: flex;
-    align-items: stretch;
-    border: 1px solid var(--glass-line);
-    border-radius: var(--radius-xs);
-    background: rgba(112, 115, 124, 0.1);
-  }
-  /* The wire. A stub down to the bus line below, which is what makes these read
-     as feeding the core instead of listing beside it. */
-  .nodes li::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    bottom: -11px;
-    width: 1px;
-    height: 11px;
-    background: rgba(49, 220, 220, 0.5);
-  }
-  .node {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 9px 4px 9px 12px;
-    border: 0;
-    border-radius: var(--radius-xs) 0 0 var(--radius-xs);
-    background: transparent;
-    text-align: left;
-    cursor: pointer;
-  }
-  .node-n {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--shell-text);
-  }
-  .node-s {
-    font-size: 10.5px;
-    color: var(--shell-meta);
-  }
-  .nodes li.warn {
-    border-color: rgba(233, 83, 83, 0.55);
-    background: rgba(233, 83, 83, 0.1);
-  }
-  .nodes li.warn .node-s {
-    color: var(--coral-red);
-    font-weight: 600;
-  }
-  .nodes li.open {
-    border-color: var(--primary-light);
-  }
-  /* Drawn small, hit at 44. */
-  .off {
-    position: relative;
-    flex: none;
-    width: 26px;
-    border: 0;
-    border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
-    background: transparent;
-    font-size: 10px;
-    color: var(--shell-meta);
-    cursor: pointer;
-  }
-  .off::after {
-    content: '';
-    position: absolute;
-    inset: 50% 0 auto 0;
-    height: var(--control-m);
-    transform: translateY(-50%);
-  }
-  .off:hover {
-    color: var(--coral-red);
-  }
-  .node:focus-visible,
-  .off:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus);
-  }
-  .none {
-    margin: 0;
-    font-size: 12px;
-    color: var(--shell-faint);
-  }
-  /* The bus the stubs land on. Bright enough to actually trace with the eye —
-     at `--glass-line` it composited to about 1.4:1 and the wiring read as
-     absent, which left the nodes looking like a list beside the core rather
-     than inputs to it. */
-  .bus {
-    height: 1px;
-    margin: 10px 0 2px;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(49, 220, 220, 0.42) 14%,
-      rgba(49, 220, 220, 0.42) 86%,
-      transparent
-    );
-  }
-
-  /* ---- read-only rails ---- */
-  .rails {
-    display: flex;
-    align-items: stretch;
-    gap: var(--space-8);
-  }
-  .rail {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    padding: var(--space-10) var(--space-12);
-    border: 1px dashed var(--glass-line-soft);
-    border-radius: var(--radius-xs);
-    background: transparent;
-  }
-  .rail-k {
-    font-size: 10.5px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    color: var(--shell-faint);
-  }
-  .rail-r {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    font-size: 11.5px;
-    color: var(--shell-meta);
-  }
-  .rail-r i {
-    flex: none;
-    padding: 1px 5px;
-    border-radius: 4px;
-    background: rgba(112, 115, 124, 0.22);
-    font-size: 9px;
-    font-style: normal;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    color: var(--shell-meta);
-  }
-  .arrow {
-    align-self: center;
-    flex: none;
-    font-size: 13px;
-    color: var(--shell-faint);
-  }
-  .core {
-    position: relative;
-    flex: none;
-    display: flex;
-    align-items: center;
-    gap: var(--space-10);
-    padding: var(--space-10) var(--space-14);
-    border: 1px solid rgba(49, 220, 220, 0.34);
-    border-radius: var(--radius-m);
-    background: rgba(31, 206, 206, 0.08);
-  }
-  .badge {
-    position: absolute;
-    top: -9px;
-    left: 50%;
-    transform: translateX(-50%);
-    min-width: 18px;
-    height: 18px;
-    padding: 0 5px;
-    border-radius: var(--radius-full);
-    background: var(--summon-cyan);
-    font-size: 10.5px;
-    font-weight: 700;
-    line-height: 18px;
-    text-align: center;
-    color: var(--static-black);
-  }
-  .core-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+    gap: var(--space-12);
+    padding: var(--space-16);
     min-width: 0;
   }
-  .core-t {
-    font-size: 13.5px;
-    font-weight: 700;
-    color: var(--shell-text);
-  }
-  .core-s {
-    font-size: 11px;
-    color: var(--bright-cyan);
-  }
-  .rail-note {
-    margin: 0;
-    font-size: 11.5px;
-    line-height: 1.6;
-    color: var(--shell-faint);
-  }
-  @media (max-width: 619px) {
-    .rails {
-      flex-direction: column;
-    }
-    .arrow {
-      transform: rotate(90deg);
-    }
-    .core {
-      justify-content: center;
-    }
-  }
-
-  /* ---- attached Mon Skill: a document, not a tool ---- */
-  .skills {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-8);
-    padding-top: var(--space-12);
-    border-top: 1px solid var(--glass-line-soft);
-  }
-  .slot-k {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    color: var(--gray3);
-  }
-  .slot-empty {
-    font-size: 12px;
-    color: var(--shell-faint);
-  }
-  /* Squared corners, a spine down the left, a rule under the title: it should
-     read as a page, next to nodes that read as parts. */
-  .doc {
-    border: 1px solid rgba(155, 110, 239, 0.42);
-    border-left-width: 3px;
-    border-radius: 4px;
-    background: rgba(122, 62, 234, 0.09);
-    padding: var(--space-12) var(--space-14);
-  }
-  .doc header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-8);
-    padding-bottom: 8px;
-    border-bottom: 1px solid rgba(155, 110, 239, 0.28);
-  }
-  .doc-tag {
-    flex: none;
-    padding: 1px 6px;
-    border-radius: 4px;
-    background: rgba(155, 110, 239, 0.28);
-    font-size: 9.5px;
-    font-style: normal;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    color: rgb(213, 195, 249);
-  }
-  .doc-n {
-    font-size: 12.5px;
-    font-weight: 700;
-    color: var(--shell-text);
-  }
-  .doc header .off {
-    margin-left: auto;
-    width: 22px;
-  }
-  .doc-parts {
-    margin: 8px 0 0;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-  .doc-parts div {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-8);
-  }
-  .doc-parts dt {
-    flex: none;
-    width: 8.5em;
-    font-size: 10.5px;
-    font-weight: 600;
-    color: rgb(203, 183, 244);
-  }
-  .doc-parts dd {
-    margin: 0;
-    font-size: 11px;
-    line-height: 1.5;
-    color: var(--shell-meta);
-  }
-  .doc-note {
-    margin: 8px 0 0;
-    font-size: 10.5px;
-    color: var(--shell-faint);
-  }
-
-  /* ---- prompt ---- */
-  .prompt {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-8);
-    padding-top: var(--space-12);
-    border-top: 1px solid var(--glass-line-soft);
-  }
-  .prompt-head {
+  .bar {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
@@ -835,19 +641,316 @@
     line-height: 1.5;
     color: var(--shell-faint);
   }
-  .ptabs,
+  .warn-n {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--coral-red);
+  }
+
+  /* ---- canvas ---- */
+  /* One fixed coordinate space, scrolled rather than reflowed. Recomputing node
+     positions per breakpoint is how a canvas becomes unmaintainable; panning is
+     also what these editors do on a phone. */
+  .frame {
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    border-radius: var(--radius-m);
+    background:
+      radial-gradient(circle at 1px 1px, rgba(112, 115, 124, 0.28) 1px, transparent 0) 0 0 / 22px
+        22px,
+      rgba(8, 10, 16, 0.5);
+    border: 1px solid var(--glass-line-soft);
+  }
+  /* Fixed size, not a percentage. The nodes are positioned in absolute pixels
+     inside this coordinate space while the SVG scales with its viewBox, so the
+     moment the box stretches the two disagree and every wire leaves its node.
+     One size, centred when the frame is wider, panned when it is narrower —
+     which is what a canvas viewport is. */
+  .canvas {
+    position: relative;
+    flex: none;
+    touch-action: pan-x;
+  }
+  .frame {
+    display: flex;
+    justify-content: center;
+  }
+  svg.wires {
+    position: absolute;
+    inset: 0;
+    overflow: visible;
+  }
+  .w {
+    fill: none;
+    stroke: rgba(49, 220, 220, 0.6);
+    stroke-width: 1.75;
+    stroke-linecap: round;
+  }
+  .w.fixed {
+    stroke: rgba(112, 115, 124, 0.55);
+    stroke-dasharray: 4 5;
+  }
+  .w.ghost {
+    stroke: var(--summon-green);
+    stroke-dasharray: 7 6;
+    stroke-width: 2;
+  }
+
+  .node,
+  .core {
+    position: absolute;
+    box-sizing: border-box;
+  }
+  /* The two read-only side nodes: dashed, flat, no cursor. Nothing here is a
+     decision, and the drawing says so before the caption does. */
+  .node.fixed {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 0 11px;
+    border: 1px dashed var(--glass-line-soft);
+    border-radius: var(--radius-xs);
+    background: rgba(18, 20, 28, 0.72);
+  }
+  .n-k {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--shell-faint);
+  }
+  .n-r {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    font-size: 10.5px;
+    line-height: 1.35;
+    color: var(--shell-meta);
+  }
+  .n-r i {
+    flex: none;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: rgba(112, 115, 124, 0.24);
+    font-size: 8.5px;
+    font-style: normal;
+    font-weight: 700;
+    color: var(--shell-meta);
+  }
+
+  .core {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+    border: 1.5px solid rgba(49, 220, 220, 0.5);
+    border-radius: var(--radius-m);
+    background: rgba(10, 26, 32, 0.94);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  }
+  .core header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(49, 220, 220, 0.22);
+  }
+  .c-n {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--shell-text);
+  }
+  .c-kind {
+    margin-left: auto;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(49, 220, 220, 0.18);
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--bright-cyan);
+  }
+  .c-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 10.5px;
+  }
+  .c-k {
+    color: var(--shell-faint);
+  }
+  .c-v {
+    margin-right: auto;
+    font-weight: 600;
+    color: var(--shell-text);
+  }
+  .c-row .c-k:nth-child(3) {
+    margin-left: 0;
+  }
+  .port {
+    position: absolute;
+    left: 50%;
+    width: 9px;
+    height: 9px;
+    margin-left: -4.5px;
+    border-radius: 50%;
+    background: var(--bright-cyan);
+    box-shadow: 0 0 0 3px rgba(10, 26, 32, 0.94);
+  }
+  .port.top {
+    top: -4.5px;
+  }
+  .port.bottom {
+    bottom: -4.5px;
+  }
+
+  /* placed nodes */
+  .node.placed {
+    display: flex;
+    align-items: stretch;
+    border: 1.5px solid var(--glass-line);
+    border-radius: var(--radius-xs);
+    background: rgba(20, 23, 30, 0.96);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  }
+  .node.placed.skill {
+    border-radius: 5px;
+    border-left-width: 4px;
+    border-left-color: rgba(155, 110, 239, 0.85);
+    background: rgba(28, 20, 44, 0.96);
+  }
+  .node.placed.warn {
+    border-color: rgba(233, 83, 83, 0.7);
+  }
+  .node.placed.open {
+    border-color: var(--primary-light);
+  }
+  .node.placed.held {
+    border-color: var(--summon-green);
+  }
+  .grip {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 2px 8px 10px;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: grab;
+    touch-action: none;
+  }
+  .p-n {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--shell-text);
+  }
+  .p-s {
+    overflow: hidden;
+    font-size: 10px;
+    line-height: 1.3;
+    color: var(--shell-meta);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .warn .p-s {
+    color: var(--coral-red);
+    font-weight: 600;
+  }
+  .tag {
+    flex: none;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(155, 110, 239, 0.3);
+    font-size: 8.5px;
+    font-style: normal;
+    font-weight: 700;
+    color: rgb(213, 195, 249);
+  }
+  .off {
+    position: relative;
+    flex: none;
+    width: 24px;
+    border: 0;
+    border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+    background: transparent;
+    font-size: 9px;
+    color: var(--shell-meta);
+    cursor: pointer;
+  }
+  /* Drawn at 24px, hit at 44 — a canvas node cannot be 44px tall and still fit
+     three of them across, but the target has to be. */
+  .off::after {
+    content: '';
+    position: absolute;
+    inset: 50% -6px auto -6px;
+    height: var(--control-m);
+    transform: translateY(-50%);
+  }
+  .off:hover {
+    color: var(--coral-red);
+  }
+  .node.ghost {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    border: 2px solid var(--summon-green);
+    border-radius: var(--radius-xs);
+    background: rgba(20, 23, 30, 0.98);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    transform: rotate(-1.5deg);
+  }
+  .node.ghost .p-s {
+    color: var(--summon-green);
+  }
+  .grip:focus-visible,
+  .off:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+  .pan {
+    margin: 0;
+    font-size: 10.5px;
+    color: var(--shell-faint);
+  }
+  @media (min-width: 780px) {
+    .pan {
+      display: none;
+    }
+  }
+
+  /* ---- prompt ---- */
+  .prompt {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    padding-top: var(--space-12);
+    border-top: 1px solid var(--glass-line-soft);
+  }
   .tabs {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-6);
   }
+  .phint-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-12);
+  }
   .chars {
     margin-left: auto;
+    flex: none;
     font-size: 10.5px;
     color: var(--shell-faint);
   }
-  .ptab,
   .tab {
     display: inline-flex;
     align-items: center;
@@ -862,19 +965,16 @@
     cursor: pointer;
     transition: var(--transition-base);
   }
-  .ptab:hover,
   .tab:hover {
     border-color: rgba(49, 220, 220, 0.55);
     color: var(--shell-text);
   }
-  .ptab.on,
   .tab.on {
     border-color: transparent;
     background: var(--primary-fill);
     color: var(--static-white);
     font-weight: 600;
   }
-  .ptab:focus-visible,
   .tab:focus-visible,
   .card:focus-visible,
   .tier:focus-visible,
@@ -889,11 +989,9 @@
     border-radius: 50%;
     background: var(--summon-green);
   }
-  .ptab.on .dot {
+  .tab.on .dot {
     background: var(--static-white);
   }
-  /* The per-group count. Zero stays visible but recedes, so the row reads as a
-     tally rather than as badges that appear and disappear. */
   .n {
     font-size: 10px;
     font-style: normal;
@@ -904,8 +1002,6 @@
     color: var(--bright-cyan);
   }
   .tab.on .n {
-    /* Full white, not a fade: on the fill this sits over, 0.78 alpha measured
-       3.59:1 and 9-10px bold is still normal-size text to WCAG. */
     color: var(--static-white);
   }
   .phint {
@@ -978,7 +1074,8 @@
     border-radius: var(--radius-xs);
     background: transparent;
     text-align: left;
-    cursor: pointer;
+    cursor: grab;
+    touch-action: none;
     transition: var(--transition-base);
   }
   .card:hover {
@@ -988,17 +1085,15 @@
     border-color: var(--primary-light);
     background: rgba(15, 111, 218, 0.18);
   }
-  /* A Skill in the palette already looks like a document, so the same shape
-     carries through to the board. */
   .card.skill {
-    border-radius: 4px;
-    border-left-width: 3px;
-    border-left-color: rgba(155, 110, 239, 0.5);
+    border-radius: 5px;
+    border-left-width: 4px;
+    border-left-color: rgba(155, 110, 239, 0.55);
   }
   .card.skill.on {
-    border-color: rgba(155, 110, 239, 0.6);
+    border-color: rgba(155, 110, 239, 0.65);
     border-left-color: rgb(155, 110, 239);
-    background: rgba(122, 62, 234, 0.14);
+    background: rgba(122, 62, 234, 0.16);
   }
   .card-n {
     display: flex;
@@ -1014,7 +1109,7 @@
     color: var(--shell-meta);
   }
 
-  /* ---- the settings panel ---- */
+  /* ---- settings ---- */
   .cfg {
     display: flex;
     flex-direction: column;
@@ -1094,7 +1189,7 @@
     color: var(--static-white);
     font-weight: 600;
   }
-  .fixed {
+  .fixed-row {
     display: flex;
     flex-direction: column;
     gap: 3px;
@@ -1102,13 +1197,13 @@
     border-radius: var(--radius-xs);
     background: rgba(112, 115, 124, 0.14);
   }
-  .fixed-k {
+  .f-k {
     font-size: 10.5px;
     font-weight: 600;
     letter-spacing: 0.04em;
     color: var(--shell-faint);
   }
-  .fixed-v {
+  .f-v {
     font-size: 11.5px;
     line-height: 1.5;
     color: var(--shell-meta);
@@ -1160,5 +1255,15 @@
     font-size: 12px;
     line-height: 1.6;
     color: var(--shell-meta);
+  }
+  .io-note {
+    margin: var(--space-20) 0 0;
+    max-width: 66ch;
+    font-size: var(--font-size-caption-1);
+    line-height: 1.65;
+    color: var(--shell-meta);
+  }
+  .io-note + .note {
+    margin-top: var(--space-8);
   }
 </style>

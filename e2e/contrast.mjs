@@ -101,6 +101,8 @@ async function audit(path, viewport, label) {
   const pageH = await p.evaluate(() => document.documentElement.scrollHeight);
   const findings = [];
   const seen = new Set();
+  /** Items the fixed chrome covered at their step, re-measured afterwards. */
+  const deferred = [];
 
   for (let top = 0; top < pageH; top += H) {
     await p.evaluate((y) => window.scrollTo(0, y), top);
@@ -113,58 +115,109 @@ async function audit(path, viewport, label) {
       .map((it) => ({ ...it, vy: it.y - realTop }));
     if (!batch.length) continue;
 
-    // 3. Sample the background under each line, in-page via canvas.
-    const sampled = await p.evaluate(
-      async ([b64, rects]) => {
-        const img = new Image();
-        img.src = 'data:image/png;base64,' + b64;
-        await img.decode();
-        const cv = document.createElement('canvas');
-        cv.width = img.width;
-        cv.height = img.height;
-        const g = cv.getContext('2d', { willReadFrequently: true });
-        g.drawImage(img, 0, 0);
-        const sx = img.width / window.innerWidth;
-        const sy = img.height / window.innerHeight;
-        return rects.map((r) => {
-          const x0 = Math.max(0, Math.round(r.x * sx));
-          const y0 = Math.max(0, Math.round(r.vy * sy));
-          const w = Math.min(Math.round(r.w * sx), img.width - x0);
-          const h = Math.min(Math.round(r.h * sy), img.height - y0);
-          if (w < 1 || h < 1) return null;
-          const d = g.getImageData(x0, y0, w, h).data;
-          // Median, not mean: a line box can clip the edge of a neighbouring
-          // panel or a border, and a mean would smear that in.
-          const R = [];
-          const G = [];
-          const B = [];
-          for (let i = 0; i < d.length; i += 4) {
-            R.push(d[i]);
-            G.push(d[i + 1]);
-            B.push(d[i + 2]);
-          }
-          const mid = (a) => a.sort((p, q) => p - q)[a.length >> 1];
-          return [mid(R), mid(G), mid(B)];
-        });
-      },
-      [shot, batch],
-    );
-
-    batch.forEach((it, i) => {
-      const bg = sampled[i];
-      if (!bg) return;
-      const fg = composite(it.colour, bg);
-      const cr = ratio(fg, bg);
-      const need = it.large ? 3 : 4.5;
-      const key = `${it.sel}|${it.text}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      findings.push({ ...it, bg, cr: +cr.toFixed(2), need, pass: cr >= need });
+    // 3a. Drop anything the fixed chrome is covering.
+    //
+    // The sampler reads the rendered pixel, which cannot tell "behind" from
+    // "in front". A section eyebrow passing under the header sat behind the
+    // white wordmark and reported 2.59:1 — but it is occluded, not
+    // illegible, and a hidden element has no contrast question to answer.
+    // Occlusion is a separate measurement, and the suite makes it separately.
+    const chrome = await p.evaluate(() => {
+      const box = (q) => {
+        const el = document.querySelector(q);
+        if (!el) return null;
+        const cs = getComputedStyle(el);
+        if (cs.position !== 'fixed' && cs.position !== 'sticky') return null;
+        const r = el.getBoundingClientRect();
+        return { top: r.top, bottom: r.bottom };
+      };
+      return [box('header .bar'), box('header'), box('footer')].filter(Boolean);
     });
+    const covered = (it) => chrome.some((c) => it.vy < c.bottom && it.vy + it.h > c.top);
+    const visible = batch.filter((it) => !covered(it));
+    // Each item belongs to exactly one step, so skipping it here would drop it
+    // from the audit entirely. Park it and re-measure at an offset that puts it
+    // clear of the chrome.
+    for (const it of batch) if (covered(it)) deferred.push(it);
+
+    // 3. Sample the background under each line, in-page via canvas.
+    const sampled = await sample(p, shot, visible);
+    visible.forEach((it, i) => record(it, sampled[i]));
+  }
+
+  // Second pass for the parked items: centre each in the viewport, which is
+  // always clear of a header at the top and a footer at the bottom. Grouped by
+  // target offset so items that share one land in a single screenshot.
+  const groups = new Map();
+  for (const it of deferred) {
+    const target = Math.max(0, Math.min(pageH - H, Math.round(it.y - H / 2)));
+    const key = Math.round(target / 80) * 80;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(it);
+  }
+  for (const [target, items] of groups) {
+    await p.evaluate((y) => window.scrollTo(0, y), target);
+    await p.waitForTimeout(200);
+    const realTop = await p.evaluate(() => window.scrollY);
+    const rows = items
+      .map((it) => ({ ...it, vy: it.y - realTop }))
+      .filter((it) => it.vy > 8 && it.vy + it.h < H - 8);
+    if (!rows.length) continue;
+    const shot = (await p.screenshot()).toString('base64');
+    const sampled = await sample(p, shot, rows);
+    rows.forEach((it, i) => record(it, sampled[i]));
   }
 
   await ctx.close();
   return { label, findings };
+
+  function record(it, bg) {
+    if (!bg) return;
+    const fg = composite(it.colour, bg);
+    const cr = ratio(fg, bg);
+    const need = it.large ? 3 : 4.5;
+    const key = `${it.sel}|${it.text}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    findings.push({ ...it, bg, cr: +cr.toFixed(2), need, pass: cr >= need });
+  }
+}
+
+/** Median background pixel under each rect, read from a screenshot in-page. */
+function sample(p, b64, rects) {
+  return p.evaluate(
+    async ([b64, rects]) => {
+      const img = new Image();
+      img.src = 'data:image/png;base64,' + b64;
+      await img.decode();
+      const cv = document.createElement('canvas');
+      cv.width = img.width;
+      cv.height = img.height;
+      const g = cv.getContext('2d', { willReadFrequently: true });
+      g.drawImage(img, 0, 0);
+      const sx = img.width / window.innerWidth;
+      const sy = img.height / window.innerHeight;
+      return rects.map((r) => {
+        const x0 = Math.max(0, Math.round(r.x * sx));
+        const y0 = Math.max(0, Math.round(r.vy * sy));
+        const w = Math.min(Math.round(r.w * sx), img.width - x0);
+        const h = Math.min(Math.round(r.h * sy), img.height - y0);
+        if (w < 1 || h < 1) return null;
+        const d = g.getImageData(x0, y0, w, h).data;
+        const R = [];
+        const G = [];
+        const B = [];
+        for (let i = 0; i < d.length; i += 4) {
+          R.push(d[i]);
+          G.push(d[i + 1]);
+          B.push(d[i + 2]);
+        }
+        const mid = (a) => a.sort((p, q) => p - q)[a.length >> 1];
+        return [mid(R), mid(G), mid(B)];
+      });
+    },
+    [b64, rects],
+  );
 }
 
 /**

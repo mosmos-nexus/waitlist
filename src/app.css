@@ -727,14 +727,20 @@ body {
    that do not line up. They live here now; the components only
    place them.
    ============================================================ */
+/* The measure belongs to the running text, not to the block.
+   `.head` used to carry `max-width: 42ch`, and `ch` resolves against the
+   element's own font size — the head inherits body size, so 42ch is about
+   400px, and it was then capping a 40px title. Ten characters of 40px Hangul
+   fit in 400px, which is why short titles broke mid-phrase. The title now
+   carries its own measure at its own size; the lead and note keep theirs. */
 main .head {
   display: flex;
   flex-direction: column;
   gap: var(--space-12);
-  max-width: 42ch;
 }
 main .title {
   margin: 0;
+  max-width: 20ch;
   font-size: clamp(28px, 3.6vw, 40px);
   font-weight: 700;
   line-height: 1.2;
@@ -744,6 +750,7 @@ main .title {
 }
 main .lead {
   margin: 0;
+  max-width: 44ch;
   font-size: var(--font-size-body-1);
   line-height: 1.65;
   color: var(--shell-body);

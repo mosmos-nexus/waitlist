@@ -24,10 +24,37 @@
   ]);
   let mode = $state(1);
 
+  /* A Mon and a Mon Skill are different assets and the list has to say so.
+     A Mon is an agent you rent — it runs, and each run is charged. A Skill is a
+     procedure document you buy once — it never runs; the Mon it is attached to
+     opens it. Drawing both as an avatar plus a line made the Hub's rent-versus-
+     buy split unreadable, so the kind, the trade and the mark are all explicit,
+     and only the agent gets a face. */
   const PEERS = $derived([
-    { name: m.share_peer_1(), meta: m.share_peer_1_m(), tone: 'research' as const },
-    { name: m.share_peer_2(), meta: m.share_peer_2_m(), tone: 'organize' as const },
-    { name: m.share_peer_3(), meta: m.share_peer_3_m(), tone: 'design' as const },
+    {
+      name: m.share_peer_1(),
+      meta: m.share_peer_1_m(),
+      tone: 'research' as const,
+      skill: false,
+      kind: m.share_kind_mon(),
+      trade: m.share_rent(),
+    },
+    {
+      name: m.share_peer_2(),
+      meta: m.share_peer_2_m(),
+      tone: 'organize' as const,
+      skill: true,
+      kind: m.share_kind_skill(),
+      trade: m.share_buy(),
+    },
+    {
+      name: m.share_peer_3(),
+      meta: m.share_peer_3_m(),
+      tone: 'design' as const,
+      skill: false,
+      kind: m.share_kind_mon(),
+      trade: m.share_rent(),
+    },
   ]);
 </script>
 
@@ -79,12 +106,20 @@
 
       <div class="peers" use:reveal={{ delay: 110 }} use:scrub={{ y: 24 }}>
         {#each PEERS as p, i (p.name)}
-          <article class="card hud">
+          <article class="card hud" class:is-skill={p.skill}>
             <header>
-              <Mon tone={p.tone} size={38} phase={i + 1} />
+              {#if p.skill}
+                <span class="doc-mark" aria-hidden="true"></span>
+              {:else}
+                <Mon tone={p.tone} size={38} phase={i + 1} />
+              {/if}
               <div class="who">
                 <span class="n" translate="no">{p.name}</span>
-                <span class="by tnum">{p.meta}</span>
+                <span class="by">{p.meta}</span>
+              </div>
+              <div class="tags">
+                <span class="kind">{p.kind}</span>
+                <span class="trade">{p.trade}</span>
               </div>
             </header>
           </article>
@@ -185,6 +220,59 @@
     padding: var(--space-14) var(--space-16);
     border-radius: var(--radius-m);
     box-shadow: none;
+  }
+  /* Squared corners and a spine: a document sitting among agents. */
+  .peers .card.is-skill {
+    border-radius: 5px;
+    border-left: 4px solid rgba(155, 110, 239, 0.8);
+    background: rgba(122, 62, 234, 0.1);
+  }
+  .doc-mark {
+    flex: none;
+    width: 30px;
+    height: 38px;
+    border: 1px solid rgba(155, 110, 239, 0.6);
+    border-radius: 3px;
+    background:
+      linear-gradient(
+          transparent 8px,
+          rgba(213, 195, 249, 0.5) 8px 9px,
+          transparent 9px 14px,
+          rgba(213, 195, 249, 0.5) 14px 15px,
+          transparent 15px 20px,
+          rgba(213, 195, 249, 0.5) 20px 21px,
+          transparent 21px
+        )
+        no-repeat 6px 0 / 18px 100%,
+      rgba(122, 62, 234, 0.18);
+  }
+  .tags {
+    margin-left: auto;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+  }
+  .kind {
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--shell-meta);
+  }
+  .is-skill .kind {
+    color: rgb(213, 195, 249);
+  }
+  .trade {
+    padding: 1px 7px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--glass-line);
+    font-size: 9.5px;
+    font-weight: 700;
+    color: var(--shell-body);
+  }
+  .is-skill .trade {
+    border-color: rgba(155, 110, 239, 0.5);
   }
   .card header {
     display: flex;

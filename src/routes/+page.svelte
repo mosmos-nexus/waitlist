@@ -39,11 +39,11 @@
    */
   function veil(node: HTMLElement) {
     if (prefersReduced()) {
-      node.style.opacity = '0.74';
+      node.style.opacity = '0.9';
       return {};
     }
     const instance = animate(node, {
-      opacity: [0, 0.78],
+      opacity: [0, 0.9],
       ease: 'linear',
       autoplay: onScroll({
         enter: 'bottom bottom',
@@ -54,6 +54,8 @@
     return { destroy: () => instance.revert() };
   }
 </script>
+
+ㄱ
 
 <Seo title={m.meta_title()} description={m.meta_description()} includeOrganization />
 
@@ -103,11 +105,16 @@
     height: 100svh;
     pointer-events: none;
   }
+  /* The inner stop was `rgba(8, 10, 18, 0.7)`, which left the bottom-centre of
+     the viewport only 70% covered — and on a phone that is exactly where Mos
+     sits. Section text scrolling past it landed on a near-white body and an
+     eyebrow measured 2.59:1. The vignette still reads; it just no longer leaves
+     a window. */
   .veil {
     position: fixed;
     inset: 0;
     z-index: -1;
-    background: radial-gradient(120% 80% at 50% 100%, rgba(8, 10, 18, 0.7), rgb(6, 7, 11) 70%);
+    background: radial-gradient(120% 80% at 50% 100%, rgba(8, 10, 18, 0.94), rgb(6, 7, 11) 70%);
     opacity: 0;
   }
 
