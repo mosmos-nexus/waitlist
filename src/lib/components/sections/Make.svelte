@@ -116,29 +116,67 @@
    *  and a panel that appeared for everything would be theatre. `required` is
    *  the one that matters: which places a tool may read cannot be left blank. */
 
-  const TIERS = $derived([
-    { name: m.make_tier_1(), desc: m.make_tier_1_d(), level: m.make_tier_1_m() },
-    { name: m.make_tier_2(), desc: m.make_tier_2_d(), level: m.make_tier_2_m() },
-    { name: m.make_tier_3(), desc: m.make_tier_3_d(), level: m.make_tier_3_m() },
+  /**
+   * The brain is the model this Mon actually runs on, so it has to be the same
+   * list Studio shows — providers and their tiers, not three abstractions.
+   *
+   * Picked by purpose rather than by name: you say what the Mon will mostly do
+   * and the models that suit it get marked. That is Studio's own affordance
+   * ("모델 이름을 몰라도 괜찮아요"), and it is the honest one — a maker knows
+   * their work, not the routing table.
+   */
+  const PURPOSES = $derived([
+    m.make_pu_1(),
+    m.make_pu_2(),
+    m.make_pu_3(),
+    m.make_pu_4(),
+    m.make_pu_5(),
+    m.make_pu_6(),
   ]);
-  let tier = $state(1);
+  let purpose = $state(0);
 
-  const PROMPT = $derived([
-    { key: 'role', label: m.make_pp_role(), hint: m.make_pp_role_h(), body: m.make_pp_role_b() },
+  const PROVIDERS = $derived([
     {
-      key: 'steps',
-      label: m.make_pp_steps(),
-      hint: m.make_pp_steps_h(),
-      body: m.make_pp_steps_b(),
+      name: 'Claude',
+      trait: m.make_pv_claude(),
+      tiers: [
+        { id: 'opus5', name: 'Opus 5', blurb: m.make_m_opus(), good: [1, 5] },
+        { id: 'sonnet5', name: 'Sonnet 5', blurb: m.make_m_sonnet(), good: [0, 5] },
+        { id: 'haiku5', name: 'Haiku 5', blurb: m.make_m_haiku(), good: [2, 3] },
+      ],
     },
-    { key: 'keep', label: m.make_pp_keep(), hint: m.make_pp_keep_h(), body: m.make_pp_keep_b() },
+    {
+      name: 'Gemini',
+      trait: m.make_pv_gemini(),
+      tiers: [
+        { id: 'pro31', name: '3.1 Pro', blurb: m.make_m_gpro(), good: [0, 1] },
+        { id: 'flash36', name: '3.6 Flash', blurb: m.make_m_gflash(), good: [2, 0] },
+        { id: 'lite', name: 'Flash-Lite', blurb: m.make_m_glite(), good: [3] },
+      ],
+    },
+    {
+      name: 'GPT',
+      trait: m.make_pv_gpt(),
+      tiers: [
+        { id: 'sol', name: '5.6 Sol', blurb: m.make_m_sol(), good: [1, 5] },
+        { id: 'terra', name: '5.6 Terra', blurb: m.make_m_terra(), good: [5] },
+        { id: 'luna', name: '5.6 Luna', blurb: m.make_m_luna(), good: [3, 2] },
+      ],
+    },
+    {
+      name: 'Grok',
+      trait: m.make_pv_grok(),
+      tiers: [
+        { id: 'g46', name: '4.6', blurb: m.make_m_g46(), good: [4, 5] },
+        { id: 'gfast', name: '4 Fast', blurb: m.make_m_gfast(), good: [4, 2] },
+      ],
+    },
   ]);
-  let promptTab = $state('steps');
-  const joined = $derived(PROMPT.map((p) => `${p.label}\n${p.body}`).join('\n\n'));
-  const shown = $derived(
-    promptTab === 'all'
-      ? { hint: m.make_pp_all_h(), body: joined }
-      : (PROMPT.find((p) => p.key === promptTab) ?? PROMPT[0]),
+  let brainId = $state('sonnet5');
+  const brain = $derived(
+    PROVIDERS.flatMap((pv) => pv.tiers.map((t) => ({ ...t, provider: pv.name }))).find(
+      (t) => t.id === brainId,
+    ) ?? { id: 'sonnet5', name: 'Sonnet 5', blurb: '', provider: 'Claude', good: [] },
   );
 
   let placed = $state<Placed[]>([]);
@@ -381,7 +419,7 @@
             </header>
             <div class="c-row">
               <span class="c-k">{m.make_brain()}</span>
-              <span class="c-v">{TIERS[tier].name}</span>
+              <span class="c-v" translate="no">{brain.provider} {brain.name}</span>
             </div>
             <div class="c-row">
               <span class="c-k">{m.make_tools_n()}</span>
@@ -435,59 +473,53 @@
       </div>
       <p class="pan">{m.make_pan_hint()}</p>
 
-      <div class="prompt">
-        <div class="bar">
-          <span class="eyebrow">{m.make_prompt()}</span>
-          <span class="hint">{m.make_prompt_hint()}</span>
-        </div>
-        <div class="tabs" role="group" aria-label={m.make_prompt()}>
-          {#each PROMPT as p (p.key)}
-            <button
-              type="button"
-              class="tab"
-              class:on={promptTab === p.key}
-              aria-pressed={promptTab === p.key}
-              onclick={() => (promptTab = p.key)}
-            >
-              {p.label}<i class="dot" aria-hidden="true"></i>
-              <span class="visually-hidden">— {m.make_pp_written()}</span>
-            </button>
-          {/each}
-          <button
-            type="button"
-            class="tab"
-            class:on={promptTab === 'all'}
-            aria-pressed={promptTab === 'all'}
-            onclick={() => (promptTab = 'all')}>{m.make_pp_all()}</button
-          >
-        </div>
-        <div class="phint-row">
-          <p class="phint">{shown.hint}</p>
-          <span class="chars tnum">{shown.body.length}{m.make_chars()}</span>
-        </div>
-        <p class="pbody" class:joined={promptTab === 'all'}>{shown.body}</p>
-      </div>
-
       <div class="brain">
         <div class="bar">
           <span class="eyebrow">{m.make_brain()}</span>
           <span class="hint">{m.make_brain_hint()}</span>
         </div>
-        <div class="tier-row">
-          {#each TIERS as t, i (t.name)}
+        <div class="purposes" role="group" aria-label={m.make_purpose()}>
+          {#each PURPOSES as pu, i (pu)}
             <button
               type="button"
-              class="tier"
-              class:on={tier === i}
-              aria-pressed={tier === i}
-              onclick={() => (tier = i)}
+              class="tab"
+              class:on={purpose === i}
+              aria-pressed={purpose === i}
+              onclick={() => (purpose = i)}>{pu}</button
             >
-              <span class="tier-n">{t.name}</span>
-              <span class="tier-m">{t.level}</span>
-            </button>
           {/each}
         </div>
-        <p class="tier-d">{TIERS[tier].desc}</p>
+
+        <div class="models">
+          {#each PROVIDERS as pv (pv.name)}
+            <div class="pv">
+              <div class="pv-head">
+                <span class="pv-n" translate="no">{pv.name}</span>
+                <span class="pv-t">{pv.trait}</span>
+              </div>
+              {#each pv.tiers as t (t.id)}
+                <button
+                  type="button"
+                  class="model"
+                  class:on={brainId === t.id}
+                  class:fit={t.good.includes(purpose)}
+                  aria-pressed={brainId === t.id}
+                  onclick={() => (brainId = t.id)}
+                >
+                  <span class="m-n" translate="no">{t.name}</span>
+                  {#if t.good.includes(purpose)}<span class="m-fit">{m.make_fit()}</span>{/if}
+                </button>
+              {/each}
+            </div>
+          {/each}
+        </div>
+
+        <div class="picked">
+          <span class="p-k">{m.make_brain_pick()}</span>
+          <span class="p-v" translate="no">{brain.provider} {brain.name}</span>
+          <p class="p-b">{brain.blurb}</p>
+        </div>
+        <p class="tier-d">{m.make_brain_note()}</p>
       </div>
     </div>
 
@@ -792,7 +824,6 @@
   }
 
   /* ---- prompt ---- */
-  .prompt,
   .brain {
     display: flex;
     flex-direction: column;
@@ -805,17 +836,6 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-6);
-  }
-  .phint-row {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-12);
-  }
-  .chars {
-    margin-left: auto;
-    flex: none;
-    font-size: 10.5px;
-    color: var(--shell-faint);
   }
   .tab {
     display: inline-flex;
@@ -843,19 +863,6 @@
   }
   .tab:focus-visible,
   .card:focus-visible,
-  .tier:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus);
-  }
-  .dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--summon-green);
-  }
-  .tab.on .dot {
-    background: var(--static-white);
-  }
   .n {
     font-size: 10px;
     font-style: normal;
@@ -867,27 +874,6 @@
   }
   .tab.on .n {
     color: var(--static-white);
-  }
-  .phint {
-    margin: 0;
-    font-size: 11.5px;
-    line-height: 1.55;
-    color: var(--shell-faint);
-  }
-  .pbody {
-    margin: 0;
-    padding: var(--space-12) var(--space-14);
-    border-radius: var(--radius-xs);
-    background: rgba(112, 115, 124, 0.14);
-    font-size: 12.5px;
-    line-height: 1.7;
-    color: var(--shell-body);
-    white-space: pre-wrap;
-  }
-  .pbody.joined {
-    border: 1px dashed var(--glass-line-soft);
-    background: transparent;
-    color: var(--shell-meta);
   }
 
   /* ---- palette ---- */
@@ -975,50 +961,125 @@
     color: var(--shell-meta);
   }
 
-  .tier-row {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-8);
-  }
-  .tier {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 11px 12px;
-    border: 1px solid var(--glass-line);
-    border-radius: var(--radius-xs);
-    background: transparent;
-    text-align: left;
-    cursor: pointer;
-    transition: var(--transition-base);
-  }
-  .tier:hover {
-    border-color: rgba(49, 220, 220, 0.55);
-  }
-  .tier.on {
-    border-color: var(--primary-light);
-    background: rgba(15, 111, 218, 0.16);
-  }
-  .tier-n {
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--shell-text);
-  }
-  .tier-m {
-    font-size: 11px;
-    color: var(--shell-meta);
-  }
-  .tier.on .tier-m {
-    color: var(--bright-cyan);
-  }
   .tier-d {
     margin: 0;
     font-size: 12px;
     line-height: 1.6;
     color: var(--shell-meta);
   }
-  .brain .tier-d {
-    margin-top: 2px;
+  /* ---- brains ---- */
+  .purposes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-6);
+  }
+  .models {
+    display: grid;
+    gap: var(--space-8);
+  }
+  @media (min-width: 720px) {
+    .models {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  .pv {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: var(--space-12);
+    border: 1px solid var(--glass-line-soft);
+    border-radius: var(--radius-xs);
+  }
+  .pv-head {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-bottom: 4px;
+  }
+  .pv-n {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--shell-text);
+  }
+  .pv-t {
+    font-size: 10.5px;
+    line-height: 1.45;
+    color: var(--shell-meta);
+  }
+  .model {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: var(--control-m);
+    padding: 6px 11px;
+    border: 1px solid var(--glass-line);
+    border-radius: var(--radius-full);
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    transition: var(--transition-base);
+  }
+  .model:hover {
+    border-color: rgba(49, 220, 220, 0.55);
+  }
+  .model.fit {
+    border-color: rgba(33, 237, 179, 0.45);
+  }
+  .model.on {
+    border-color: transparent;
+    background: var(--primary-fill);
+  }
+  .m-n {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--shell-text);
+  }
+  .model.on .m-n {
+    color: var(--static-white);
+  }
+  .m-fit {
+    margin-left: auto;
+    flex: none;
+    font-size: 9.5px;
+    font-weight: 700;
+    color: var(--summon-green);
+  }
+  .model.on .m-fit {
+    color: var(--static-white);
+  }
+  .picked {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px var(--space-10);
+    padding: var(--space-12) var(--space-14);
+    border-radius: var(--radius-xs);
+    background: rgba(15, 111, 218, 0.14);
+    border: 1px solid rgba(40, 135, 240, 0.3);
+  }
+  .p-k {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--shell-faint);
+  }
+  .p-v {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--bright-cyan);
+  }
+  .p-b {
+    flex: 1 1 100%;
+    margin: 0;
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: var(--shell-body);
+  }
+  .tier-d {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.55;
+    color: var(--shell-faint);
   }
   .io-note {
     margin: var(--space-20) 0 0;

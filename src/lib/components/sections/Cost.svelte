@@ -26,10 +26,12 @@
    * here — and why nothing downstream of it (a rate, a balance, a bonus) can.
    */
 
+  /* Ground is free — that is decided. The other two are not: subscription price
+     is an open experiment, so they say so where the price goes. */
   const PLANS = $derived([
-    { name: m.cost_p1(), role: m.cost_p1_role() },
-    { name: m.cost_p2(), role: m.cost_p2_role() },
-    { name: m.cost_p3(), role: m.cost_p3_role() },
+    { name: m.cost_p1(), role: m.cost_p1_role(), price: m.cost_p1_price_free(), free: true },
+    { name: m.cost_p2(), role: m.cost_p2_role(), price: m.cost_tbd(), free: false },
+    { name: m.cost_p3(), role: m.cost_p3_role(), price: m.cost_tbd(), free: false },
   ]);
   let plan = $state(1);
 
@@ -116,7 +118,7 @@
               onclick={() => (plan = i)}
             >
               <span class="plan-n" translate="no">{p.name}</span>
-              <span class="plan-tbd">{m.cost_tbd()}</span>
+              <span class="plan-tbd" class:free={p.free}>{p.price}</span>
               <span class="plan-r">{p.role}</span>
             </button>
           {/each}
@@ -292,6 +294,9 @@
     font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--bright-cyan);
+  }
+  .plan-tbd.free {
+    color: var(--summon-green);
   }
   .plan-r {
     font-size: 12px;

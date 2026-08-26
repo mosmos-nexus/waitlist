@@ -10,6 +10,8 @@ function ok(label, cond, extra = '') {
   if (!cond) process.exitCode = 1;
 }
 
+const MANA_FIG = /Mana[^\S\n]*\d|\d[^\S\n]*Mana/i;
+
 async function open(path = '/', o = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...o });
   const p = await ctx.newPage();
@@ -323,26 +325,31 @@ async function open(path = '/', o = {}) {
     counts.join(','),
   );
 
-  // The prompt: three pieces plus a derived read-only join.
-  ok('three prompt pieces plus a join', (await s.locator('.prompt .tab').count()) === 4);
-  const bodyOf = async (i) => {
-    await s.locator('.prompt .tab').nth(i).click();
+  // The brain is the model this Mon runs on, and it has to be Studio's own list
+  // rather than three abstractions. Picking a purpose marks the models that
+  // suit it; picking a model shows on the core, so the canvas and the panel
+  // never disagree about what this Mon runs on.
+  const providers = await s.locator('.brain .pv-n').allInnerTexts();
+  ok('four providers', providers.length === 4, providers.join(','));
+  ok('and eleven models', (await s.locator('.brain .model').count()) === 11);
+  const fitFor = async (i) => {
+    await s.locator('.brain .purposes .tab').nth(i).click();
     await p.waitForTimeout(200);
-    return (await s.locator('.pbody').innerText()).trim();
+    return (await s.locator('.brain .model.fit .m-n').allInnerTexts()).join(',');
   };
-  const pieces = [await bodyOf(0), await bodyOf(1), await bodyOf(2)];
-  ok('each piece reads differently', new Set(pieces).size === 3);
-  ok(
-    'the numbered piece keeps its line breaks',
-    pieces.some((t) => /\n\s*2\./.test(t)),
-  );
-  const all = await bodyOf(3);
-  ok(
-    'the join contains every piece',
-    pieces.every((t) => all.includes(t)),
-    `${all.length} chars`,
-  );
-  ok('and the join is read-only', (await s.locator('.pbody.joined textarea').count()) === 0);
+  const f0 = await fitFor(0);
+  const f3 = await fitFor(3);
+  ok('a purpose marks some models', f0.length > 0, f0);
+  ok('and another purpose marks different ones', f0 !== f3, `${f0} / ${f3}`);
+  await s.locator('.brain .model').first().click();
+  await p.waitForTimeout(250);
+  const picked = (await s.locator('.brain .p-v').innerText()).trim();
+  const onCore = (await s.locator('.core .c-row').first().innerText()).trim();
+  ok('the core shows the chosen model', onCore.includes(picked), `${onCore} / ${picked}`);
+  ok('and quotes no figure for it', !MANA_FIG.test(await s.locator('.brain').innerText()));
+
+  // The instruction editor is gone from the demo.
+  ok('no prompt editor', (await s.locator('.prompt, .pbody').count()) === 0);
 
   const body = await s.innerText();
   ok('no guard category remains', !/안전장치|Guardrail/i.test(body));
@@ -420,7 +427,9 @@ async function open(path = '/', o = {}) {
   // open experiments. The page showed $0 / $18 / $48 and "100 Mana ~ $1",
   // none of which came from anywhere but a wireframe.
   const tbd = await s.locator('.plan-tbd').allInnerTexts();
-  ok('each plan says the price is not set', tbd.length === 3 && tbd.every((t) => t.trim()));
+  ok('every plan states its price', tbd.length === 3 && tbd.every((t) => t.trim()));
+  ok('Ground is free', (await s.locator('.plan-tbd.free').count()) === 1, tbd.join(' / '));
+  ok('and the paid two are unset', (await s.locator('.plan-tbd:not(.free)').count()) === 2);
 
   const body = await s.innerText();
   ok(
