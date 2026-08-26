@@ -315,7 +315,7 @@
     padding: 0 18px;
     border: 0;
     border-radius: var(--radius-full);
-    background: var(--primary-normal);
+    background: var(--primary-fill);
     color: var(--static-white);
     font-size: 13px;
     font-weight: 600;
@@ -323,7 +323,7 @@
     transition: var(--transition-base);
   }
   .add button:hover {
-    background: var(--primary-strong);
+    background: var(--primary-fill-hover);
   }
   .add button:focus-visible {
     outline: none;

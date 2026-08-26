@@ -3,36 +3,83 @@
   import { reveal, scrub } from '$lib/anime/motion';
 
   /**
-   * The price screen's one structural idea: two payments that do not replace
-   * each other, so they are shown side by side with nothing bridging them.
+   * Two payments that do not replace each other, shown side by side with
+   * nothing bridging them — subscription buys the things that are always on,
+   * Mana pays for the work when work happens.
    *
-   * The slider is real because the account model is the part people distrust —
-   * a number you can move and watch settle says "you decide how much" more
-   * plainly than a sentence claiming it.
+   * WHAT THIS SECTION MAY AND MAY NOT SAY
+   *
+   * The monetization strategy fixes the plan names (Ground / Plot / Parcel) and
+   * the axis each tier differs on, and it lists *every* number as an open
+   * experiment: subscription price, USD-to-Mana rate, per-task Mana
+   * coefficients, top-up bonuses, storage caps, log-retention windows. The
+   * page previously showed $0 / $18 / $48 and "100 Mana ≈ $1" with a top-up
+   * bonus ladder, none of which exists anywhere but in the wireframe.
+   *
+   * So: names and axes yes, figures no. A plan card shows what changes, not
+   * what it costs, and says so where the price would be.
+   *
+   * The MVP line matters too. A waitlist sits at MVP 0-1, where Hub trading,
+   * creator payout and certification are all inactive; MVP 2 is where
+   * Plot/Parcel pricing gets shown to users at all. Three named plans with no
+   * price attached is exactly that fake-door step, which is why it can appear
+   * here — and why nothing downstream of it (a rate, a balance, a bonus) can.
    */
+
   const PLANS = $derived([
-    { name: m.cost_p1(), price: m.cost_p1_price(), per: m.cost_p1_per(), role: m.cost_p1_role() },
-    { name: m.cost_p2(), price: m.cost_p2_price(), per: m.cost_p2_per(), role: m.cost_p2_role() },
-    { name: m.cost_p3(), price: m.cost_p3_price(), per: m.cost_p3_per(), role: m.cost_p3_role() },
+    { name: m.cost_p1(), role: m.cost_p1_role() },
+    { name: m.cost_p2(), role: m.cost_p2_role() },
+    { name: m.cost_p3(), role: m.cost_p3_role() },
   ]);
   let plan = $state(1);
 
-  const MIN = 500;
-  const MAX = 6000;
-  const STEP = 100;
-  /** 100 Mana ≈ $1, from the Pricing screen. */
-  const RATE = 100;
+  /**
+   * The differentiation axes, in the strategy's own order: things that cost a
+   * standing infrastructure bill are the things a tier can gate. `values` is
+   * one entry per plan, so a row that does not change across two tiers simply
+   * repeats — which is itself worth seeing.
+   */
+  const ROWS = $derived([
+    {
+      label: m.cost_d_slots(),
+      values: [m.cost_v_basic(), m.cost_v_more(), m.cost_v_most()],
+    },
+    {
+      label: m.cost_d_memory(),
+      values: [m.cost_v_mem_short(), m.cost_v_mem_long(), m.cost_v_mem_long()],
+    },
+    {
+      label: m.cost_d_files(),
+      values: [m.cost_v_small(), m.cost_v_std(), m.cost_v_large()],
+    },
+    {
+      label: m.cost_d_logs(),
+      values: [m.cost_v_short(), m.cost_v_mid(), m.cost_v_long()],
+    },
+    {
+      label: m.cost_d_cron(),
+      values: [m.cost_v_none(), m.cost_v_yes(), m.cost_v_yes()],
+    },
+    {
+      label: m.cost_d_queue(),
+      values: [m.cost_v_fifo(), m.cost_v_fifo(), m.cost_v_first()],
+    },
+    {
+      label: m.cost_d_early(),
+      values: [m.cost_v_dash(), m.cost_v_dash(), m.cost_v_yes()],
+    },
+  ]);
 
-  let amount = $state(2000);
-
-  // The bonus ladder is the wireframe's, not a rounder invention of one.
-  const bonusRate = $derived(
-    amount >= 5000 ? 0.12 : amount >= 3000 ? 0.08 : amount >= 2000 ? 0.05 : 0,
-  );
-  const bonus = $derived(Math.round((amount * bonusRate) / STEP) * STEP);
-  const total = $derived(amount + bonus);
-  const usd = $derived(Math.round((amount / RATE) * 100) / 100);
-  const fmt = (n: number) => n.toLocaleString('en-US');
+  /** What Mana is spent on, and what it is not. Both lists are the charging
+   *  model itself: execution is post-charged, making and storing are not
+   *  charged at all, and a Hub-sourced run splits part of the charge to the
+   *  Mon's author. */
+  const SPEND = $derived([
+    { what: m.cost_a1(), why: m.cost_a1_d() },
+    { what: m.cost_a2(), why: m.cost_a2_d() },
+    { what: m.cost_a3(), why: m.cost_a3_d() },
+  ]);
+  const FREE = $derived([m.cost_b1(), m.cost_b2(), m.cost_b3()]);
 </script>
 
 <section class="cost section" aria-labelledby="cost-title">
@@ -53,7 +100,7 @@
           </div>
         </div>
 
-        <div class="plans">
+        <div class="plans" role="group" aria-label={m.cost_pick()}>
           {#each PLANS as p, i (p.name)}
             <button
               type="button"
@@ -63,11 +110,30 @@
               onclick={() => (plan = i)}
             >
               <span class="plan-n" translate="no">{p.name}</span>
-              <span class="plan-p tnum">{p.price}<i>{p.per}</i></span>
+              <span class="plan-tbd">{m.cost_tbd()}</span>
               <span class="plan-r">{p.role}</span>
             </button>
           {/each}
         </div>
+
+        <div class="table hud">
+          <div class="table-head">
+            <span class="eyebrow">{m.cost_diff()}</span>
+            <span class="for" translate="no">{PLANS[plan].name}</span>
+          </div>
+          <dl>
+            {#each ROWS as row (row.label)}
+              {@const changed = plan > 0 && row.values[plan] !== row.values[0]}
+              <div class="row" class:changed>
+                <dt>{row.label}</dt>
+                <dd>{row.values[plan]}</dd>
+              </div>
+            {/each}
+          </dl>
+          <p class="panel-note">{m.cost_amounts_tbd()}</p>
+        </div>
+
+        <p class="open">{m.cost_open()}</p>
       </div>
 
       <div class="col" use:reveal={{ delay: 110 }} use:scrub={{ y: 20 }}>
@@ -80,31 +146,24 @@
         </div>
 
         <div class="wallet hud">
-          <div class="amount-head">
-            <span class="eyebrow">{m.cost_amount()}</span>
-            <span class="rate">{m.cost_rate()}</span>
-          </div>
+          <span class="eyebrow spend-label">{m.cost_yes()}</span>
+          <ul class="spend">
+            {#each SPEND as s (s.what)}
+              <li>
+                <span class="what">{s.what}</span>
+                <span class="why">{s.why}</span>
+              </li>
+            {/each}
+          </ul>
 
-          <div class="amount">
-            <span class="big tnum">{fmt(amount)}</span>
-            <span class="unit" translate="no">Mana</span>
-            <span class="usd tnum">${fmt(usd)}</span>
-          </div>
+          <span class="eyebrow free-label">{m.cost_no()}</span>
+          <ul class="free">
+            {#each FREE as f (f)}
+              <li>{f}</li>
+            {/each}
+          </ul>
 
-          <label class="slider">
-            <span class="visually-hidden">{m.cost_amount()}</span>
-            <input type="range" min={MIN} max={MAX} step={STEP} bind:value={amount} />
-          </label>
-
-          <div class="ledger">
-            <span>{bonus ? `${m.cost_bonus()} +${fmt(bonus)}` : m.cost_bonus_none()}</span>
-            <span class="total tnum">{m.cost_total()} <b>{fmt(total)}</b></span>
-          </div>
-
-          <div class="compare">
-            <p>{m.cost_compare()}</p>
-            <p class="ref tnum">{m.cost_compare_ref()}</p>
-          </div>
+          <p class="panel-note">{m.cost_mana_tbd()}</p>
         </div>
       </div>
     </div>
@@ -118,15 +177,15 @@
     margin-bottom: var(--space-32);
   }
 
-  /* Two columns with a dashed gutter and nothing spanning it — the Pricing
-     screen splits them exactly this way so neither reads as buying the other. */
+  /* Two columns with a dashed gutter and nothing spanning it — neither side
+     reads as buying the other. */
   .split {
     display: grid;
     gap: var(--space-24);
   }
   @media (min-width: 900px) {
     .split {
-      grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
+      grid-template-columns: minmax(0, 55fr) minmax(0, 45fr);
       column-gap: var(--space-48);
     }
     .split > .col + .col {
@@ -154,7 +213,7 @@
   }
   .col-head p {
     margin: 4px 0 0;
-    font-size: 11.5px;
+    font-size: 12px;
     line-height: 1.55;
     color: var(--shell-meta);
   }
@@ -171,7 +230,7 @@
     color: var(--shell-text);
   }
   .num.accent {
-    background: var(--primary-normal);
+    background: var(--primary-fill);
     color: var(--static-white);
   }
 
@@ -210,113 +269,143 @@
     font-weight: 700;
     color: var(--shell-text);
   }
-  .plan-p {
-    font-size: 24px;
-    font-weight: 800;
+  /* Where the price would be. Sized like a price so the absence is the point
+     rather than an omission the eye slides past. */
+  .plan-tbd {
+    font-size: 13px;
+    font-weight: 700;
     letter-spacing: -0.01em;
-    color: var(--shell-text);
-  }
-  .plan-p i {
-    margin-left: 4px;
-    font-size: 11.5px;
-    font-style: normal;
-    font-weight: 500;
-    color: var(--shell-meta);
+    color: var(--bright-cyan);
   }
   .plan-r {
-    font-size: 11.5px;
+    font-size: 12px;
     line-height: 1.55;
     color: var(--shell-meta);
+  }
+
+  .table {
+    padding: var(--space-16) var(--space-20) var(--space-14);
+    box-shadow: none;
+  }
+  .table-head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-10);
+    margin-bottom: var(--space-6);
+  }
+  .for {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--bright-cyan);
+  }
+  dl {
+    margin: 0;
+  }
+  .row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-12);
+    padding: 9px 0;
+    border-bottom: 1px solid var(--glass-line-soft);
+  }
+  .row:last-of-type {
+    border-bottom: 0;
+  }
+  dt {
+    font-size: 12.5px;
+    color: var(--shell-body);
+  }
+  dd {
+    margin: 0 0 0 auto;
+    flex: none;
+    max-width: 52%;
+    text-align: right;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--shell-meta);
+  }
+  /* The rows this plan actually buys you over Ground. Marked with weight and
+     the accent rather than a badge, so scanning the column answers "what am I
+     paying for" without a legend. */
+  .changed dd {
+    color: var(--summon-green);
+  }
+
+  .open {
+    margin: 0;
+    padding: 11px 14px;
+    border-radius: var(--radius-xs);
+    background: rgba(112, 115, 124, 0.14);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--shell-body);
   }
 
   .wallet {
     display: flex;
     flex-direction: column;
-    gap: var(--space-12);
+    gap: var(--space-8);
     padding: var(--space-20);
   }
-  .amount-head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--space-8) var(--space-12);
-  }
-  .rate {
-    margin-left: auto;
-    font-size: 11px;
-    color: var(--shell-faint);
-  }
-  .amount {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-8);
-  }
-  .big {
-    font-size: 34px;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    color: var(--shell-text);
-  }
-  .unit {
-    font-size: 12.5px;
-    color: var(--shell-meta);
-  }
-  .usd {
-    margin-left: auto;
-    font-size: 17px;
-    font-weight: 700;
+  .spend-label {
     color: var(--bright-cyan);
   }
-
-  .slider {
-    display: block;
+  .free-label {
+    margin-top: var(--space-10);
   }
-  /* The track stays thin; the box does not. A 16px-tall range is a control you
-     cannot reliably grab, and the design system's floor is 44. */
-  .slider input {
-    display: block;
-    width: 100%;
-    height: var(--control-m);
+  ul {
     margin: 0;
-    accent-color: var(--primary-normal);
-    cursor: pointer;
+    padding: 0;
+    list-style: none;
   }
-  .slider input:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus);
-    border-radius: var(--radius-full);
-  }
-
-  .ledger {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-8) var(--space-12);
-    font-size: 11.5px;
-    color: var(--shell-meta);
-  }
-  .total {
-    margin-left: auto;
-  }
-  .total b {
-    color: var(--summon-green);
-  }
-
-  .compare {
+  .spend li {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 11px 13px;
-    border-radius: var(--radius-xs);
-    background: rgba(112, 115, 124, 0.14);
+    gap: 3px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--glass-line-soft);
   }
-  .compare p {
-    margin: 0;
+  .spend li:last-child {
+    border-bottom: 0;
+  }
+  .what {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--shell-text);
+  }
+  .why {
     font-size: 11.5px;
     line-height: 1.55;
+    color: var(--shell-meta);
+  }
+  .free {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+  }
+  .free li {
+    position: relative;
+    padding-left: 16px;
+    font-size: 12.5px;
+    line-height: 1.5;
     color: var(--shell-body);
   }
-  .compare .ref {
-    font-size: 10.5px;
+  .free li::before {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 0.55em;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--summon-green);
+  }
+
+  .panel-note {
+    margin: var(--space-10) 0 0;
+    font-size: 11.5px;
+    line-height: 1.6;
     color: var(--shell-faint);
   }
 </style>

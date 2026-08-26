@@ -59,10 +59,14 @@
     color: var(--label-alternative);
   }
 
+  /* `--line-normal-strong`, not `--line-normal-normal`: the divider token
+     composites to 1.41:1 here, and an empty text field has nothing but its
+     border to announce itself with — WCAG 1.4.11 wants 3:1 for exactly this.
+     The stronger token measures 3.69:1 and is what the checkbox already uses. */
   .control {
     width: 100%;
     background: var(--field);
-    border: 1px solid var(--line-normal-normal);
+    border: 1px solid var(--line-normal-strong);
     border-radius: var(--radius-s);
     color: var(--label-strong);
     transition:
@@ -91,7 +95,7 @@
   }
 
   .control:hover {
-    border-color: var(--line-normal-strong);
+    border-color: var(--primary-light);
   }
   .control:focus {
     outline: none;

@@ -157,9 +157,18 @@
   --fill-normal: rgba(133, 148, 163, 0.15);
   --fill-alternative: var(--color-blue-gray-50);
 
-  --button-primary-default: var(--primary-normal);
-  --button-primary-hovered: var(--primary-strong);
-  --button-primary-pressed: var(--primary-heavy);
+  /* A blue you are allowed to put white text on.
+     Separate from `--primary-normal` because the two answer different
+     questions: the accent ramp answers "how vivid against the shell", and a
+     filled surface answers "how dark under white text". In dark mode those
+     pull opposite ways — see the dark block for the measurement. */
+  --primary-fill: var(--color-blue-50);
+  --primary-fill-hover: var(--color-blue-40);
+  --primary-fill-active: var(--color-blue-30);
+
+  --button-primary-default: var(--primary-fill);
+  --button-primary-hovered: var(--primary-fill-hover);
+  --button-primary-pressed: var(--primary-fill-active);
   --button-primary-disabled: var(--color-blue-gray-75);
 
   --status-positive-fill: var(--color-green-45);
@@ -178,6 +187,13 @@
 /* ---- DARK — what the waitlist actually runs ---- */
 :root[data-theme='dark'],
 [data-theme='dark'] {
+  /* The accent ramp lightens by one step in dark so the blue still reads as
+     blue against a near-black shell. That is right for borders, rings and
+     glows, which only have to clear 3:1 as UI components — blue-60 sits at
+     5.26:1 on a panel. It is wrong for anything carrying white text: white on
+     blue-60 measures 3.53:1, below the 4.5:1 AA floor, and the primary CTA is
+     exactly that. So the fill ramp does not lighten; it stays where white is
+     legible on it (blue-50 = 4.88:1, hover blue-40 = 7.10:1). */
   --primary-normal: var(--color-blue-60);
   --primary-strong: var(--color-blue-50);
   --primary-heavy: var(--color-blue-40);
@@ -193,8 +209,11 @@
 
   --label-strong: var(--color-common-100);
   --label-normal: var(--color-blue-gray-97);
-  --label-alternative: rgba(174, 176, 182, 0.61);
-  --label-assistive: rgba(174, 184, 194, 0.6);
+  /* Alphas raised from 0.61 / 0.60, which composited to 3.73:1 and 3.87:1 over
+     the darkest surfaces they actually land on. These carry the consent line
+     and the inactive language tab, so they are read, not decoration. */
+  --label-alternative: rgba(174, 176, 182, 0.72);
+  --label-assistive: rgba(174, 184, 194, 0.68);
   --label-disable: rgba(154, 166, 179, 0.15);
 
   --line-normal-alternative: rgba(112, 115, 124, 0.22);
@@ -631,11 +650,25 @@ textarea {
   --glass-line: rgba(112, 115, 124, 0.32);
   --glass-line-soft: rgba(112, 115, 124, 0.22);
 
-  /* Text on the shell. Monitor writes body copy at 78% and meta at 50–66%. */
+  /*
+   * Text on the shell — four steps, every one of them legible.
+   *
+   * Monitor writes body copy at 78% and meta at 50–66%, and porting those
+   * percentages directly is what put 232 of 603 line boxes below WCAG AA:
+   * composited over the darkest panel these surfaces reach, meta landed at
+   * 4.05:1 and faint at 2.54:1 against a 4.5:1 floor. Monitor can afford them
+   * because it is a signed-in dashboard whose faint text is chrome; here the
+   * same token carries every closing note on the page.
+   *
+   * The alphas below are solved, not picked: each is the lowest value that
+   * still clears its target on the darkest measured background, so the four
+   * steps stay visibly distinct while all four remain readable.
+   *   body 7.09:1 · meta 5.53:1 · faint 4.60:1
+   */
   --shell-text: rgb(236, 237, 246);
-  --shell-body: rgba(174, 184, 194, 0.86);
-  --shell-meta: rgba(174, 184, 194, 0.62);
-  --shell-faint: rgba(174, 184, 194, 0.42);
+  --shell-body: rgba(174, 184, 194, 0.9);
+  --shell-meta: rgba(174, 184, 194, 0.77);
+  --shell-faint: rgba(174, 184, 194, 0.68);
 
   --shadow-hud: 0 18px 44px rgba(0, 0, 0, 0.4);
 }

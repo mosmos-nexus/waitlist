@@ -11,10 +11,16 @@
    * interaction because pricing is the decision a maker actually makes here.
    * Every figure on the peer rows is the Hub wireframe's own.
    */
+  /* Three ways to be paid back, no figures attached. The rates that would
+     turn these into numbers — the settlement share, the execution margin —
+     are open experiments, and Hub trading itself only switches on well past
+     the stage this page is announcing. What is decided is the shape: free
+     costs the runner nothing extra, lending splits part of each run's charge,
+     a Skill is bought once. */
   const MODES = $derived([
-    { name: m.share_free(), note: m.share_free_d(), price: m.share_free() },
-    { name: m.share_paid(), note: m.share_paid_d(), price: 'Mana 28~42' },
-    { name: m.share_skill(), note: m.share_skill_d(), price: 'Mana 120' },
+    { name: m.share_free(), note: m.share_free_d() },
+    { name: m.share_paid(), note: m.share_paid_d() },
+    { name: m.share_skill(), note: m.share_skill_d() },
   ]);
   let mode = $state(1);
 
@@ -64,8 +70,8 @@
             </header>
             <p class="desc">{m.share_mine_desc()}</p>
             <footer>
-              <span class="stars tnum">★ 4.8 · Mos 92</span>
-              <span class="price tnum">{MODES[mode].price}</span>
+              <span class="stars">{m.share_mode_label()}</span>
+              <span class="price">{MODES[mode].name}</span>
             </footer>
           </article>
         </div>

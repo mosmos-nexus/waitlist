@@ -60,7 +60,7 @@
     transform: translateX(-50%);
     z-index: 100;
     padding: 10px 18px;
-    background: var(--primary-normal);
+    background: var(--primary-fill);
     color: var(--static-white);
     border-radius: var(--radius-full);
     font-weight: var(--weight-semibold);

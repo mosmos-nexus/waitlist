@@ -136,8 +136,12 @@ async function open(path = '/', o = {}) {
   const result = await s.locator('.result p').innerText();
   ok('a result comes back', result.trim().length > 10, JSON.stringify(result.slice(0, 24)));
   ok('and busy is cleared', (await s.locator('.dot.live').count()) === 0);
+  // The charge line says *when* it is charged, never *how much*. What a run
+  // costs in Mana is set by a coefficient the monetization strategy still
+  // lists as an open experiment, so a figure here would be an invented price.
   const spent = await s.locator('.spent').innerText();
-  ok('the run is charged after it finishes', /12/.test(spent), spent);
+  ok('the run is charged after it finishes', spent.trim().length > 4, spent);
+  ok('and names no figure', !/\d/.test(spent), spent);
 
   // The other shape: Mos answers directly, with no Mon and no steps.
   await s.locator('.again').click();
@@ -147,7 +151,7 @@ async function open(path = '/', o = {}) {
   await s.locator('.opt').first().click();
   await p.waitForTimeout(1400);
   ok('a direct answer has no steps', (await s.locator('.steps').count()) === 0);
-  ok('and costs less', /4/.test(await s.locator('.spent').innerText()));
+  ok('and still names no figure', !/\d/.test(await s.locator('.spent').innerText()));
   await ctx.close();
 }
 
@@ -197,15 +201,22 @@ async function open(path = '/', o = {}) {
   ok('plugging a part fills its port', (await s.locator('.ports li.filled').count()) === 5);
   ok('and the tally counts them', /5/.test(await s.locator('.tally span').first().innerText()));
 
-  // The three tiers carry the wireframe's own per-run figures.
-  const est = async () => (await s.locator('.core-est').innerText()).replace(/\D/g, '');
-  ok('the middle tier estimates 14', (await est()) === '14');
+  // The tier changes what a run costs, and says so as a level rather than a
+  // number — the per-run Mana coefficient is not decided yet.
+  const est = async () => (await s.locator('.core-est').innerText()).trim();
+  const mid = await est();
   await s.locator('.tier').nth(2).click();
   await p.waitForTimeout(300);
-  ok('the deep tier estimates 28', (await est()) === '28');
+  const deep = await est();
   await s.locator('.tier').nth(0).click();
   await p.waitForTimeout(300);
-  ok('the fast tier estimates 4', (await est()) === '4');
+  const fast = await est();
+  ok(
+    'each tier reads differently',
+    new Set([mid, deep, fast]).size === 3,
+    [fast, mid, deep].join(' / '),
+  );
+  ok('and none of them quotes a figure', ![mid, deep, fast].some((t) => /\d/.test(t)));
   await ctx.close();
 }
 
@@ -216,19 +227,23 @@ async function open(path = '/', o = {}) {
   await s.scrollIntoViewIfNeeded();
   await p.waitForTimeout(500);
 
-  ok('three ways to price it', (await s.locator('.mode').count()) === 3);
+  ok('three ways to be paid back', (await s.locator('.mode').count()) === 3);
   const price = () => s.locator('.price').innerText();
+  const modes = await s.locator('.mode-n').allInnerTexts();
   await s.locator('.mode').nth(1).click();
   await p.waitForTimeout(200);
-  ok('a paid Mon lists a per-run range', /28~42/.test(await price()), await price());
+  ok('the listing follows the choice', (await price()).trim() === modes[1].trim(), await price());
   await s.locator('.mode').nth(2).click();
   await p.waitForTimeout(200);
-  ok('a Skill lists a single purchase', /120/.test(await price()), await price());
+  ok('and follows it again', (await price()).trim() === modes[2].trim(), await price());
 
+  // Hub trading, creator payout and certification are all inactive at the MVP
+  // stage this page announces, so a rating, a run count or a Mana price on a
+  // peer row would be describing something that does not exist yet.
   const peers = await s.locator('.peers .card .by').allInnerTexts();
   ok(
-    'peer rows carry real Hub figures',
-    peers.length === 3 && peers.every((t) => /Mos \d\d/.test(t)),
+    'peer rows say what a Mon does, not what it earns',
+    peers.length === 3 && peers.every((t) => t.trim().length > 4 && !/[\d★]/.test(t)),
     peers[0],
   );
   await ctx.close();
@@ -247,28 +262,39 @@ async function open(path = '/', o = {}) {
     plans.join(',') === 'Ground,Plot,Parcel',
     plans.join(','),
   );
-  const prices = await s.locator('.plan-p').allInnerTexts();
-  ok(
-    'at their own prices',
-    /\$0/.test(prices[0]) && /\$18/.test(prices[1]) && /\$48/.test(prices[2]),
-    prices.join(' '),
-  );
+  // Every plan says the price is not set, because it is not: subscription
+  // price, USD-to-Mana rate, top-up bonuses and storage caps are all listed as
+  // open experiments. The page showed $0 / $18 / $48 and "100 Mana ~ $1",
+  // none of which came from anywhere but a wireframe.
+  const tbd = await s.locator('.plan-tbd').allInnerTexts();
+  ok('each plan says the price is not set', tbd.length === 3 && tbd.every((t) => t.trim()));
 
-  // 100 Mana ≈ $1, and the bonus ladder is 5 / 8 / 12 % — rounded to the
-  // nearest 100, which is why 3,000 pays 200 rather than 240.
-  const slider = s.locator('input[type=range]');
-  for (const [amount, total, usd] of [
-    ['1000', '1,000', '$10'],
-    ['2000', '2,100', '$20'],
-    ['3000', '3,200', '$30'],
-    ['5000', '5,600', '$50'],
-  ]) {
-    await slider.fill(amount);
-    await p.waitForTimeout(150);
-    const t = await s.locator('.total').innerText();
-    const u = await s.locator('.usd').innerText();
-    ok(`${amount} Mana adds up`, t.includes(total) && u === usd, `${t} / ${u}`);
-  }
+  const body = await s.innerText();
+  ok(
+    'and the section quotes no money at all',
+    !/[$₩¥€]\s?\d/.test(body),
+    body.match(/[$₩¥€]\s?\d\S*/)?.[0],
+  );
+  // Same-line only: the column marker "2" sits directly above the heading
+  // "Mana — ...", and a newline-crossing \s would read that pair as a price.
+  const MANA_AMOUNT = /Mana[^\S\n]*\d|\d[^\S\n]*Mana/i;
+  ok('nor any Mana amount', !MANA_AMOUNT.test(body), body.match(MANA_AMOUNT)?.[0]);
+
+  // Picking a plan re-answers every row of the comparison, which is the part
+  // that *is* decided: which axes a tier moves on.
+  const rowsFor = async (i) => {
+    await s.locator('.plan').nth(i).click();
+    await p.waitForTimeout(200);
+    return (await s.locator('.table dd').allInnerTexts()).join('|');
+  };
+  const [g, pl, pa] = [await rowsFor(0), await rowsFor(1), await rowsFor(2)];
+  ok('the comparison has a row per axis', g.split('|').length === 7, g);
+  ok('and each plan answers it differently', new Set([g, pl, pa]).size === 3);
+  ok(
+    'Ground has no scheduled runs',
+    g.split('|')[4] !== pl.split('|')[4],
+    `${g.split('|')[4]} vs ${pl.split('|')[4]}`,
+  );
   await ctx.close();
 }
 

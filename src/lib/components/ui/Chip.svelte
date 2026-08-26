@@ -36,8 +36,8 @@
     color: var(--label-strong);
   }
   .chip.selected {
-    background: var(--primary-normal);
-    border-color: var(--primary-normal);
+    background: var(--primary-fill);
+    border-color: var(--primary-fill);
     color: var(--static-white);
     font-weight: var(--weight-semibold);
   }

@@ -86,10 +86,10 @@
   }
   a.active {
     color: var(--static-white);
-    background: var(--primary-normal);
+    background: var(--primary-fill);
   }
   a.active:hover {
-    background: var(--primary-strong);
+    background: var(--primary-fill-hover);
     color: var(--static-white);
   }
 

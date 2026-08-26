@@ -33,8 +33,7 @@
       // Delegated: a competitor sweep is a research Mon's whole job.
       sync: false,
       tone: 'research' as const,
-      mon: '리서치 Mon',
-      mana: 12,
+      mon: m.decide_mon_1(),
       result: m.decide_r1(),
     },
     {
@@ -45,7 +44,6 @@
       sync: true,
       tone: 'organize' as const,
       mon: '',
-      mana: 4,
       result: m.decide_r2(),
     },
     {
@@ -54,8 +52,7 @@
       options: [m.decide_ask3_a(), m.decide_ask3_b()],
       sync: false,
       tone: 'design' as const,
-      mon: '계약 검토 Mon',
-      mana: 32,
+      mon: m.decide_mon_3(),
       result: m.decide_r3(),
     },
   ]);
@@ -181,7 +178,7 @@
                     {m.decide_kind_async()}
                   </span>
                 {/if}
-                <span class="est tnum">−{goal.mana}</span>
+                <span class="est">{m.decide_running()}</span>
               </div>
 
               {#if !goal.sync}
@@ -205,7 +202,7 @@
                 <span class="label">{m.decide_result()}</span>
                 <p>{goal.result}</p>
                 <div class="foot">
-                  <span class="spent tnum">{m.decide_cost()} <b>{goal.mana}</b></span>
+                  <span class="spent">{m.decide_cost()}</span>
                   <button type="button" class="again" onclick={reset}>{m.decide_again()}</button>
                 </div>
               </div>
@@ -304,7 +301,7 @@
   .mine {
     align-self: flex-end;
     border-radius: 18px 18px 6px 18px;
-    background: var(--primary-normal);
+    background: var(--primary-fill);
     color: var(--static-white);
   }
 
@@ -474,9 +471,6 @@
   .spent {
     font-size: 11.5px;
     color: var(--shell-meta);
-  }
-  .spent b {
-    color: var(--summon-green);
   }
   .again {
     margin-left: auto;

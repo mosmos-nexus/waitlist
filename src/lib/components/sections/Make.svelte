@@ -36,10 +36,14 @@
     { port: 'guard' as PortKey, name: m.make_p_guard_2() },
   ]);
 
+  /* A level, not a figure. What a run costs in Mana is set by a coefficient
+     the strategy still lists as an open experiment, so printing "Mana 14"
+     would be inventing a price. The level is the part that is actually
+     decided — and it is the part the choice is about. */
   const TIERS = $derived([
-    { name: m.make_tier_1(), desc: m.make_tier_1_d(), mana: 4 },
-    { name: m.make_tier_2(), desc: m.make_tier_2_d(), mana: 14 },
-    { name: m.make_tier_3(), desc: m.make_tier_3_d(), mana: 28 },
+    { name: m.make_tier_1(), desc: m.make_tier_1_d(), level: m.make_tier_1_m() },
+    { name: m.make_tier_2(), desc: m.make_tier_2_d(), level: m.make_tier_2_m() },
+    { name: m.make_tier_3(), desc: m.make_tier_3_d(), level: m.make_tier_3_m() },
   ]);
 
   let plugged = $state<Record<PortKey, string[]>>({
@@ -96,7 +100,7 @@
             <span class="eyebrow">{m.make_core()}</span>
             <span class="core-t">{TIERS[tier].name}</span>
           </div>
-          <span class="core-est tnum"><b translate="no">Mana</b> {TIERS[tier].mana}</span>
+          <span class="core-est">{TIERS[tier].level}</span>
         </div>
 
         <ul class="ports">
@@ -106,7 +110,7 @@
               {#if plugged[port.key].length}
                 <span class="port-v">{plugged[port.key].join(' · ')}</span>
               {:else}
-                <span class="port-v empty">—</span>
+                <span class="port-v empty" aria-hidden="true">—</span>
               {/if}
             </li>
           {/each}
@@ -114,7 +118,7 @@
 
         <div class="tally">
           <span class="tnum">{m.make_parts_count()} <b>{count}</b></span>
-          <span class="tnum est">{m.make_est()} <b translate="no">Mana</b> {TIERS[tier].mana}</span>
+          <span class="est">{m.make_est()} <b>{TIERS[tier].level}</b></span>
         </div>
       </div>
 
@@ -151,7 +155,7 @@
                 onclick={() => (tier = i)}
               >
                 <span class="tier-n">{t.name}</span>
-                <span class="tier-m tnum">Mana {t.mana}</span>
+                <span class="tier-m">{t.level}</span>
               </button>
             {/each}
           </div>
@@ -211,17 +215,14 @@
     font-weight: 600;
     color: var(--shell-text);
   }
+  /* Was a figure set like a price; it now carries a level, so it is sized as
+     the label it is rather than as the number it used to be. */
   .core-est {
     margin-left: auto;
     flex: none;
-    font-size: 15px;
-    font-weight: 700;
+    font-size: 12.5px;
+    font-weight: 600;
     color: var(--bright-cyan);
-  }
-  .core-est b {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--shell-meta);
   }
 
   .ports {
@@ -310,7 +311,7 @@
   }
   .chip.on {
     border-color: transparent;
-    background: var(--primary-normal);
+    background: var(--primary-fill);
     color: var(--static-white);
     font-weight: 600;
   }
