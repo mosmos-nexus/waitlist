@@ -143,6 +143,15 @@ async function open(path = '/', o = {}) {
   ok('the run is charged after it finishes', spent.trim().length > 4, spent);
   ok('and names no figure', !/\d/.test(spent), spent);
 
+  // Mos orchestrates and never executes: it settles the goal and reports back,
+  // and the middle step — the one that runs — is always a Mon. The section used
+  // to run one of the three goals on Mos directly.
+  const actors = await s.locator('.steps .by').allInnerTexts();
+  ok('the run is walked by three actors', actors.length === 3, actors.join(','));
+  ok('and only the middle one is the Mon', actors[1] !== actors[0] && actors[1] !== actors[2]);
+  const monClass = await s.locator('.steps li').nth(1).locator('.by.mon').count();
+  ok('the executing step is marked as the Mon', monClass === 1);
+
   // The other shape: Mos answers directly, with no Mon and no steps.
   await s.locator('.again').click();
   await p.waitForTimeout(250);
@@ -150,7 +159,10 @@ async function open(path = '/', o = {}) {
   await p.waitForTimeout(250);
   await s.locator('.opt').first().click();
   await p.waitForTimeout(1400);
-  ok('a direct answer has no steps', (await s.locator('.steps').count()) === 0);
+  // Every goal is delegated now, so every goal walks the same steps. Nothing
+  // resolves on Mos.
+  ok('a second goal also delegates', (await s.locator('.steps li').count()) === 3);
+  ok('and names a Mon', (await s.locator('.runner .kind b').innerText()).trim().length > 1);
   ok('and still names no figure', !/\d/.test(await s.locator('.spent').innerText()));
   await ctx.close();
 }
@@ -203,33 +215,76 @@ async function open(path = '/', o = {}) {
     (await s.locator('.rails .rail button, .rails .rail input, .rails .rail a').count()) === 0,
   );
 
-  // The two slots that do take a decision start empty.
-  ok('two slots', (await s.locator('.slots .slot').count()) === 2);
-  ok('both empty to begin with', (await s.locator('.slots .slot.filled').count()) === 0);
+  // Nothing is wired to begin with.
+  ok('no tool nodes to begin with', (await s.locator('.nodes li').count()) === 0);
+  ok('and no documents either', (await s.locator('.board .doc').count()) === 0);
 
-  // A connector attaches from the palette and detaches from the slot.
+  // A connector attaches from the palette and wires into the core.
+  const firstCard = (await s.locator('.palette .card-n').first().innerText()).trim();
   await s.locator('.palette .card').first().click();
   await p.waitForTimeout(350);
-  ok(
-    'attaching a tool fills the tool slot',
-    (await s.locator('.slots .slot.filled').count()) === 1,
-  );
-  // First line only: the tag carries a visually-hidden "take off" label for
-  // screen readers, and Playwright's innerText includes it.
-  const tagName = (await s.locator('.slots .tag').first().innerText()).split('\n')[0].trim();
-  const cardName = await s.locator('.palette .card-n').first().innerText();
-  ok('and the slot names what was attached', tagName === cardName, `${tagName} / ${cardName}`);
-  await s.locator('.slots .tag').first().click();
+  ok('attaching a tool adds a node', (await s.locator('.nodes li').count()) === 1);
+  const nodeName = (await s.locator('.nodes .node-n').first().innerText()).trim();
+  ok('and the node names what was attached', nodeName === firstCard, `${nodeName} / ${firstCard}`);
+  ok('the core counts what feeds it', (await s.locator('.core .badge').innerText()) === '1');
+  await s.locator('.nodes .off').first().click();
   await p.waitForTimeout(300);
-  ok('tapping the tag takes it off', (await s.locator('.slots .slot.filled').count()) === 0);
+  ok('detaching removes the node', (await s.locator('.nodes li').count()) === 0);
+  ok('and the count goes with it', (await s.locator('.core .badge').count()) === 0);
 
-  // A Mon Skill lands in its own slot, not in the tool slot.
+  // A Mon Skill lands among the documents, never among the tool nodes.
   await s.locator('.tabs .tab').last().click();
   await p.waitForTimeout(250);
   await s.locator('.palette .card').first().click();
   await p.waitForTimeout(350);
-  const filledLabel = await s.locator('.slots .slot.filled .slot-k').innerText();
-  ok('a Mon Skill lands in the Skill slot', /Skill/i.test(filledLabel), filledLabel);
+  ok('a Mon Skill lands in the document area', (await s.locator('.board .doc').count()) === 1);
+  ok('and not among the tool nodes', (await s.locator('.nodes li').count()) === 0);
+
+  // Attaching a tool that has settings opens them — the no-code moment. And a
+  // required setting left unset has to stay visible on the node itself.
+  await s.locator('.tabs .tab').nth(2).click(); // 찾기 / find
+  await p.waitForTimeout(200);
+  const cards = await s.locator('.palette .card-n').allInnerTexts();
+  const readerIdx = cards.length - 1; // page reading is the required one
+  await s.locator('.palette .card').nth(readerIdx).click();
+  await p.waitForTimeout(350);
+  ok('a tool with settings opens its panel', (await s.locator('.palette .cfg').count()) === 1);
+  ok('and the panel says the setting is required', (await s.locator('.cfg .req').count()) === 1);
+  ok('the node warns until it is set', (await s.locator('.nodes li.warn').count()) === 1);
+  await s.locator('.cfg .opts .opt').first().click();
+  await p.waitForTimeout(300);
+  ok('choosing a value clears the warning', (await s.locator('.nodes li.warn').count()) === 0);
+  const nodeState = await s.locator('.nodes li').last().locator('.node-s').innerText();
+  ok('and the node shows what was chosen', nodeState.trim().length > 1, nodeState);
+  await s.locator('.cfg .back').click();
+  await p.waitForTimeout(250);
+  ok('the list comes back', (await s.locator('.palette .cards').count()) === 1);
+
+  // Group counts, so the palette reports its own state.
+  const counts = await s.locator('.tabs .tab .n').allInnerTexts();
+  ok('every group carries a count', counts.length === 5, counts.join(','));
+  ok(
+    'and they add up to what is attached',
+    counts.reduce((n, t) => n + Number(t), 0) === (await s.locator('.nodes li, .doc').count()),
+    counts.join(','),
+  );
+
+  // A Mon Skill is a document, not a second kind of agent. Its board entry has
+  // to name its parts rather than look like a tool node.
+  await s.locator('.tabs .tab').last().click();
+  await p.waitForTimeout(250);
+  ok(
+    'the Skill tab explains the two nouns apart',
+    (await s.locator('.palette .what div').count()) === 2,
+  );
+  const doc = s.locator('.board .doc');
+  ok('the attached Skill is drawn as a document', (await doc.count()) === 1);
+  ok('with its parts named', (await doc.locator('.doc-parts div').count()) === 3);
+  ok(
+    'and it says it does not run on its own',
+    (await doc.locator('.doc-note').innerText()).trim().length > 4,
+  );
+  ok('a Skill is never a tool node', (await s.locator('.nodes li .doc-tag').count()) === 0);
 
   // Every palette group carries something, so no tab is a dead end.
   const tabs = await s.locator('.tabs .tab').count();
@@ -284,6 +339,30 @@ async function open(path = '/', o = {}) {
     [fast, mid, deep].join(' / '),
   );
   ok('and none of them quotes a figure', ![mid, deep, fast].some((t) => /\d/.test(t)));
+  await ctx.close();
+}
+
+// ---- 5b. the early-team ask is on the page ----
+{
+  const { ctx, p } = await open();
+  const s = p.locator('section.recruit');
+  await s.scrollIntoViewIfNeeded();
+  // Long enough for the entrance to settle. The panel reveals with
+  // `scale: true`, and a scaled ancestor shrinks every box inside it — measured
+  // 43.86px for a control whose computed height is exactly 44.
+  await p.waitForTimeout(1400);
+  ok('the recruit block renders', (await s.count()) === 1);
+  ok('three roles, each with who it is for', (await s.locator('.roles li').count()) === 3);
+  const whos = await s.locator('.role-w').allInnerTexts();
+  ok(
+    'and none of those lines is empty',
+    whos.every((t) => t.trim().length > 4),
+  );
+  const link = s.locator('a.go');
+  ok('it links out in a new tab', (await link.getAttribute('target')) === '_blank');
+  ok('with rel set', /noopener/.test(await link.getAttribute('rel')));
+  const box = await link.boundingBox();
+  ok('and the link clears the target floor', box.height >= 44, `${Math.round(box.height)}px`);
   await ctx.close();
 }
 

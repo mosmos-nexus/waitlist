@@ -10,6 +10,7 @@
   import Share from '$lib/components/sections/Share.svelte';
   import Cost from '$lib/components/sections/Cost.svelte';
   import Join from '$lib/components/sections/Join.svelte';
+  import Recruit from '$lib/components/sections/Recruit.svelte';
   import Confirmation from '$lib/components/Confirmation.svelte';
   import { m } from '$lib/locale.svelte';
   import { reveal, animate, onScroll, prefersReduced } from '$lib/anime/motion';
@@ -83,6 +84,7 @@
     <Share />
     <Cost />
     <Join {onSuccess} registrantCount={data.registrantCount} />
+    <Recruit />
   </div>
 {/if}
 

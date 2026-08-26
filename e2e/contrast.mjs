@@ -211,6 +211,13 @@ async function auditControls() {
         await armed.scrollIntoViewIfNeeded();
         await armed.click();
         await p.waitForTimeout(300);
+        // Attaching a tool that has settings replaces the list with its panel,
+        // so the selected card is no longer rendered. Step back to the list.
+        const back = p.locator('section.make .cfg .back');
+        if (await back.count()) {
+          await back.click();
+          await p.waitForTimeout(300);
+        }
       }
     }
     const box = await p.evaluate((q) => {

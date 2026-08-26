@@ -30,8 +30,6 @@
       text: m.decide_g1(),
       ask: m.decide_ask1(),
       options: [m.decide_ask1_a(), m.decide_ask1_b()],
-      // Delegated: a competitor sweep is a research Mon's whole job.
-      sync: false,
       tone: 'research' as const,
       mon: m.decide_mon_1(),
       result: m.decide_r1(),
@@ -40,24 +38,30 @@
       text: m.decide_g2(),
       ask: m.decide_ask2(),
       options: [m.decide_ask2_a(), m.decide_ask2_b()],
-      // Direct: Mos already holds yesterday's minutes, so it just reads them.
-      sync: true,
       tone: 'organize' as const,
-      mon: '',
+      mon: m.decide_mon_2(),
       result: m.decide_r2(),
     },
     {
       text: m.decide_g3(),
       ask: m.decide_ask3(),
       options: [m.decide_ask3_a(), m.decide_ask3_b()],
-      sync: false,
       tone: 'design' as const,
       mon: m.decide_mon_3(),
       result: m.decide_r3(),
     },
   ]);
   const goal = $derived(GOALS[picked]);
-  const STEPS = $derived([m.decide_step1(), m.decide_step2(), m.decide_step3()]);
+  /* Mos never executes. The brand definition is explicit: it answers in
+     conversation but hands every task to a Mon and brings the result back. The
+     section used to run one of the three goals on Mos directly, which said the
+     opposite of the product. Now the actor is printed on each step so the
+     division is visible rather than implied. */
+  const STEPS = $derived([
+    { by: 'mos', text: m.decide_step1() },
+    { by: 'mon', text: m.decide_step2() },
+    { by: 'mos', text: m.decide_step3() },
+  ]);
 
   let timers: ReturnType<typeof setTimeout>[] = [];
   function clearTimers() {
@@ -77,10 +81,8 @@
     stage = 'run';
     step = 0;
     progress = 0;
-    busy = !goal.sync;
+    busy = true;
 
-    // Direct answers land almost at once; a delegated run walks its steps. The
-    // difference in wall-clock is the point, so it is not smoothed away.
     if (prefersReduced()) {
       finish();
       return;
@@ -89,18 +91,14 @@
     const bar = { v: 0 };
     animate(bar, {
       v: 100,
-      duration: goal.sync ? 900 : 3200,
+      duration: 3200,
       ease: 'inOut(2)',
       onUpdate: () => (progress = bar.v),
     });
 
-    if (goal.sync) {
-      timers.push(setTimeout(finish, 950));
-    } else {
-      timers.push(setTimeout(() => (step = 1), 1100));
-      timers.push(setTimeout(() => (step = 2), 2200));
-      timers.push(setTimeout(finish, 3300));
-    }
+    timers.push(setTimeout(() => (step = 1), 1100));
+    timers.push(setTimeout(() => (step = 2), 2200));
+    timers.push(setTimeout(finish, 3300));
   }
 
   function finish() {
@@ -165,34 +163,34 @@
               <p>{goal.text} — {goal.options[answer]}</p>
             </div>
 
-            <p class="says">{goal.sync ? m.decide_direct() : m.decide_hand()}</p>
+            <p class="says">{m.decide_hand()}</p>
 
-            <div class="run" class:sync={goal.sync}>
+            <div class="run">
               <div class="runner">
-                {#if goal.sync}
-                  <span class="kind">{m.decide_kind_sync()}</span>
-                {:else}
-                  <Mon tone={goal.tone} size={44} active={stage === 'run'} />
-                  <span class="kind">
-                    <b translate="no">{goal.mon}</b>
-                    {m.decide_kind_async()}
-                  </span>
-                {/if}
+                <Mon tone={goal.tone} size={44} active={stage === 'run'} />
+                <span class="kind">
+                  <b translate="no">{goal.mon}</b>
+                  {m.decide_kind_async()}
+                </span>
                 <span class="est">{m.decide_running()}</span>
               </div>
 
-              {#if !goal.sync}
-                <ol class="steps">
-                  {#each STEPS as s, i (s)}
-                    <li
-                      class:done={stage === 'done' || step > i}
-                      class:now={stage === 'run' && step === i}
+              <!-- Who does each step, spelled out. Mos confirms and reports;
+                   the Mon is the only thing that runs. -->
+              <ol class="steps">
+                {#each STEPS as s, i (s.text)}
+                  <li
+                    class:done={stage === 'done' || step > i}
+                    class:now={stage === 'run' && step === i}
+                  >
+                    <i></i>
+                    <b class="by" class:mon={s.by === 'mon'} translate="no"
+                      >{s.by === 'mon' ? m.decide_who_mon() : m.decide_who_mos()}</b
                     >
-                      <i></i>{s}
-                    </li>
-                  {/each}
-                </ol>
-              {/if}
+                    {s.text}
+                  </li>
+                {/each}
+              </ol>
 
               <div class="track"><div class="fill" style="width:{progress}%"></div></div>
             </div>
@@ -376,10 +374,6 @@
     border-radius: 18px;
     background: rgba(33, 237, 179, 0.06);
   }
-  .run.sync {
-    border-color: rgba(49, 220, 220, 0.3);
-    background: rgba(31, 206, 206, 0.06);
-  }
   .runner {
     display: flex;
     align-items: center;
@@ -399,8 +393,21 @@
     font-weight: 700;
     color: var(--summon-green);
   }
-  .run.sync .est {
-    color: var(--summon-cyan);
+
+  /* The actor on each step. Mos is quiet; the Mon step is the one that runs, so
+     it is the one that gets the accent. */
+  .by {
+    flex: none;
+    padding: 1px 6px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--glass-line);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--shell-meta);
+  }
+  .by.mon {
+    border-color: rgba(33, 237, 179, 0.45);
+    color: var(--summon-green);
   }
 
   .steps {

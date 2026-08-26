@@ -67,24 +67,28 @@ function ok(l, c, e = '') {
   await p.waitForTimeout(1500);
 
   /**
-   * Best of three passes, not one.
+   * Two numbers and a control, because one absolute number was measuring the
+   * runner rather than the page.
    *
-   * On a GPU-less runner this measurement is bimodal: the same build, measured
-   * three times in one process, returned p50 16.7 / 33.3 / 16.7 ms. 33.3 is
-   * exactly two vsync intervals — the compositor dropping to half rate under
-   * scheduler pressure, not the page costing more. A single sample therefore
-   * fails roughly a third of the time on a page that has not changed.
+   * The scene sits right on the vsync boundary of a GPU-less software
+   * rasteriser: the same build reads p50 16.7 ms at machine load ~1.0 and 33.3
+   * at ~1.8, and 33.3 is exactly two vsync intervals — the compositor halving,
+   * not the page costing more. A gate at 26 ms therefore flips on load, and
+   * best-of-three does not help when the load is sustained. Verified by
+   * isolation: hiding the bus gradient, the node stubs and the board's scrub
+   * transform each changed nothing, while hiding `.world` recovered 16.7 —
+   * i.e. the cost is the scene, which has not changed.
    *
-   * Interference only ever makes this number worse, so the best pass is the
-   * honest read of what the page can do, and it still catches the regression
-   * this gate exists for: at 66 ms per frame every pass fails.
-   *
-   * The first pass doubles as Chromium's warm-up, which is slower again.
+   * So: measure the flow without the scene as a control, and hold each to what
+   * it can actually promise. The control has no per-frame work at all, so it
+   * must stay fast — that is where a new leak anywhere in the page would show.
+   * The scene is allowed to sit at the 30 fps floor, but 66 ms, which is what
+   * this gate was built after, still fails.
    */
-  const measure = async () => {
-    await p.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-    await p.waitForTimeout(400);
-    await p.evaluate(() => {
+  const measure = async (page = p) => {
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await page.waitForTimeout(400);
+    await page.evaluate(() => {
       window.__g = [];
       let last = 0;
       const tick = (t) => {
@@ -95,32 +99,52 @@ function ok(l, c, e = '') {
       requestAnimationFrame(tick);
     });
     for (let i = 0; i < 60; i++) {
-      await p.mouse.wheel(0, 90);
-      await p.waitForTimeout(16);
+      await page.mouse.wheel(0, 90);
+      await page.waitForTimeout(16);
     }
-    await p.waitForTimeout(300);
-    const gaps = await p.evaluate(() => window.__g);
-    const sorted = [...gaps].sort((a, b) => a - b);
+    await page.waitForTimeout(300);
+    const sorted = (await page.evaluate(() => window.__g)).sort((a, b) => a - b);
     return {
       p50: sorted[Math.floor(sorted.length * 0.5)],
       p95: sorted[Math.floor(sorted.length * 0.95)],
     };
   };
+  const bestOf = async (n, page = p) => {
+    const runs = [];
+    for (let i = 0; i < n; i++) runs.push(await measure(page));
+    return {
+      p50: Math.min(...runs.map((r) => r.p50)),
+      p95: Math.min(...runs.map((r) => r.p95)),
+      all: runs.map((r) => r.p50.toFixed(1)).join(' / '),
+    };
+  };
 
-  const passes = [];
-  for (let i = 0; i < 3; i++) passes.push(await measure());
-  const p50 = Math.min(...passes.map((r) => r.p50));
-  const p95 = Math.min(...passes.map((r) => r.p95));
-
-  // Headless software rasterising is slower than any real client, so the gate
-  // is generous — it exists to catch a regression of the kind that took this
-  // page to 66 ms per frame, not to certify a frame rate.
+  const scene = await bestOf(3);
   ok(
-    'the scroll holds a frame budget',
-    p50 <= 26,
-    `p50 ${p50.toFixed(1)}ms  (passes: ${passes.map((r) => r.p50.toFixed(1)).join(' / ')})`,
+    'the scene holds a frame budget',
+    scene.p50 <= 40,
+    `p50 ${scene.p50.toFixed(1)}ms  (passes: ${scene.all})`,
   );
-  ok('with no long stalls', p95 <= 60, `p95 ${p95.toFixed(1)}ms`);
+  ok('with no long stalls', scene.p95 <= 60, `p95 ${scene.p95.toFixed(1)}ms`);
+
+  // Control: the same scroll with the world hidden. Nothing else on the page
+  // does per-frame work, so this has real headroom — if it slows, something new
+  // is running every frame.
+  //
+  // In its own context. `addStyleTag` cannot be undone, and hiding the world in
+  // this page left every assertion below it measuring a display:none scene.
+  const bareCtx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const bp = await bareCtx.newPage();
+  await bp.goto(BASE + '/', { waitUntil: 'networkidle' });
+  await bp.addStyleTag({ content: '.world { display: none !important }' });
+  await bp.waitForTimeout(1200);
+  const bare = await bestOf(2, bp);
+  await bareCtx.close();
+  ok(
+    'and the flow without the scene stays cheap',
+    bare.p50 <= 26,
+    `p50 ${bare.p50.toFixed(1)}ms  (passes: ${bare.all})`,
+  );
 
   // And the world keeps easing after the input stops — the difference between a
   // transform bolted to the wheel and one that plays toward it.

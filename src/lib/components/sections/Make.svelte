@@ -5,36 +5,43 @@
   import Mon from '$lib/components/world/Mon.svelte';
 
   /**
-   * Studio, built from the wireframe's three decisions rather than from a
-   * generic node editor.
+   * Studio, small enough to fit in a section and real enough to try.
    *
-   * 1. Nothing that has no choice in it becomes a control. A Mon is handed work
-   *    by Mos and never speaks to a person, so what goes in and what comes out
-   *    is identical for every Mon — text in, text plus files out. The old
-   *    version made those two into ports you could plug parts into, which
-   *    invented a decision and then asked the visitor to make it. They are now
-   *    dimmed, read-only rails: the dimming says "not yours to set".
+   * Four things carried over from the editor, because they are what make it a
+   * tool rather than a picture of one:
    *
-   * 2. One empty textarea is the hardest thing you can hand a non-expert, so
-   *    the system prompt arrives as three named pieces — role, order, rules —
-   *    each with a hint about what belongs in it. A fourth tab shows them
-   *    joined, read-only, so the whole is visible without being editable in two
-   *    places.
+   * 1. Attached tools are nodes wired into the core, not a list beside it. The
+   *    wires are CSS stubs meeting a bus line rather than SVG paths — a graph
+   *    drawn with real geometry needs layout maths that breaks at every width,
+   *    and what has to read is "these feed that", which a stub and a bus say.
+   * 2. Attaching a tool that needs configuring opens its panel. That is the
+   *    no-code moment: you did not write anything, and yet there is a decision
+   *    in front of you with the consequence spelled out.
+   * 3. A required setting left unset marks the node. The page-reading tool can
+   *    open anything until you say which places are allowed, so it says so — on
+   *    the node, not in a footnote.
+   * 4. What goes in and out is read-only, because a Mon only ever takes work
+   *    from Mos and hands the result back to Mos. Talking to a person is Mos's
+   *    job. That is the same for every Mon, so there is nothing to choose.
    *
-   * 3. Tools are connectors, and the palette is grouped the way someone
-   *    shopping for one would look: connect, create, find, run. Guards are
-   *    gone; they were a category the product does not expose here.
-   *
-   * Tap to attach, not drag. Dragging is what the real editor does and it fails
-   * on touch, fails on keyboard, and fails at any angle the demo did not
-   * anticipate. What is being shown is that a specialist is assembled without
-   * code, which a tap carries just as well.
+   * And the distinction the old version blurred: a Mon is the specialist that
+   * runs, rented on the Hub. A Mon Skill is a written procedure you attach to
+   * one — bought once, opened by the Mon when a task matches its one-line
+   * description, and it never runs by itself. They looked identical here, which
+   * made the Hub's rent-versus-buy split meaningless. The Skill now carries a
+   * document treatment and says what it is.
    */
   type Slot = 'tool' | 'skill';
   interface Part {
     slot: Slot;
     name: string;
     desc: string;
+    /** Skills only: the three parts of the document itself. `desc` stays the
+     *  provenance line the palette card shows. */
+    doc?: { when: string; steps: string; files: string };
+  }
+  interface Attached extends Part {
+    setting: string | null;
   }
 
   const TABS = $derived([
@@ -65,14 +72,62 @@
       { slot: 'tool', name: m.make_c_code(), desc: m.make_c_code_d() },
     ],
     skill: [
-      { slot: 'skill', name: m.make_c_s1(), desc: m.make_c_s1_d() },
-      { slot: 'skill', name: m.make_c_s2(), desc: m.make_c_s2_d() },
+      {
+        slot: 'skill',
+        name: m.make_c_s1(),
+        desc: m.make_c_s1_d(),
+        doc: { when: m.make_c_s1_when(), steps: m.make_c_s1_steps(), files: m.make_c_s1_files() },
+      },
+      {
+        slot: 'skill',
+        name: m.make_c_s2(),
+        desc: m.make_c_s2_d(),
+        doc: { when: m.make_c_s2_when(), steps: m.make_c_s2_steps(), files: m.make_c_s2_files() },
+      },
     ],
   });
 
-  /* A level, not a figure. What a run costs in Mana is set by a coefficient
-     the strategy still lists as an open experiment, so printing "Mana 14"
-     would be inventing a price. */
+  /**
+   * Per-tool settings. Only three carry one, which is the honest shape: most
+   * connectors have nothing to decide, and a panel that appeared for everything
+   * would be theatre.
+   *
+   * `required` is the one that matters. Which places a tool may read is the
+   * setting you cannot leave blank, so leaving it blank stays visible.
+   */
+  const CONFIG = $derived<
+    Record<
+      string,
+      {
+        title: string;
+        desc: string;
+        options: string[];
+        required?: boolean;
+        fixed?: { label: string; value: string };
+        note?: string;
+      }
+    >
+  >({
+    [m.make_c_img()]: {
+      title: m.make_cfg_img(),
+      desc: m.make_cfg_img_d(),
+      options: ['1', '2', '4'],
+      fixed: { label: m.make_cfg_img_fixed(), value: m.make_cfg_img_fixed_v() },
+      note: m.make_cfg_gen_note(),
+    },
+    [m.make_c_exa()]: {
+      title: m.make_cfg_exa(),
+      desc: m.make_cfg_exa_d(),
+      options: [m.make_cfg_exa_1(), m.make_cfg_exa_2(), m.make_cfg_exa_3()],
+      required: true,
+    },
+    [m.make_c_notion()]: {
+      title: m.make_cfg_notion(),
+      desc: m.make_cfg_notion_d(),
+      options: [m.make_cfg_notion_1(), m.make_cfg_notion_2()],
+    },
+  });
+
   const TIERS = $derived([
     { name: m.make_tier_1(), desc: m.make_tier_1_d(), level: m.make_tier_1_m() },
     { name: m.make_tier_2(), desc: m.make_tier_2_d(), level: m.make_tier_2_m() },
@@ -80,8 +135,6 @@
   ]);
   let tier = $state(1);
 
-  /** The prompt pieces. `all` is derived, never stored — it is a view of the
-   *  other three, so it cannot drift from them. */
   const PARTS = $derived([
     { key: 'role', label: m.make_pp_role(), hint: m.make_pp_role_h(), body: m.make_pp_role_b() },
     {
@@ -100,22 +153,32 @@
       : (PARTS.find((p) => p.key === promptTab) ?? PARTS[0]),
   );
 
-  let attached = $state<Part[]>([]);
+  let attached = $state<Attached[]>([]);
+  /** Which tool's settings panel is open, by name. */
+  let open = $state<string | null>(null);
   let core = $state<HTMLElement | null>(null);
 
-  const inSlot = (s: Slot) => attached.filter((a) => a.slot === s);
+  const tools = $derived(attached.filter((a) => a.slot === 'tool'));
+  const skills = $derived(attached.filter((a) => a.slot === 'skill'));
   const isOn = (p: Part) => attached.some((a) => a.name === p.name);
+  const needsSetup = (a: Attached) => !!CONFIG[a.name]?.required && a.setting === null;
+  const unset = $derived(tools.filter(needsSetup).length);
+  const openCfg = $derived(open ? CONFIG[open] : null);
+  const openItem = $derived(attached.find((a) => a.name === open) ?? null);
+  const countFor = (key: string) => CATALOG[key].filter((p) => isOn(p)).length;
 
   function toggle(part: Part, el: HTMLElement) {
     if (isOn(part)) {
       attached = attached.filter((a) => a.name !== part.name);
+      if (open === part.name) open = null;
       return;
     }
-    // Three per slot, as in Studio — enough to show stacking without the row
-    // wrapping into a wall.
-    const same = inSlot(part.slot);
+    const same = attached.filter((a) => a.slot === part.slot);
     const drop = same.length >= 3 ? same[0].name : null;
-    attached = [...attached.filter((a) => a.name !== drop), part];
+    attached = [...attached.filter((a) => a.name !== drop), { ...part, setting: null }];
+    // A tool with settings opens them. Nothing was typed and yet there is a
+    // real decision on screen — that is the no-code claim, demonstrated.
+    open = CONFIG[part.name] ? part.name : null;
 
     if (prefersReduced()) return;
     animate(el, { scale: [1, 0.94, 1], duration: 420, ease: 'out(3)' });
@@ -125,6 +188,10 @@
         duration: 620,
         ease: spring({ stiffness: 190, damping: 16 }),
       });
+  }
+
+  function choose(name: string, value: string) {
+    attached = attached.map((a) => (a.name === name ? { ...a, setting: value } : a));
   }
 </script>
 
@@ -138,15 +205,62 @@
 
     <div class="grid">
       <div class="board hud" use:reveal={{ delay: 60, scale: true }} use:scrub={{ y: 14 }}>
-        <!-- Read-only rails. Dimmed and tagged, with no control anywhere in
-             them, because there is no decision here to make. -->
+        <!-- Tool nodes, wired down into the core. -->
+        <div class="wired">
+          <span class="wired-k">
+            {m.make_wired()}
+            {#if tools.length}<b>{tools.length}</b>{/if}
+          </span>
+          {#if unset}
+            <span class="warn-n">{m.make_needs()} {unset}</span>
+          {/if}
+        </div>
+        {#if tools.length}
+          <ul class="nodes">
+            {#each tools as t (t.name)}
+              <li class:warn={needsSetup(t)} class:open={open === t.name}>
+                <button
+                  type="button"
+                  class="node"
+                  onclick={() => (open = CONFIG[t.name] ? t.name : null)}
+                >
+                  <span class="node-n">{t.name}</span>
+                  <span class="node-s">
+                    {#if needsSetup(t)}
+                      {m.make_needs()}
+                    {:else if t.setting}
+                      {t.setting}
+                    {:else}
+                      {m.make_cfg_none()}
+                    {/if}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  class="off"
+                  onclick={(e) => toggle(t, e.currentTarget)}
+                  aria-label="{t.name} — {m.make_remove()}"
+                >
+                  <span aria-hidden="true">✕</span>
+                </button>
+              </li>
+            {/each}
+          </ul>
+        {:else}
+          <p class="none">{m.make_none_yet()}</p>
+        {/if}
+        <div class="bus" aria-hidden="true"></div>
+
+        <!-- Read-only rails either side of the core. -->
         <div class="rails">
           <div class="rail">
             <span class="rail-k">{m.make_in()}</span>
-            <span class="rail-v">{m.make_in_v()}</span>
+            <span class="rail-r"><i>TEXT</i>{m.make_in_v()}</span>
+            <span class="rail-r"><i>LINK</i>{m.make_in_v2()}</span>
           </div>
           <span class="arrow" aria-hidden="true">→</span>
           <div class="core" bind:this={core}>
+            {#if tools.length}<span class="badge" aria-hidden="true">{tools.length}</span>{/if}
             <Mon tone="research" size={40} active={attached.length > 0} />
             <div class="core-meta">
               <span class="core-t">{m.make_core()}</span>
@@ -156,30 +270,50 @@
           <span class="arrow" aria-hidden="true">→</span>
           <div class="rail">
             <span class="rail-k">{m.make_out()}</span>
-            <span class="rail-v">{m.make_out_v()}</span>
+            <span class="rail-r"><i>TEXT</i>{m.make_out_v()}</span>
+            <span class="rail-r"><i>FILE</i>{m.make_out_v2()}</span>
           </div>
         </div>
         <p class="rail-note">{m.make_io_note()}</p>
 
-        <!-- The two slots that do take a decision. -->
-        <div class="slots">
-          {#each [{ s: 'tool' as Slot, label: m.make_slot_tool() }, { s: 'skill' as Slot, label: m.make_slot_skill() }] as row (row.s)}
-            <div class="slot" class:filled={inSlot(row.s).length > 0}>
-              <span class="slot-k">{row.label}</span>
-              <div class="slot-v">
-                {#if inSlot(row.s).length}
-                  {#each inSlot(row.s) as a (a.name)}
-                    <button type="button" class="tag" onclick={(e) => toggle(a, e.currentTarget)}>
-                      {a.name}<i aria-hidden="true">✕</i>
-                      <span class="visually-hidden">{m.make_remove()}</span>
-                    </button>
-                  {/each}
-                {:else}
-                  <span class="slot-empty">{m.make_slot_empty()}</span>
-                {/if}
-              </div>
-            </div>
-          {/each}
+        <!-- Attached Mon Skills. A document, drawn as one. -->
+        <div class="skills">
+          <span class="slot-k">{m.make_slot_skill()}</span>
+          {#if skills.length}
+            {#each skills as sk (sk.name)}
+              <article class="doc">
+                <header>
+                  <span class="doc-tag">{m.make_skill_doc()}</span>
+                  <span class="doc-n">{sk.name}</span>
+                  <button
+                    type="button"
+                    class="off"
+                    onclick={(e) => toggle(sk, e.currentTarget)}
+                    aria-label="{sk.name} — {m.make_remove()}"
+                  >
+                    <span aria-hidden="true">✕</span>
+                  </button>
+                </header>
+                <dl class="doc-parts">
+                  <div>
+                    <dt>{m.make_skill_when()}</dt>
+                    <dd>{m.make_skill_when_d()}</dd>
+                  </div>
+                  <div>
+                    <dt>{m.make_skill_steps()}</dt>
+                    <dd>{sk.desc}</dd>
+                  </div>
+                  <div>
+                    <dt>{m.make_skill_files()}</dt>
+                    <dd>checklist.md · report.md</dd>
+                  </div>
+                </dl>
+                <p class="doc-note">{m.make_skill_norun()}</p>
+              </article>
+            {/each}
+          {:else}
+            <span class="slot-empty">{m.make_slot_empty()}</span>
+          {/if}
         </div>
 
         <!-- The prompt, in three pieces plus a read-only join. -->
@@ -210,6 +344,7 @@
             >
               {m.make_pp_all()}
             </button>
+            <span class="chars tnum">{shown.body.length}{m.make_chars()}</span>
           </div>
           <p class="phint">{shown.hint}</p>
           <p class="pbody" class:joined={promptTab === 'all'}>{shown.body}</p>
@@ -218,39 +353,96 @@
 
       <div class="side">
         <div class="palette hud" use:reveal={{ delay: 100 }}>
-          <div class="prompt-head">
-            <span class="eyebrow">{m.make_palette()}</span>
-            <span class="hint">{m.make_palette_hint()}</span>
-          </div>
-          <div class="tabs" role="group" aria-label={m.make_palette()}>
-            {#each TABS as t (t.key)}
-              <button
-                type="button"
-                class="tab"
-                class:on={tab === t.key}
-                aria-pressed={tab === t.key}
-                onclick={() => (tab = t.key)}
-              >
-                {t.label}
+          {#if openCfg && openItem}
+            <!-- Settings for one tool, in place of the list. -->
+            <div class="cfg">
+              <button type="button" class="back" onclick={() => (open = null)}>
+                <span aria-hidden="true">‹</span>
+                {m.make_cfg_back()}
               </button>
-            {/each}
-          </div>
-          <ul class="cards">
-            {#each CATALOG[tab] as part (part.name)}
-              <li>
+              <div class="cfg-head">
+                <span class="cfg-n">{openItem.name}</span>
+                {#if openCfg.required}<span class="req">{m.make_cfg_req()}</span>{/if}
+              </div>
+              <p class="cfg-t">{openCfg.title}</p>
+              <p class="cfg-d">{openCfg.desc}</p>
+              <div class="opts">
+                {#each openCfg.options as o (o)}
+                  <button
+                    type="button"
+                    class="opt"
+                    class:on={openItem.setting === o}
+                    aria-pressed={openItem.setting === o}
+                    onclick={() => choose(openItem.name, o)}
+                  >
+                    {o}
+                  </button>
+                {/each}
+              </div>
+              {#if openCfg.fixed}
+                <div class="fixed">
+                  <span class="fixed-k">{openCfg.fixed.label}</span>
+                  <span class="fixed-v">{openCfg.fixed.value}</span>
+                </div>
+              {/if}
+              {#if openCfg.note}<p class="cfg-note">{openCfg.note}</p>{/if}
+            </div>
+          {:else}
+            <div class="prompt-head">
+              <span class="eyebrow">{m.make_palette()}</span>
+              <span class="hint">{m.make_palette_hint()}</span>
+            </div>
+            <div class="tabs" role="group" aria-label={m.make_palette()}>
+              {#each TABS as t (t.key)}
+                {@const n = countFor(t.key)}
                 <button
                   type="button"
-                  class="card"
-                  class:on={isOn(part)}
-                  aria-pressed={isOn(part)}
-                  onclick={(e) => toggle(part, e.currentTarget)}
+                  class="tab"
+                  class:on={tab === t.key}
+                  aria-pressed={tab === t.key}
+                  onclick={() => (tab = t.key)}
                 >
-                  <span class="card-n">{part.name}</span>
-                  <span class="card-d">{part.desc}</span>
+                  {t.label}<i class="n" class:has={n > 0}>{n}</i>
                 </button>
-              </li>
-            {/each}
-          </ul>
+              {/each}
+            </div>
+
+            {#if tab === 'skill'}
+              <!-- The one place the two nouns sit side by side, because this is
+                   where a visitor would otherwise assume they are the same. -->
+              <dl class="what">
+                <div>
+                  <dt>{m.make_what_mon()}</dt>
+                  <dd>{m.make_what_mon_d()}</dd>
+                </div>
+                <div class="is-skill">
+                  <dt>{m.make_what_skill()}</dt>
+                  <dd>{m.make_what_skill_d()}</dd>
+                </div>
+              </dl>
+            {/if}
+
+            <ul class="cards">
+              {#each CATALOG[tab] as part (part.name)}
+                <li>
+                  <button
+                    type="button"
+                    class="card"
+                    class:on={isOn(part)}
+                    class:skill={part.slot === 'skill'}
+                    aria-pressed={isOn(part)}
+                    onclick={(e) => toggle(part, e.currentTarget)}
+                  >
+                    <span class="card-n">
+                      {part.name}
+                      {#if part.slot === 'skill'}<i class="doc-tag">{m.make_skill_doc()}</i>{/if}
+                    </span>
+                    <span class="card-d">{part.desc}</span>
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          {/if}
         </div>
 
         <div class="tiers hud" use:reveal={{ delay: 140 }}>
@@ -285,7 +477,6 @@
   .head {
     margin-bottom: var(--space-32);
   }
-
   .grid {
     display: grid;
     gap: var(--space-20);
@@ -293,7 +484,7 @@
   }
   @media (min-width: 900px) {
     .grid {
-      grid-template-columns: minmax(0, 54fr) minmax(0, 46fr);
+      grid-template-columns: minmax(0, 56fr) minmax(0, 44fr);
     }
   }
   .side {
@@ -301,15 +492,140 @@
     flex-direction: column;
     gap: var(--space-20);
   }
-
   .board {
     display: flex;
     flex-direction: column;
-    gap: var(--space-14);
+    gap: var(--space-10);
     padding: var(--space-20);
   }
 
-  /* ---- the read-only rails ---- */
+  /* ---- tool nodes + the bus they feed ---- */
+  .wired {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-8);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .wired-k {
+    color: var(--gray3);
+  }
+  .wired-k b {
+    color: var(--bright-cyan);
+  }
+  .warn-n {
+    margin-left: auto;
+    color: var(--coral-red);
+  }
+  .nodes {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-8);
+  }
+  .nodes li {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--glass-line);
+    border-radius: var(--radius-xs);
+    background: rgba(112, 115, 124, 0.1);
+  }
+  /* The wire. A stub down to the bus line below, which is what makes these read
+     as feeding the core instead of listing beside it. */
+  .nodes li::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -11px;
+    width: 1px;
+    height: 11px;
+    background: rgba(49, 220, 220, 0.5);
+  }
+  .node {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 9px 4px 9px 12px;
+    border: 0;
+    border-radius: var(--radius-xs) 0 0 var(--radius-xs);
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+  }
+  .node-n {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--shell-text);
+  }
+  .node-s {
+    font-size: 10.5px;
+    color: var(--shell-meta);
+  }
+  .nodes li.warn {
+    border-color: rgba(233, 83, 83, 0.55);
+    background: rgba(233, 83, 83, 0.1);
+  }
+  .nodes li.warn .node-s {
+    color: var(--coral-red);
+    font-weight: 600;
+  }
+  .nodes li.open {
+    border-color: var(--primary-light);
+  }
+  /* Drawn small, hit at 44. */
+  .off {
+    position: relative;
+    flex: none;
+    width: 26px;
+    border: 0;
+    border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+    background: transparent;
+    font-size: 10px;
+    color: var(--shell-meta);
+    cursor: pointer;
+  }
+  .off::after {
+    content: '';
+    position: absolute;
+    inset: 50% 0 auto 0;
+    height: var(--control-m);
+    transform: translateY(-50%);
+  }
+  .off:hover {
+    color: var(--coral-red);
+  }
+  .node:focus-visible,
+  .off:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+  .none {
+    margin: 0;
+    font-size: 12px;
+    color: var(--shell-faint);
+  }
+  /* The bus the stubs land on. Bright enough to actually trace with the eye —
+     at `--glass-line` it composited to about 1.4:1 and the wiring read as
+     absent, which left the nodes looking like a list beside the core rather
+     than inputs to it. */
+  .bus {
+    height: 1px;
+    margin: 10px 0 2px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(49, 220, 220, 0.42) 14%,
+      rgba(49, 220, 220, 0.42) 86%,
+      transparent
+    );
+  }
+
+  /* ---- read-only rails ---- */
   .rails {
     display: flex;
     align-items: stretch;
@@ -320,15 +636,11 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    gap: 3px;
-    padding: var(--space-12) var(--space-10);
+    gap: 5px;
+    padding: var(--space-10) var(--space-12);
     border: 1px dashed var(--glass-line-soft);
     border-radius: var(--radius-xs);
-    /* No hover, no cursor, no fill. The flat dashed box is the whole message:
-       there is nothing to open here. */
     background: transparent;
-    text-align: center;
   }
   .rail-k {
     font-size: 10.5px;
@@ -336,9 +648,22 @@
     letter-spacing: 0.04em;
     color: var(--shell-faint);
   }
-  .rail-v {
-    font-size: 12.5px;
-    font-weight: 600;
+  .rail-r {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 11.5px;
+    color: var(--shell-meta);
+  }
+  .rail-r i {
+    flex: none;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(112, 115, 124, 0.22);
+    font-size: 9px;
+    font-style: normal;
+    font-weight: 700;
+    letter-spacing: 0.06em;
     color: var(--shell-meta);
   }
   .arrow {
@@ -348,6 +673,7 @@
     color: var(--shell-faint);
   }
   .core {
+    position: relative;
     flex: none;
     display: flex;
     align-items: center;
@@ -356,6 +682,22 @@
     border: 1px solid rgba(49, 220, 220, 0.34);
     border-radius: var(--radius-m);
     background: rgba(31, 206, 206, 0.08);
+  }
+  .badge {
+    position: absolute;
+    top: -9px;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: var(--radius-full);
+    background: var(--summon-cyan);
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    color: var(--static-black);
   }
   .core-meta {
     display: flex;
@@ -378,9 +720,7 @@
     line-height: 1.6;
     color: var(--shell-faint);
   }
-  /* Below 560px the three boxes stop fitting side by side; stacking keeps the
-     in-core-out reading order intact and drops the arrows to vertical. */
-  @media (max-width: 559px) {
+  @media (max-width: 619px) {
     .rails {
       flex-direction: column;
     }
@@ -392,79 +732,91 @@
     }
   }
 
-  /* ---- the two slots ---- */
-  .slots {
+  /* ---- attached Mon Skill: a document, not a tool ---- */
+  .skills {
     display: flex;
     flex-direction: column;
+    gap: var(--space-8);
     padding-top: var(--space-12);
     border-top: 1px solid var(--glass-line-soft);
   }
-  .slot {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-12);
-    padding: 8px 0;
-  }
   .slot-k {
-    flex: none;
-    width: 7.5em;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.04em;
     color: var(--gray3);
   }
-  .slot.filled .slot-k {
-    color: var(--summon-cyan);
-  }
-  .slot-v {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-6);
-    min-width: 0;
-  }
   .slot-empty {
     font-size: 12px;
     color: var(--shell-faint);
   }
-  /* Drawn at 28px but hit at 44: the visual chip has to stay chip-sized next to
-     11px labels, and the design system's target floor is 44. */
-  .tag {
-    position: relative;
-    display: inline-flex;
+  /* Squared corners, a spine down the left, a rule under the title: it should
+     read as a page, next to nodes that read as parts. */
+  .doc {
+    border: 1px solid rgba(155, 110, 239, 0.42);
+    border-left-width: 3px;
+    border-radius: 4px;
+    background: rgba(122, 62, 234, 0.09);
+    padding: var(--space-12) var(--space-14);
+  }
+  .doc header {
+    display: flex;
     align-items: center;
-    gap: 6px;
-    height: 28px;
-    padding: 0 10px;
-    border: 1px solid rgba(49, 220, 220, 0.4);
-    border-radius: var(--radius-full);
-    background: rgba(31, 206, 206, 0.1);
-    font-size: 11.5px;
-    color: var(--shell-text);
-    cursor: pointer;
+    gap: var(--space-8);
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(155, 110, 239, 0.28);
   }
-  .tag::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 50%;
-    height: var(--control-m);
-    transform: translateY(-50%);
-  }
-  .tag i {
+  .doc-tag {
+    flex: none;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(155, 110, 239, 0.28);
+    font-size: 9.5px;
     font-style: normal;
-    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: rgb(213, 195, 249);
+  }
+  .doc-n {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--shell-text);
+  }
+  .doc header .off {
+    margin-left: auto;
+    width: 22px;
+  }
+  .doc-parts {
+    margin: 8px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .doc-parts div {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-8);
+  }
+  .doc-parts dt {
+    flex: none;
+    width: 8.5em;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: rgb(203, 183, 244);
+  }
+  .doc-parts dd {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.5;
     color: var(--shell-meta);
   }
-  .tag:hover i {
-    color: var(--coral-red);
-  }
-  .tag:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus);
+  .doc-note {
+    margin: 8px 0 0;
+    font-size: 10.5px;
+    color: var(--shell-faint);
   }
 
-  /* ---- the prompt ---- */
+  /* ---- prompt ---- */
   .prompt {
     display: flex;
     flex-direction: column;
@@ -487,7 +839,13 @@
   .tabs {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: var(--space-6);
+  }
+  .chars {
+    margin-left: auto;
+    font-size: 10.5px;
+    color: var(--shell-faint);
   }
   .ptab,
   .tab {
@@ -519,12 +877,12 @@
   .ptab:focus-visible,
   .tab:focus-visible,
   .card:focus-visible,
-  .tier:focus-visible {
+  .tier:focus-visible,
+  .opt:focus-visible,
+  .back:focus-visible {
     outline: none;
     box-shadow: var(--shadow-focus);
   }
-  /* A filled piece carries a dot, so what is left to write is visible without
-     opening each tab. The `all` tab is a view, not a piece, so it has none. */
   .dot {
     width: 5px;
     height: 5px;
@@ -533,6 +891,22 @@
   }
   .ptab.on .dot {
     background: var(--static-white);
+  }
+  /* The per-group count. Zero stays visible but recedes, so the row reads as a
+     tally rather than as badges that appear and disappear. */
+  .n {
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 700;
+    color: var(--shell-faint);
+  }
+  .n.has {
+    color: var(--bright-cyan);
+  }
+  .tab.on .n {
+    /* Full white, not a fade: on the fill this sits over, 0.78 alpha measured
+       3.59:1 and 9-10px bold is still normal-size text to WCAG. */
+    color: var(--static-white);
   }
   .phint {
     margin: 0;
@@ -548,8 +922,6 @@
     font-size: 12.5px;
     line-height: 1.7;
     color: var(--shell-body);
-    /* The bodies carry authored newlines — numbered steps and one rule per
-       line — and losing them turns a procedure into a paragraph. */
     white-space: pre-wrap;
   }
   .pbody.joined {
@@ -558,13 +930,36 @@
     color: var(--shell-meta);
   }
 
-  /* ---- the palette ---- */
+  /* ---- palette ---- */
   .palette,
   .tiers {
     display: flex;
     flex-direction: column;
     gap: var(--space-12);
     padding: var(--space-20);
+  }
+  .what {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-10);
+    padding: var(--space-12) var(--space-14);
+    border-radius: var(--radius-xs);
+    background: rgba(112, 115, 124, 0.14);
+  }
+  .what dt {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--shell-text);
+  }
+  .what dd {
+    margin: 3px 0 0;
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: var(--shell-meta);
+  }
+  .what .is-skill dt {
+    color: rgb(213, 195, 249);
   }
   .cards {
     list-style: none;
@@ -593,7 +988,22 @@
     border-color: var(--primary-light);
     background: rgba(15, 111, 218, 0.18);
   }
+  /* A Skill in the palette already looks like a document, so the same shape
+     carries through to the board. */
+  .card.skill {
+    border-radius: 4px;
+    border-left-width: 3px;
+    border-left-color: rgba(155, 110, 239, 0.5);
+  }
+  .card.skill.on {
+    border-color: rgba(155, 110, 239, 0.6);
+    border-left-color: rgb(155, 110, 239);
+    background: rgba(122, 62, 234, 0.14);
+  }
   .card-n {
+    display: flex;
+    align-items: center;
+    gap: 7px;
     font-size: 12.5px;
     font-weight: 600;
     color: var(--shell-text);
@@ -602,6 +1012,111 @@
     font-size: 11.5px;
     line-height: 1.5;
     color: var(--shell-meta);
+  }
+
+  /* ---- the settings panel ---- */
+  .cfg {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+  .back {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: var(--control-m);
+    padding: 0 12px 0 8px;
+    margin-left: -8px;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: transparent;
+    font-size: 11.5px;
+    color: var(--shell-meta);
+    cursor: pointer;
+  }
+  .back:hover {
+    color: var(--shell-text);
+  }
+  .cfg-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+  }
+  .cfg-n {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--shell-text);
+  }
+  .req {
+    padding: 2px 7px;
+    border-radius: var(--radius-full);
+    background: rgba(233, 83, 83, 0.18);
+    border: 1px solid rgba(233, 83, 83, 0.5);
+    font-size: 9.5px;
+    font-weight: 700;
+    color: rgb(250, 186, 186);
+  }
+  .cfg-t {
+    margin: var(--space-6) 0 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--shell-text);
+  }
+  .cfg-d {
+    margin: 0;
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: var(--shell-meta);
+  }
+  .opts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-6);
+  }
+  .opt {
+    height: var(--control-m);
+    padding: 0 14px;
+    border: 1px solid var(--glass-line);
+    border-radius: var(--radius-full);
+    background: transparent;
+    font-size: 12px;
+    color: var(--shell-body);
+    cursor: pointer;
+    transition: var(--transition-base);
+  }
+  .opt:hover {
+    border-color: rgba(49, 220, 220, 0.55);
+  }
+  .opt.on {
+    border-color: transparent;
+    background: var(--primary-fill);
+    color: var(--static-white);
+    font-weight: 600;
+  }
+  .fixed {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 13px;
+    border-radius: var(--radius-xs);
+    background: rgba(112, 115, 124, 0.14);
+  }
+  .fixed-k {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--shell-faint);
+  }
+  .fixed-v {
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--shell-meta);
+  }
+  .cfg-note {
+    margin: 0;
+    font-size: 10.5px;
+    color: var(--shell-faint);
   }
 
   .tier-row {
