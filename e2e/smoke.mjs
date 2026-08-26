@@ -244,8 +244,8 @@ async function open(path = '/', o = {}) {
   ok('only the fixed wires are drawn', (await s.locator('.canvas svg.wires > path').count()) === 2);
 
   // Click to attach: a connector becomes a node, wired to the core.
-  const firstCard = (await s.locator('.palette .card-n').first().innerText()).trim();
-  await s.locator('.palette .card').first().click();
+  const firstCard = (await s.locator('.stage .cards .card-n').first().innerText()).trim();
+  await s.locator('.stage .cards .card').first().click();
   await p.waitForTimeout(350);
   ok('attaching adds a node', (await s.locator('.canvas .node.placed').count()) === 1);
   ok('and a wire with it', (await s.locator('.canvas svg.wires > path').count()) === 3);
@@ -253,30 +253,15 @@ async function open(path = '/', o = {}) {
   ok('the node names what was attached', nodeName === firstCard, `${nodeName} / ${firstCard}`);
   ok('the core counts what feeds it', /1/.test(await s.locator('.core .c-row').last().innerText()));
 
-  // Its settings opened with it — nothing was typed, and there is a real
-  // decision on screen. That is the no-code claim, demonstrated.
-  ok('a tool with settings opens them', (await s.locator('.palette .cfg').count()) === 1);
-  await s.locator('.cfg .opts .opt').first().click();
-  await p.waitForTimeout(250);
-  const chosen = (await s.locator('.node.placed .p-s').first().innerText()).trim();
-  ok('choosing a value shows on the node', chosen.length > 0, chosen);
-  await s.locator('.cfg .back').click();
-  await p.waitForTimeout(250);
-
-  // A required setting left unset marks the node.
-  await s.locator('.palette .tabs .tab').nth(2).click();
-  await p.waitForTimeout(200);
-  await s.locator('.palette .card').last().click();
-  await p.waitForTimeout(350);
-  ok('a required setting is flagged', (await s.locator('.cfg .req').count()) === 1);
-  ok('and the node warns until it is set', (await s.locator('.node.placed.warn').count()) === 1);
-  await s.locator('.cfg .back').click();
-  await p.waitForTimeout(250);
+  // Every node carries its own one-line description, so the board reads without
+  // opening anything.
+  const sub = (await s.locator('.node.placed .p-s').first().innerText()).trim();
+  ok('the node describes itself', sub.length > 3, sub);
 
   // Drag from the palette onto the canvas: the node lands where it was dropped.
-  await s.locator('.palette .tabs .tab').nth(1).click();
+  await s.locator('.stage > .tabs .tab').nth(1).click();
   await p.waitForTimeout(200);
-  const card = s.locator('.palette .card').first();
+  const card = s.locator('.stage .cards .card').first();
   const cb = await card.boundingBox();
   const cv = await s.locator('.canvas').boundingBox();
   const before = await s.locator('.canvas .node.placed').count();
@@ -301,22 +286,16 @@ async function open(path = '/', o = {}) {
     dropped.y > 150,
     `${Math.round(dropped.x)},${Math.round(dropped.y)}`,
   );
-  // The drop may have opened that tool's settings, which replaces the palette
-  // list. Close it before touching the tabs again.
-  if (await s.locator('.cfg .back').count()) {
-    await s.locator('.cfg .back').click();
-    await p.waitForTimeout(250);
-  }
 
   // A Mon Skill is a document, not a second kind of agent. It wires to its own
   // port and carries the document mark; only the agent has a face.
-  await s.locator('.palette .tabs .tab').last().click();
+  await s.locator('.stage > .tabs .tab').last().click();
   await p.waitForTimeout(250);
   ok(
     'the Skill tab explains the two nouns apart',
-    (await s.locator('.palette .what div').count()) === 2,
+    (await s.locator('.stage .what div').count()) === 2,
   );
-  await s.locator('.palette .card').first().click();
+  await s.locator('.stage .cards .card').first().click();
   await p.waitForTimeout(350);
   ok('a Skill lands as a document node', (await s.locator('.node.placed.skill').count()) === 1);
   ok('marked as a document', (await s.locator('.node.placed.skill .tag').count()) === 1);
@@ -328,16 +307,16 @@ async function open(path = '/', o = {}) {
   );
 
   // Every palette group carries something, and reports its own count.
-  const tabs = await s.locator('.palette .tabs .tab').count();
+  const tabs = await s.locator('.stage > .tabs .tab').count();
   ok('five palette groups', tabs === 5, String(tabs));
   let empty = 0;
   for (let i = 0; i < tabs; i++) {
-    await s.locator('.palette .tabs .tab').nth(i).click();
+    await s.locator('.stage > .tabs .tab').nth(i).click();
     await p.waitForTimeout(150);
-    if ((await s.locator('.palette .card').count()) === 0) empty++;
+    if ((await s.locator('.stage .cards .card').count()) === 0) empty++;
   }
   ok('and none is a dead end', empty === 0);
-  const counts = await s.locator('.palette .tabs .tab .n').allInnerTexts();
+  const counts = await s.locator('.stage > .tabs .tab .n').allInnerTexts();
   ok(
     'the counts add up to what is on the canvas',
     counts.reduce((n, t) => n + Number(t), 0) === (await s.locator('.node.placed').count()),

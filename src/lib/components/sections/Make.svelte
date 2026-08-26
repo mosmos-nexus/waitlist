@@ -67,7 +67,6 @@
   interface Placed extends Part {
     x: number;
     y: number;
-    setting: string | null;
   }
 
   const TABS = $derived([
@@ -116,38 +115,6 @@
   /** Only three tools carry a setting. Most connectors have nothing to decide,
    *  and a panel that appeared for everything would be theatre. `required` is
    *  the one that matters: which places a tool may read cannot be left blank. */
-  const CONFIG = $derived<
-    Record<
-      string,
-      {
-        title: string;
-        desc: string;
-        options: string[];
-        required?: boolean;
-        fixed?: { label: string; value: string };
-        note?: string;
-      }
-    >
-  >({
-    [m.make_c_img()]: {
-      title: m.make_cfg_img(),
-      desc: m.make_cfg_img_d(),
-      options: ['1', '2', '4'],
-      fixed: { label: m.make_cfg_img_fixed(), value: m.make_cfg_img_fixed_v() },
-      note: m.make_cfg_gen_note(),
-    },
-    [m.make_c_exa()]: {
-      title: m.make_cfg_exa(),
-      desc: m.make_cfg_exa_d(),
-      options: [m.make_cfg_exa_1(), m.make_cfg_exa_2(), m.make_cfg_exa_3()],
-      required: true,
-    },
-    [m.make_c_notion()]: {
-      title: m.make_cfg_notion(),
-      desc: m.make_cfg_notion_d(),
-      options: [m.make_cfg_notion_1(), m.make_cfg_notion_2()],
-    },
-  });
 
   const TIERS = $derived([
     { name: m.make_tier_1(), desc: m.make_tier_1_d(), level: m.make_tier_1_m() },
@@ -175,17 +142,12 @@
   );
 
   let placed = $state<Placed[]>([]);
-  let open = $state<string | null>(null);
   let core = $state<HTMLElement | null>(null);
   let canvas = $state<HTMLElement | null>(null);
 
   const tools = $derived(placed.filter((n) => n.kind === 'tool'));
   const skills = $derived(placed.filter((n) => n.kind === 'skill'));
   const isOn = (p: Part) => placed.some((n) => n.name === p.name);
-  const needsSetup = (n: Placed) => !!CONFIG[n.name]?.required && n.setting === null;
-  const unset = $derived(placed.filter(needsSetup).length);
-  const openCfg = $derived(open ? CONFIG[open] : null);
-  const openNode = $derived(placed.find((n) => n.name === open) ?? null);
   const countFor = (key: string) => CATALOG[key].filter((p) => isOn(p)).length;
 
   /* ---- wires ---- */
@@ -243,10 +205,8 @@
         ...part,
         x: clamp(spot.x, 4, W - NODE_W - 4),
         y: clamp(spot.y, 4, H - NODE_H - 4),
-        setting: null,
       },
     ];
-    open = CONFIG[part.name] ? part.name : null;
     if (prefersReduced() || !core) return;
     animate(core, {
       scale: [1, 1.03, 1],
@@ -257,7 +217,6 @@
 
   function detach(name: string) {
     placed = placed.filter((n) => n.name !== name);
-    if (open === name) open = null;
   }
 
   /* Listeners go on the window for the life of a drag, not on the canvas.
@@ -309,8 +268,8 @@
     drag = null;
     if (!live) {
       // A press that never moved is a click.
-      if (moving) open = CONFIG[part.name] ? part.name : null;
-      else if (isOn(part)) detach(part.name);
+      if (moving) return;
+      if (isOn(part)) detach(part.name);
       else attach(part);
       return;
     }
@@ -328,271 +287,207 @@
       <p class="lead">{m.make_lead()}</p>
     </div>
 
-    <div class="grid">
-      <div class="stage hud" use:reveal={{ delay: 60, scale: true }}>
-        <div class="bar">
-          <span class="eyebrow">Studio</span>
-          <span class="hint">{m.make_canvas_hint()}</span>
-          {#if unset}<span class="warn-n">{m.make_needs()} {unset}</span>{/if}
-        </div>
+    <div class="stage hud" use:reveal={{ delay: 60, scale: true }}>
+      <div class="bar">
+        <span class="eyebrow">{m.make_palette()}</span>
+        <span class="hint">{m.make_canvas_hint()}</span>
+      </div>
 
-        <div class="frame">
-          <div class="canvas" bind:this={canvas} style="width:{W}px;height:{H}px">
-            <svg class="wires" width={W} height={H} viewBox="0 0 {W} {H}" aria-hidden="true">
-              <path class="w fixed" d={wireIn} />
-              <path class="w fixed" d={wireOut} />
-              {#each wires as w (w.name)}
-                <path class="w" d={w.d} />
-              {/each}
-              {#if ghostWire}
-                <path class="w ghost" d={ghostWire} />
-              {/if}
-            </svg>
+      <!-- The palette sits above the canvas, so the drag runs downward into it.
+           Below the canvas it meant reaching past the whole board to start. -->
+      <div class="tabs" role="group" aria-label={m.make_palette()}>
+        {#each TABS as t (t.key)}
+          {@const n = countFor(t.key)}
+          <button
+            type="button"
+            class="tab"
+            class:on={tab === t.key}
+            aria-pressed={tab === t.key}
+            onclick={() => (tab = t.key)}>{t.label}<i class="n" class:has={n > 0}>{n}</i></button
+          >
+        {/each}
+      </div>
 
-            <!-- read-only side nodes -->
-            <div
-              class="node fixed"
-              style="left:{IN.x}px;top:{IN.y}px;width:{IN.w}px;height:{IN.h}px"
+      {#if tab === 'skill'}
+        <dl class="what">
+          <div>
+            <dt>{m.make_what_mon()}</dt>
+            <dd>{m.make_what_mon_d()}</dd>
+          </div>
+          <div class="is-skill">
+            <dt>{m.make_what_skill()}</dt>
+            <dd>{m.make_what_skill_d()}</dd>
+          </div>
+        </dl>
+      {/if}
+
+      <ul class="cards">
+        {#each CATALOG[tab] as part (part.name)}
+          <li>
+            <button
+              type="button"
+              class="card"
+              class:on={isOn(part)}
+              class:skill={part.kind === 'skill'}
+              aria-pressed={isOn(part)}
+              onpointerdown={(e) => startDrag(e, part, false)}
             >
-              <span class="n-k">{m.make_in()}</span>
-              <span class="n-r"><i>TEXT</i>{m.make_in_v()}</span>
-              <span class="n-r"><i>LINK</i>{m.make_in_v2()}</span>
-            </div>
-            <div
-              class="node fixed"
-              style="left:{OUT.x}px;top:{OUT.y}px;width:{OUT.w}px;height:{OUT.h}px"
-            >
-              <span class="n-k">{m.make_out()}</span>
-              <span class="n-r"><i>TEXT</i>{m.make_out_v()}</span>
-              <span class="n-r"><i>FILE</i>{m.make_out_v2()}</span>
-            </div>
+              <span class="card-n">
+                {part.name}
+                {#if part.kind === 'skill'}<i class="tag">{m.make_skill_doc()}</i>{/if}
+              </span>
+              <span class="card-d">{part.desc}</span>
+            </button>
+          </li>
+        {/each}
+      </ul>
 
-            <!-- the core -->
-            <div
-              class="core"
-              bind:this={core}
-              style="left:{CORE.x}px;top:{CORE.y}px;width:{CORE.w}px;height:{CORE.h}px"
-            >
-              <header>
-                <Mon tone="research" size={30} active={placed.length > 0} />
-                <span class="c-n">Mon</span>
-                <span class="c-kind">{m.make_agent()}</span>
-              </header>
-              <div class="c-row">
-                <span class="c-k">{m.make_brain()}</span>
-                <span class="c-v">{TIERS[tier].name}</span>
-              </div>
-              <div class="c-row">
-                <span class="c-k">{m.make_tools_n()}</span>
-                <span class="c-v tnum">{tools.length}</span>
-                <span class="c-k">{m.make_skills_n()}</span>
-                <span class="c-v tnum">{skills.length}</span>
-              </div>
-              <span class="port top" aria-hidden="true"></span>
-              <span class="port bottom" aria-hidden="true"></span>
-            </div>
-
-            <!-- placed nodes -->
-            {#each placed as n (n.name)}
-              <div
-                class="node placed"
-                class:skill={n.kind === 'skill'}
-                class:warn={needsSetup(n)}
-                class:open={open === n.name}
-                class:held={drag?.live && drag.part.name === n.name}
-                style="left:{n.x}px;top:{n.y}px;width:{NODE_W}px"
-              >
-                <button
-                  type="button"
-                  class="grip"
-                  onpointerdown={(e) => startDrag(e, n, true)}
-                  aria-label={n.name}
-                >
-                  <span class="p-n">
-                    {n.name}
-                    {#if n.kind === 'skill'}<i class="tag">{m.make_skill_doc()}</i>{/if}
-                  </span>
-                  <span class="p-s">
-                    {#if needsSetup(n)}{m.make_needs()}
-                    {:else if n.setting}{n.setting}
-                    {:else if n.kind === 'skill'}{n.doc?.when}
-                    {:else}{m.make_cfg_none()}{/if}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  class="off"
-                  onclick={() => detach(n.name)}
-                  aria-label="{n.name} — {m.make_remove()}"
-                  ><span aria-hidden="true">✕</span></button
-                >
-              </div>
+      <div class="frame">
+        <div class="canvas" bind:this={canvas} style="width:{W}px;height:{H}px">
+          <svg class="wires" width={W} height={H} viewBox="0 0 {W} {H}" aria-hidden="true">
+            <path class="w fixed" d={wireIn} />
+            <path class="w fixed" d={wireOut} />
+            {#each wires as w (w.name)}
+              <path class="w" d={w.d} />
             {/each}
-
-            {#if drag?.live && !drag.moving}
-              <div
-                class="node ghost"
-                style="left:{drag.x}px;top:{drag.y}px;width:{NODE_W}px"
-                aria-hidden="true"
-              >
-                <span class="p-n">{drag.part.name}</span>
-                <span class="p-s">{m.make_drop()}</span>
-              </div>
+            {#if ghostWire}
+              <path class="w ghost" d={ghostWire} />
             {/if}
-          </div>
-        </div>
-        <p class="pan">{m.make_pan_hint()}</p>
+          </svg>
 
-        <!-- the prompt lives with the Mon, so it sits under the canvas -->
-        <div class="prompt">
-          <div class="bar">
-            <span class="eyebrow">{m.make_prompt()}</span>
-            <span class="hint">{m.make_prompt_hint()}</span>
+          <div class="node fixed" style="left:{IN.x}px;top:{IN.y}px;width:{IN.w}px;height:{IN.h}px">
+            <span class="n-k">{m.make_in()}</span>
+            <span class="n-r"><i>TEXT</i>{m.make_in_v()}</span>
+            <span class="n-r"><i>LINK</i>{m.make_in_v2()}</span>
           </div>
-          <div class="tabs" role="group" aria-label={m.make_prompt()}>
-            {#each PROMPT as p (p.key)}
+          <div
+            class="node fixed"
+            style="left:{OUT.x}px;top:{OUT.y}px;width:{OUT.w}px;height:{OUT.h}px"
+          >
+            <span class="n-k">{m.make_out()}</span>
+            <span class="n-r"><i>TEXT</i>{m.make_out_v()}</span>
+            <span class="n-r"><i>FILE</i>{m.make_out_v2()}</span>
+          </div>
+
+          <div
+            class="core"
+            bind:this={core}
+            style="left:{CORE.x}px;top:{CORE.y}px;width:{CORE.w}px;height:{CORE.h}px"
+          >
+            <header>
+              <Mon tone="research" size={30} active={placed.length > 0} />
+              <span class="c-n">Mon</span>
+              <span class="c-kind">{m.make_agent()}</span>
+            </header>
+            <div class="c-row">
+              <span class="c-k">{m.make_brain()}</span>
+              <span class="c-v">{TIERS[tier].name}</span>
+            </div>
+            <div class="c-row">
+              <span class="c-k">{m.make_tools_n()}</span>
+              <span class="c-v tnum">{tools.length}</span>
+              <span class="c-k">{m.make_skills_n()}</span>
+              <span class="c-v tnum">{skills.length}</span>
+            </div>
+            <span class="port top" aria-hidden="true"></span>
+            <span class="port bottom" aria-hidden="true"></span>
+          </div>
+
+          {#each placed as n (n.name)}
+            <div
+              class="node placed"
+              class:skill={n.kind === 'skill'}
+              class:held={drag?.live && drag.part.name === n.name}
+              style="left:{n.x}px;top:{n.y}px;width:{NODE_W}px"
+            >
               <button
                 type="button"
-                class="tab"
-                class:on={promptTab === p.key}
-                aria-pressed={promptTab === p.key}
-                onclick={() => (promptTab = p.key)}
+                class="grip"
+                onpointerdown={(e) => startDrag(e, n, true)}
+                aria-label={n.name}
               >
-                {p.label}<i class="dot" aria-hidden="true"></i>
-                <span class="visually-hidden">— {m.make_pp_written()}</span>
+                <span class="p-n">
+                  {n.name}
+                  {#if n.kind === 'skill'}<i class="tag">{m.make_skill_doc()}</i>{/if}
+                </span>
+                <span class="p-s">{n.kind === 'skill' ? n.doc?.when : n.desc}</span>
               </button>
-            {/each}
+              <button
+                type="button"
+                class="off"
+                onclick={() => detach(n.name)}
+                aria-label="{n.name} — {m.make_remove()}"><span aria-hidden="true">✕</span></button
+              >
+            </div>
+          {/each}
+
+          {#if drag?.live && !drag.moving}
+            <div
+              class="node ghost"
+              style="left:{drag.x}px;top:{drag.y}px;width:{NODE_W}px"
+              aria-hidden="true"
+            >
+              <span class="p-n">{drag.part.name}</span>
+              <span class="p-s">{m.make_drop()}</span>
+            </div>
+          {/if}
+        </div>
+      </div>
+      <p class="pan">{m.make_pan_hint()}</p>
+
+      <div class="prompt">
+        <div class="bar">
+          <span class="eyebrow">{m.make_prompt()}</span>
+          <span class="hint">{m.make_prompt_hint()}</span>
+        </div>
+        <div class="tabs" role="group" aria-label={m.make_prompt()}>
+          {#each PROMPT as p (p.key)}
             <button
               type="button"
               class="tab"
-              class:on={promptTab === 'all'}
-              aria-pressed={promptTab === 'all'}
-              onclick={() => (promptTab = 'all')}>{m.make_pp_all()}</button
+              class:on={promptTab === p.key}
+              aria-pressed={promptTab === p.key}
+              onclick={() => (promptTab = p.key)}
             >
-          </div>
-          <!-- The counter used to sit at the end of the tab row on
-               `margin-left: auto`, where a wrapped row put it over the active
-               tab's fill and it measured 1.8:1. It belongs with the hint. -->
-          <div class="phint-row">
-            <p class="phint">{shown.hint}</p>
-            <span class="chars tnum">{shown.body.length}{m.make_chars()}</span>
-          </div>
-          <p class="pbody" class:joined={promptTab === 'all'}>{shown.body}</p>
+              {p.label}<i class="dot" aria-hidden="true"></i>
+              <span class="visually-hidden">— {m.make_pp_written()}</span>
+            </button>
+          {/each}
+          <button
+            type="button"
+            class="tab"
+            class:on={promptTab === 'all'}
+            aria-pressed={promptTab === 'all'}
+            onclick={() => (promptTab = 'all')}>{m.make_pp_all()}</button
+          >
         </div>
+        <div class="phint-row">
+          <p class="phint">{shown.hint}</p>
+          <span class="chars tnum">{shown.body.length}{m.make_chars()}</span>
+        </div>
+        <p class="pbody" class:joined={promptTab === 'all'}>{shown.body}</p>
       </div>
 
-      <div class="side">
-        <div class="palette hud" use:reveal={{ delay: 100 }}>
-          {#if openCfg && openNode}
-            <div class="cfg">
-              <button type="button" class="back" onclick={() => (open = null)}>
-                <span aria-hidden="true">‹</span>
-                {m.make_cfg_back()}
-              </button>
-              <div class="cfg-head">
-                <span class="cfg-n">{openNode.name}</span>
-                {#if openCfg.required}<span class="req">{m.make_cfg_req()}</span>{/if}
-              </div>
-              <p class="cfg-t">{openCfg.title}</p>
-              <p class="cfg-d">{openCfg.desc}</p>
-              <div class="opts">
-                {#each openCfg.options as o (o)}
-                  <button
-                    type="button"
-                    class="opt"
-                    class:on={openNode.setting === o}
-                    aria-pressed={openNode.setting === o}
-                    onclick={() =>
-                      (placed = placed.map((n) =>
-                        n.name === openNode.name ? { ...n, setting: o } : n,
-                      ))}>{o}</button
-                  >
-                {/each}
-              </div>
-              {#if openCfg.fixed}
-                <div class="fixed-row">
-                  <span class="f-k">{openCfg.fixed.label}</span>
-                  <span class="f-v">{openCfg.fixed.value}</span>
-                </div>
-              {/if}
-              {#if openCfg.note}<p class="cfg-note">{openCfg.note}</p>{/if}
-            </div>
-          {:else}
-            <div class="bar">
-              <span class="eyebrow">{m.make_palette()}</span>
-              <span class="hint">{m.make_palette_hint()}</span>
-            </div>
-            <div class="tabs" role="group" aria-label={m.make_palette()}>
-              {#each TABS as t (t.key)}
-                {@const n = countFor(t.key)}
-                <button
-                  type="button"
-                  class="tab"
-                  class:on={tab === t.key}
-                  aria-pressed={tab === t.key}
-                  onclick={() => (tab = t.key)}
-                  >{t.label}<i class="n" class:has={n > 0}>{n}</i></button
-                >
-              {/each}
-            </div>
-
-            {#if tab === 'skill'}
-              <dl class="what">
-                <div>
-                  <dt>{m.make_what_mon()}</dt>
-                  <dd>{m.make_what_mon_d()}</dd>
-                </div>
-                <div class="is-skill">
-                  <dt>{m.make_what_skill()}</dt>
-                  <dd>{m.make_what_skill_d()}</dd>
-                </div>
-              </dl>
-            {/if}
-
-            <ul class="cards">
-              {#each CATALOG[tab] as part (part.name)}
-                <li>
-                  <button
-                    type="button"
-                    class="card"
-                    class:on={isOn(part)}
-                    class:skill={part.kind === 'skill'}
-                    aria-pressed={isOn(part)}
-                    onpointerdown={(e) => startDrag(e, part, false)}
-                  >
-                    <span class="card-n">
-                      {part.name}
-                      {#if part.kind === 'skill'}<i class="tag">{m.make_skill_doc()}</i>{/if}
-                    </span>
-                    <span class="card-d">{part.desc}</span>
-                  </button>
-                </li>
-              {/each}
-            </ul>
-          {/if}
+      <div class="brain">
+        <div class="bar">
+          <span class="eyebrow">{m.make_brain()}</span>
+          <span class="hint">{m.make_brain_hint()}</span>
         </div>
-
-        <div class="tiers hud" use:reveal={{ delay: 140 }}>
-          <div class="bar">
-            <span class="eyebrow">{m.make_brain()}</span>
-            <span class="hint">{m.make_brain_hint()}</span>
-          </div>
-          <div class="tier-row">
-            {#each TIERS as t, i (t.name)}
-              <button
-                type="button"
-                class="tier"
-                class:on={tier === i}
-                aria-pressed={tier === i}
-                onclick={() => (tier = i)}
-              >
-                <span class="tier-n">{t.name}</span>
-                <span class="tier-m">{t.level}</span>
-              </button>
-            {/each}
-          </div>
-          <p class="tier-d">{TIERS[tier].desc}</p>
+        <div class="tier-row">
+          {#each TIERS as t, i (t.name)}
+            <button
+              type="button"
+              class="tier"
+              class:on={tier === i}
+              aria-pressed={tier === i}
+              onclick={() => (tier = i)}
+            >
+              <span class="tier-n">{t.name}</span>
+              <span class="tier-m">{t.level}</span>
+            </button>
+          {/each}
         </div>
+        <p class="tier-d">{TIERS[tier].desc}</p>
       </div>
     </div>
 
@@ -604,20 +499,6 @@
 <style>
   .head {
     margin-bottom: var(--space-32);
-  }
-  .grid {
-    display: grid;
-    gap: var(--space-20);
-    align-items: start;
-  }
-  .side {
-    display: grid;
-    gap: var(--space-20);
-  }
-  @media (min-width: 860px) {
-    .side {
-      grid-template-columns: minmax(0, 56fr) minmax(0, 44fr);
-    }
   }
   /* `min-width: 0` on both, or the fixed-size canvas wins.
      A grid item defaults to `min-width: auto`, so the stage refuses to shrink
@@ -640,12 +521,6 @@
     font-size: 11px;
     line-height: 1.5;
     color: var(--shell-faint);
-  }
-  .warn-n {
-    margin-left: auto;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--coral-red);
   }
 
   /* ---- canvas ---- */
@@ -820,12 +695,6 @@
     border-left-color: rgba(155, 110, 239, 0.85);
     background: rgba(28, 20, 44, 0.96);
   }
-  .node.placed.warn {
-    border-color: rgba(233, 83, 83, 0.7);
-  }
-  .node.placed.open {
-    border-color: var(--primary-light);
-  }
   .node.placed.held {
     border-color: var(--summon-green);
   }
@@ -857,10 +726,6 @@
     color: var(--shell-meta);
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  .warn .p-s {
-    color: var(--coral-red);
-    font-weight: 600;
   }
   .tag {
     flex: none;
@@ -927,7 +792,8 @@
   }
 
   /* ---- prompt ---- */
-  .prompt {
+  .prompt,
+  .brain {
     display: flex;
     flex-direction: column;
     gap: var(--space-8);
@@ -977,9 +843,7 @@
   }
   .tab:focus-visible,
   .card:focus-visible,
-  .tier:focus-visible,
-  .opt:focus-visible,
-  .back:focus-visible {
+  .tier:focus-visible {
     outline: none;
     box-shadow: var(--shadow-focus);
   }
@@ -1027,13 +891,6 @@
   }
 
   /* ---- palette ---- */
-  .palette,
-  .tiers {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-12);
-    padding: var(--space-20);
-  }
   .what {
     margin: 0;
     display: flex;
@@ -1057,15 +914,24 @@
   .what .is-skill dt {
     color: rgb(213, 195, 249);
   }
+  /* A row, not a column: the palette is above the canvas now and a stack of
+     full-width cards would push the board off the screen. */
   .cards {
     list-style: none;
     margin: 0;
-    padding: 0;
-    display: grid;
+    padding: 0 0 2px;
+    display: flex;
     gap: var(--space-8);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+  .cards li {
+    flex: none;
+    width: 208px;
   }
   .card {
     width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
     gap: 3px;
@@ -1109,111 +975,6 @@
     color: var(--shell-meta);
   }
 
-  /* ---- settings ---- */
-  .cfg {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-8);
-  }
-  .back {
-    align-self: flex-start;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    height: var(--control-m);
-    padding: 0 12px 0 8px;
-    margin-left: -8px;
-    border: 0;
-    border-radius: var(--radius-full);
-    background: transparent;
-    font-size: 11.5px;
-    color: var(--shell-meta);
-    cursor: pointer;
-  }
-  .back:hover {
-    color: var(--shell-text);
-  }
-  .cfg-head {
-    display: flex;
-    align-items: center;
-    gap: var(--space-8);
-  }
-  .cfg-n {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--shell-text);
-  }
-  .req {
-    padding: 2px 7px;
-    border-radius: var(--radius-full);
-    background: rgba(233, 83, 83, 0.18);
-    border: 1px solid rgba(233, 83, 83, 0.5);
-    font-size: 9.5px;
-    font-weight: 700;
-    color: rgb(250, 186, 186);
-  }
-  .cfg-t {
-    margin: var(--space-6) 0 0;
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--shell-text);
-  }
-  .cfg-d {
-    margin: 0;
-    font-size: 11.5px;
-    line-height: 1.6;
-    color: var(--shell-meta);
-  }
-  .opts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-6);
-  }
-  .opt {
-    height: var(--control-m);
-    padding: 0 14px;
-    border: 1px solid var(--glass-line);
-    border-radius: var(--radius-full);
-    background: transparent;
-    font-size: 12px;
-    color: var(--shell-body);
-    cursor: pointer;
-    transition: var(--transition-base);
-  }
-  .opt:hover {
-    border-color: rgba(49, 220, 220, 0.55);
-  }
-  .opt.on {
-    border-color: transparent;
-    background: var(--primary-fill);
-    color: var(--static-white);
-    font-weight: 600;
-  }
-  .fixed-row {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    padding: 10px 13px;
-    border-radius: var(--radius-xs);
-    background: rgba(112, 115, 124, 0.14);
-  }
-  .f-k {
-    font-size: 10.5px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    color: var(--shell-faint);
-  }
-  .f-v {
-    font-size: 11.5px;
-    line-height: 1.5;
-    color: var(--shell-meta);
-  }
-  .cfg-note {
-    margin: 0;
-    font-size: 10.5px;
-    color: var(--shell-faint);
-  }
-
   .tier-row {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1255,6 +1016,9 @@
     font-size: 12px;
     line-height: 1.6;
     color: var(--shell-meta);
+  }
+  .brain .tier-d {
+    margin-top: 2px;
   }
   .io-note {
     margin: var(--space-20) 0 0;
