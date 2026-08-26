@@ -192,7 +192,7 @@ async function auditControls() {
     ['.hero input[type=checkbox]', 'consent box'],
     ['section.cost .plan.on', 'chosen plan'],
     ['section.share .mode.on', 'chosen payback mode'],
-    ['section.make .chip.on', 'chosen part'],
+    ['section.make .card.on', 'chosen tool', 'section.make .palette .card'],
     ['section.watch .switch', 'cron switch'],
   ];
   // Deliberately not checked: the `.hud` panel outline. 1.4.11 covers controls
@@ -202,7 +202,17 @@ async function auditControls() {
   // at all: they are identified by their fill, which the text pass covers.
 
   const out = [];
-  for (const [sel, label] of TARGETS) {
+  for (const [sel, label, arm] of TARGETS) {
+    // Some states only exist after a click. Arm them rather than reporting a
+    // skip that reads like "this has no border" when it means "not on screen".
+    if (arm) {
+      const armed = p.locator(arm).first();
+      if (await armed.count()) {
+        await armed.scrollIntoViewIfNeeded();
+        await armed.click();
+        await p.waitForTimeout(300);
+      }
+    }
     const box = await p.evaluate((q) => {
       const el = document.querySelector(q);
       if (!el) return null;
@@ -219,8 +229,12 @@ async function auditControls() {
         width: parseFloat(cs.borderTopWidth),
       };
     }, sel);
-    if (!box?.colour || !box.width) {
-      out.push({ label, skip: true });
+    if (!box) {
+      out.push({ label, skip: 'not on screen' });
+      continue;
+    }
+    if (!box.colour || !box.width) {
+      out.push({ label, skip: 'no border drawn — identified by its fill' });
       continue;
     }
     await p.waitForTimeout(200);
@@ -296,7 +310,7 @@ console.log('\n=== non-text contrast (WCAG 1.4.11, 3:1) ===');
 let ctlBad = 0;
 for (const c of controls) {
   if (c.skip) {
-    console.log(`SKIP  ${c.label} — no border to measure`);
+    console.log(`SKIP  ${c.label} — ${c.skip}`);
     continue;
   }
   if (!c.pass) ctlBad++;

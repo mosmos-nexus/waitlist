@@ -187,32 +187,99 @@ async function open(path = '/', o = {}) {
   await ctx.close();
 }
 
-// ---- 5. a specialist is assembled from parts ----
+// ---- 5. Studio: nothing that has no choice in it is a control ----
 {
   const { ctx, p } = await open();
   const s = p.locator('section.make');
   await s.scrollIntoViewIfNeeded();
   await p.waitForTimeout(500);
 
-  ok('five ports', (await s.locator('.ports li').count()) === 5);
-  ok('all empty to begin with', (await s.locator('.ports li.filled').count()) === 0);
-  for (const i of [0, 2, 4, 6, 8]) await s.locator('.chip').nth(i).click();
-  await p.waitForTimeout(400);
-  ok('plugging a part fills its port', (await s.locator('.ports li.filled').count()) === 5);
-  ok('and the tally counts them', /5/.test(await s.locator('.tally span').first().innerText()));
-
-  // The tier changes what a run costs, and says so as a level rather than a
-  // number — the per-run Mana coefficient is not decided yet.
-  const est = async () => (await s.locator('.core-est').innerText()).trim();
-  const mid = await est();
-  await s.locator('.tier').nth(2).click();
-  await p.waitForTimeout(300);
-  const deep = await est();
-  await s.locator('.tier').nth(0).click();
-  await p.waitForTimeout(300);
-  const fast = await est();
+  // What goes in and comes out is the same for every Mon, so those two are
+  // read-only rails. If a control ever appears inside one, the section has gone
+  // back to asking the visitor to make a decision that does not exist.
+  ok('two read-only rails', (await s.locator('.rails .rail').count()) === 2);
   ok(
-    'each tier reads differently',
+    'and neither holds a control',
+    (await s.locator('.rails .rail button, .rails .rail input, .rails .rail a').count()) === 0,
+  );
+
+  // The two slots that do take a decision start empty.
+  ok('two slots', (await s.locator('.slots .slot').count()) === 2);
+  ok('both empty to begin with', (await s.locator('.slots .slot.filled').count()) === 0);
+
+  // A connector attaches from the palette and detaches from the slot.
+  await s.locator('.palette .card').first().click();
+  await p.waitForTimeout(350);
+  ok(
+    'attaching a tool fills the tool slot',
+    (await s.locator('.slots .slot.filled').count()) === 1,
+  );
+  // First line only: the tag carries a visually-hidden "take off" label for
+  // screen readers, and Playwright's innerText includes it.
+  const tagName = (await s.locator('.slots .tag').first().innerText()).split('\n')[0].trim();
+  const cardName = await s.locator('.palette .card-n').first().innerText();
+  ok('and the slot names what was attached', tagName === cardName, `${tagName} / ${cardName}`);
+  await s.locator('.slots .tag').first().click();
+  await p.waitForTimeout(300);
+  ok('tapping the tag takes it off', (await s.locator('.slots .slot.filled').count()) === 0);
+
+  // A Mon Skill lands in its own slot, not in the tool slot.
+  await s.locator('.tabs .tab').last().click();
+  await p.waitForTimeout(250);
+  await s.locator('.palette .card').first().click();
+  await p.waitForTimeout(350);
+  const filledLabel = await s.locator('.slots .slot.filled .slot-k').innerText();
+  ok('a Mon Skill lands in the Skill slot', /Skill/i.test(filledLabel), filledLabel);
+
+  // Every palette group carries something, so no tab is a dead end.
+  const tabs = await s.locator('.tabs .tab').count();
+  ok('five palette groups', tabs === 5, String(tabs));
+  let emptyGroups = 0;
+  for (let i = 0; i < tabs; i++) {
+    await s.locator('.tabs .tab').nth(i).click();
+    await p.waitForTimeout(150);
+    if ((await s.locator('.palette .card').count()) === 0) emptyGroups++;
+  }
+  ok('and none of them is empty', emptyGroups === 0);
+
+  // The prompt is three pieces plus a read-only join of them. The join has to
+  // be derived, not a fourth stored body, or the two can disagree.
+  ok('three prompt pieces plus a join', (await s.locator('.ptabs .ptab').count()) === 4);
+  const bodyOf = async (i) => {
+    await s.locator('.ptabs .ptab').nth(i).click();
+    await p.waitForTimeout(200);
+    return (await s.locator('.pbody').innerText()).trim();
+  };
+  const pieces = [await bodyOf(0), await bodyOf(1), await bodyOf(2)];
+  ok('each piece reads differently', new Set(pieces).size === 3);
+  ok(
+    'the numbered piece keeps its line breaks',
+    pieces.some((t) => /\n\s*2\./.test(t)),
+  );
+  const all = await bodyOf(3);
+  ok(
+    'the join contains every piece',
+    pieces.every((t) => all.includes(t)),
+    `${all.length} chars`,
+  );
+  ok('and the join is read-only', (await s.locator('.pbody.joined textarea').count()) === 0);
+
+  // Guards and I/O parts are gone — they were categories this page invented.
+  const body = await s.innerText();
+  ok('no guard category remains', !/안전장치|Guardrail/i.test(body));
+
+  // The brain changes what a run costs, and says so as a level rather than a
+  // number — the per-run Mana coefficient is not decided yet.
+  const level = async () => (await s.locator('.tiers .tier.on .tier-m').innerText()).trim();
+  const mid = await level();
+  await s.locator('.tiers .tier').nth(2).click();
+  await p.waitForTimeout(300);
+  const deep = await level();
+  await s.locator('.tiers .tier').nth(0).click();
+  await p.waitForTimeout(300);
+  const fast = await level();
+  ok(
+    'each brain reads differently',
     new Set([mid, deep, fast]).size === 3,
     [fast, mid, deep].join(' / '),
   );
