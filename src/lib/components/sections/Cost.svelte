@@ -74,7 +74,11 @@
     { t: m.cost_g2(), d: m.cost_g2_d() },
     { t: m.cost_g3(), d: m.cost_g3_d() },
   ]);
-  const FREE = $derived([m.cost_b1(), m.cost_b2()]);
+  /* What Ground actually opens, in capability rather than capacity — three
+     readers stopped at "숫자가 하나도 없다", and the honest answer without
+     inventing a figure is what you can do, not how much of it. Every line is a
+     Ground row in the strategy's own differentiation table. */
+  const FREE = $derived([m.cost_b1(), m.cost_b2(), m.cost_b3(), m.cost_b4()]);
 </script>
 
 <section class="cost section" aria-labelledby="cost-title">
