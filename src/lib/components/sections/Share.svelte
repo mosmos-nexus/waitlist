@@ -148,6 +148,7 @@
               </li>
             {/each}
           </ol>
+          <p class="cash"><b>{m.share_cash()}</b> {m.share_cash_d()}</p>
         </div>
 
         {#each PEERS as p, i (p.name)}
@@ -465,6 +466,17 @@
   }
   .flow li.last .f-t {
     color: var(--summon-green);
+  }
+  .cash {
+    margin: var(--space-12) 0 0;
+    padding-top: var(--space-10);
+    border-top: 1px solid var(--glass-line-soft);
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--shell-meta);
+  }
+  .cash b {
+    color: var(--shell-text);
   }
   .f-d {
     font-size: 11px;

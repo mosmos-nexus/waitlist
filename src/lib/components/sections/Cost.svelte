@@ -74,7 +74,7 @@
     { t: m.cost_g2(), d: m.cost_g2_d() },
     { t: m.cost_g3(), d: m.cost_g3_d() },
   ]);
-  const FREE = $derived([m.cost_b1(), m.cost_b2(), m.cost_b3()]);
+  const FREE = $derived([m.cost_b1(), m.cost_b2()]);
 </script>
 
 <section class="cost section" aria-labelledby="cost-title">
