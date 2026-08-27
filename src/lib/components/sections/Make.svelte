@@ -173,6 +173,7 @@
     },
   ]);
   let brainId = $state('sonnet5');
+  let showModels = $state(false);
   const brain = $derived(
     PROVIDERS.flatMap((pv) => pv.tiers.map((t) => ({ ...t, provider: pv.name }))).find(
       (t) => t.id === brainId,
@@ -489,35 +490,43 @@
           {/each}
         </div>
 
-        <div class="models">
-          {#each PROVIDERS as pv (pv.name)}
-            <div class="pv">
-              <div class="pv-head">
-                <span class="pv-n" translate="no">{pv.name}</span>
-                <span class="pv-t">{pv.trait}</span>
-              </div>
-              {#each pv.tiers as t (t.id)}
-                <button
-                  type="button"
-                  class="model"
-                  class:on={brainId === t.id}
-                  class:fit={t.good.includes(purpose)}
-                  aria-pressed={brainId === t.id}
-                  onclick={() => (brainId = t.id)}
-                >
-                  <span class="m-n" translate="no">{t.name}</span>
-                  {#if t.good.includes(purpose)}<span class="m-fit">{m.make_fit()}</span>{/if}
-                </button>
-              {/each}
-            </div>
-          {/each}
-        </div>
-
         <div class="picked">
           <span class="p-k">{m.make_brain_pick()}</span>
           <span class="p-v" translate="no">{brain.provider} {brain.name}</span>
+          {#if !showModels}<span class="p-auto">{m.make_auto()}</span>{/if}
           <p class="p-b">{brain.blurb}</p>
         </div>
+
+        <button type="button" class="disclose" onclick={() => (showModels = !showModels)}>
+          {showModels ? m.make_close_models() : m.make_open_models()}
+          <i aria-hidden="true">{showModels ? '▴' : '▾'}</i>
+        </button>
+
+        {#if showModels}
+          <div class="models">
+            {#each PROVIDERS as pv (pv.name)}
+              <div class="pv">
+                <div class="pv-head">
+                  <span class="pv-n" translate="no">{pv.name}</span>
+                  <span class="pv-t">{pv.trait}</span>
+                </div>
+                {#each pv.tiers as t (t.id)}
+                  <button
+                    type="button"
+                    class="model"
+                    class:on={brainId === t.id}
+                    class:fit={t.good.includes(purpose)}
+                    aria-pressed={brainId === t.id}
+                    onclick={() => (brainId = t.id)}
+                  >
+                    <span class="m-n" translate="no">{t.name}</span>
+                    {#if t.good.includes(purpose)}<span class="m-fit">{m.make_fit()}</span>{/if}
+                  </button>
+                {/each}
+              </div>
+            {/each}
+          </div>
+        {/if}
         <p class="tier-d">{m.make_brain_note()}</p>
       </div>
     </div>
@@ -1034,6 +1043,42 @@
   }
   .model.on .m-fit {
     color: var(--static-white);
+  }
+  .disclose {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: var(--control-m);
+    padding: 0 16px;
+    border: 1px solid var(--glass-line);
+    border-radius: var(--radius-full);
+    background: transparent;
+    font-size: 12px;
+    color: var(--shell-body);
+    cursor: pointer;
+    transition: var(--transition-base);
+  }
+  .disclose:hover {
+    border-color: rgba(49, 220, 220, 0.55);
+    color: var(--shell-text);
+  }
+  .disclose:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+  .disclose i {
+    font-style: normal;
+    font-size: 9px;
+    color: var(--shell-meta);
+  }
+  .p-auto {
+    padding: 1px 7px;
+    border-radius: 4px;
+    background: rgba(33, 237, 179, 0.18);
+    font-size: 9.5px;
+    font-weight: 700;
+    color: var(--summon-green);
   }
   .picked {
     display: flex;

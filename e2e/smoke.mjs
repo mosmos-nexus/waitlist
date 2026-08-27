@@ -397,6 +397,16 @@ async function open(path = '/', o = {}) {
   // rather than three abstractions. Picking a purpose marks the models that
   // suit it; picking a model shows on the core, so the canvas and the panel
   // never disagree about what this Mon runs on.
+  // The roster is collapsed by default: "you do not need model names" followed
+  // by twelve version names is a contradiction, and on a phone the list filled
+  // the screen. Open it to check that Studio's full list is still all there.
+  ok(
+    'the chosen brain shows without opening anything',
+    (await s.locator('.brain .p-v').count()) === 1,
+  );
+  ok('and the roster starts collapsed', (await s.locator('.brain .models').count()) === 0);
+  await s.locator('.brain .disclose').click();
+  await p.waitForTimeout(250);
   const providers = await s.locator('.brain .pv-n').allInnerTexts();
   ok('four providers', providers.length === 4, providers.join(','));
   ok('and eleven models', (await s.locator('.brain .model').count()) === 11);

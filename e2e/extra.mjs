@@ -138,6 +138,15 @@ function ok(l, c, e = '') {
   await bp.goto(BASE + '/', { waitUntil: 'networkidle' });
   await bp.addStyleTag({ content: '.world { display: none !important }' });
   await bp.waitForTimeout(1200);
+  // Discarded warm-up. This is a *new* context, so it pays the process's
+  // cold-rasterise cost on its own — the scene passes above never see it
+  // because the page they measure is already warm. Without this the control
+  // read 33.2 ms while the heavier scene read 16.7, which is backwards and was
+  // the harness, not the page.
+  for (let i = 0; i < 20; i++) {
+    await bp.mouse.wheel(0, 90);
+    await bp.waitForTimeout(8);
+  }
   const bare = await bestOf(2, bp);
   await bareCtx.close();
   ok(

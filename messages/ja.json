@@ -102,7 +102,7 @@
   "decide_r3": "リスクの高い条項3件を指摘し、代わりの文言も添えました。",
   "decide_cost": "実行が終わったので、使ったぶんだけ減りました",
   "decide_again": "別の目標で",
-  "decide_note": "実行はいつもMonが担います。Manaは実行したときだけ動く残高で、使わなければ動きません。",
+  "decide_note": "実行はいつもMonが担います。Manaは先に補充しておき、実行したときだけ減る残高です。",
   "watch_eyebrow": "見守る",
   "watch_title": "条件を書けば知らせます",
   "watch_lead": "何を見るかを文で書いておくだけです。条件に合う変化がなければ通知もありません。",
@@ -323,7 +323,7 @@
   "decide_b3": "ただ聞いてほしい",
   "decide_buddy_reply": "そういうときはあります。まず、後回しにしているのがどんな種類のことか分けてみましょうか。",
   "decide_manager": "Manager",
-  "decide_manager_sub": "目標を受け取り、その仕事をする専門AI（Mon）をHubで見つけて任せます",
+  "decide_manager_sub": "目標を受け取り、その仕事をする専門AI（Mon）をHub（公開の市場）で見つけて任せます",
   "decide_manager_note": "Hubで合うMonを見つけて任せます。自分では実行しません。",
   "decide_manager_intro": "何を達したいか教えてください。目標を一緒に整えて、合うMonをHubで見つけて任せます。",
   "decide_placeholder": "何をお手伝いしましょうか？",
@@ -347,5 +347,8 @@
   "share_mine_skill": "条項リスク判定Skill",
   "share_mine_skill_desc": "条項の危険度を等級で分ける手順を書いた文書です。",
   "share_cash": "精算金はどう受け取りますか",
-  "share_cash_d": "精算はManaで積まれます。現金で受け取る条件は準備中で、開くときに改めてお知らせします。"
+  "share_cash_d": "精算はManaで積まれます。現金で受け取る条件は準備中で、開くときに改めてお知らせします。",
+  "make_open_models": "モデルを自分で選ぶ",
+  "make_close_models": "たたむ",
+  "make_auto": "自動で選びます"
 }

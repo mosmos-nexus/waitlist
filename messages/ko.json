@@ -102,7 +102,7 @@
   "decide_r3": "위험도 높음 3건을 짚고 대신 쓸 문구를 함께 적었어요.",
   "decide_cost": "실행이 끝났으니 쓴 만큼 줄었어요",
   "decide_again": "다른 목표로",
-  "decide_note": "실행은 늘 Mon이 맡아요. Mana는 실행할 때만 줄어드는 잔액이고, 안 쓰면 줄지 않아요.",
+  "decide_note": "실행은 늘 Mon이 맡아요. Mana는 미리 충전해 두고 실행할 때만 줄어드는 잔액이에요.",
   "watch_eyebrow": "지켜보기",
   "watch_title": "조건을 적어 두면 알려요",
   "watch_lead": "무엇을 볼지 문장으로 적어 두면 돼요. 조건에 맞는 변화가 없으면 알림도 없어요.",
@@ -323,7 +323,7 @@
   "decide_b3": "그냥 좀 들어 줘",
   "decide_buddy_reply": "그럴 때가 있어요. 미루는 일이 어떤 종류인지부터 같이 갈라 볼까요.",
   "decide_manager": "Manager",
-  "decide_manager_sub": "목표를 받아, 그 일을 할 전문 AI(Mon)를 Hub에서 찾아 시켜요",
+  "decide_manager_sub": "목표를 받아, 그 일을 할 전문 AI(Mon)를 Hub(공개 장터)에서 찾아 시켜요",
   "decide_manager_note": "Hub에서 맞는 Mon을 찾아 시켜요. 직접 실행하지는 않아요.",
   "decide_manager_intro": "무엇을 이루고 싶은지 알려 주세요. 목표를 같이 다듬고, 맞는 Mon을 Hub에서 찾아 시킬게요.",
   "decide_placeholder": "무엇을 도와드릴까요?",
@@ -347,5 +347,8 @@
   "share_mine_skill": "조항 위험도 판정 Skill",
   "share_mine_skill_desc": "조항의 위험도를 등급으로 나누는 절차를 적어 둔 문서예요.",
   "share_cash": "정산금은 어떻게 받나요",
-  "share_cash_d": "정산은 Mana로 쌓여요. 현금으로 받는 조건은 준비 중이고, 열릴 때 따로 안내해요."
+  "share_cash_d": "정산은 Mana로 쌓여요. 현금으로 받는 조건은 준비 중이고, 열릴 때 따로 안내해요.",
+  "make_open_models": "모델 직접 고르기",
+  "make_close_models": "접기",
+  "make_auto": "자동으로 골라 줘요"
 }

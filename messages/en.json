@@ -102,7 +102,7 @@
   "decide_r3": "Three high-risk clauses flagged, each with wording to use instead.",
   "decide_cost": "The run finished, so it came off for what was used",
   "decide_again": "A different goal",
-  "decide_note": "A Mon always does the running. Mana is a balance that only moves when work runs — it does not move when you are not using it.",
+  "decide_note": "A Mon always does the running. Mana is a balance you top up in advance, and it only goes down when work runs.",
   "watch_eyebrow": "KEEP WATCH",
   "watch_title": "Write a condition, get told",
   "watch_lead": "Say what to watch in a sentence. No change that matches means no notification.",
@@ -323,7 +323,7 @@
   "decide_b3": "Just listen for a bit",
   "decide_buddy_reply": "That happens. Shall we start by separating out what kind of thing you are putting off?",
   "decide_manager": "Manager",
-  "decide_manager_sub": "Takes a goal, then finds the specialist AI (a Mon) for it on the Hub",
+  "decide_manager_sub": "Takes a goal, then finds the specialist AI (a Mon) on the Hub — the open marketplace",
   "decide_manager_note": "Finds a fitting Mon on the Hub and sets it going. It does not run the work itself.",
   "decide_manager_intro": "Tell me what you want to achieve. We will settle the goal together and I will find a Mon on the Hub for it.",
   "decide_placeholder": "What can I help with?",
@@ -347,5 +347,8 @@
   "share_mine_skill": "Clause risk rating Skill",
   "share_mine_skill_desc": "A document setting out how to grade the risk of each clause.",
   "share_cash": "How does the money reach me",
-  "share_cash_d": "It accrues in Mana. The terms for taking it out as cash are being worked out; we will say when they open."
+  "share_cash_d": "It accrues in Mana. The terms for taking it out as cash are being worked out; we will say when they open.",
+  "make_open_models": "Choose the model yourself",
+  "make_close_models": "Collapse",
+  "make_auto": "Chosen for you"
 }
