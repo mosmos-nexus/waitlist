@@ -577,6 +577,119 @@ function ok(l, c, e = '') {
   await ctx.close();
 }
 
+// ---- nothing is clipped, at any width, in any shell ----
+//
+// The widget cut 118px off its own suggestion list at every width above 720px:
+// it has a fixed height and its body was not scrollable, so the browser frame's
+// `overflow: hidden` silently ate the rest. A screenshot at one width would not
+// have found it — the panel looked complete until the third row.
+//
+// So: sweep the widths, open each shell, and assert that no element with hidden
+// overflow is holding content it cannot show. Three clips are intentional and
+// named: the world's stage, the visually-hidden boxes (1px by construction) and
+// the browser's URL, which ellipsises on purpose.
+{
+  const ALLOW = /(^|\.)world($|\.)|visually-hidden|(^|\.)url($|\.)/;
+  const rows = [];
+  for (const [w, h] of [
+    [320, 568],
+    [390, 844],
+    [430, 932],
+    [768, 1024],
+    [1024, 768],
+    [1440, 900],
+  ]) {
+    const ctx = await browser.newContext({
+      viewport: { width: w, height: h },
+      reducedMotion: 'reduce',
+    });
+    const p = await ctx.newPage();
+    await p.goto(BASE + '/', { waitUntil: 'networkidle' });
+    await p.waitForTimeout(600);
+    for (const shell of [0, 1, 2]) {
+      const pills = p.locator('section.decide .shells .pill');
+      if (await pills.count()) {
+        await pills.nth(shell).click();
+        await p.waitForTimeout(280);
+      }
+      const found = await p.evaluate(() => {
+        const bad = [];
+        const de = document.documentElement;
+        for (const el of document.querySelectorAll('main *')) {
+          const cs = getComputedStyle(el);
+          if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+          const hiddenY = cs.overflowY === 'hidden' || cs.overflow === 'hidden';
+          const hiddenX = cs.overflowX === 'hidden' || cs.overflow === 'hidden';
+          const dy = hiddenY ? el.scrollHeight - el.clientHeight : 0;
+          const dx = hiddenX ? el.scrollWidth - el.clientWidth : 0;
+          if (dy > 2 || dx > 2) {
+            const cls = typeof el.className === 'string' ? el.className : '';
+            bad.push({
+              sel:
+                el.tagName.toLowerCase() +
+                '.' +
+                cls
+                  .split(' ')
+                  .filter((x) => x && !x.startsWith('svelte-'))
+                  .slice(0, 2)
+                  .join('.'),
+              dy,
+              dx,
+            });
+          }
+        }
+        return { bad, pageOver: de.scrollWidth - de.clientWidth };
+      });
+      const real = found.bad.filter((x) => !ALLOW.test(x.sel));
+      rows.push({
+        at: `${w} ${['side', 'widget', 'button'][shell]}`,
+        clipped: real,
+        pageOver: found.pageOver,
+      });
+    }
+    await ctx.close();
+  }
+  const clipped = rows.filter((r) => r.clipped.length);
+  ok(
+    'nothing clips content it cannot show',
+    clipped.length === 0,
+    clipped
+      .slice(0, 3)
+      .map((r) => `${r.at}: ${r.clipped.map((c) => `${c.sel} y+${c.dy} x+${c.dx}`).join(', ')}`)
+      .join(' | '),
+  );
+  const over = rows.filter((r) => r.pageOver > 1);
+  ok(
+    'and the page never scrolls sideways',
+    over.length === 0,
+    over.map((r) => `${r.at}: ${r.pageOver}px`).join(', '),
+  );
+}
+
+// ---- the pricing divider sits in the middle of its gutter ----
+{
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const p = await ctx.newPage();
+  await p.goto(BASE + '/', { waitUntil: 'networkidle' });
+  await p.waitForTimeout(600);
+  // A full negative margin put the border at the gutter's start, flush against
+  // the left column, which reads as belonging to the right one.
+  const g = await p.evaluate(() => {
+    const cols = [...document.querySelectorAll('section.cost .split > .col')];
+    if (cols.length < 2) return null;
+    const a = cols[0].getBoundingClientRect();
+    const b = cols[1].getBoundingClientRect();
+    const pad = parseFloat(getComputedStyle(cols[1]).paddingLeft);
+    return { left: Math.round(b.left - a.right), right: Math.round(b.left + pad - b.left) };
+  });
+  ok(
+    'the divider is centred in the gutter',
+    g && Math.abs(g.left - g.right) <= 2,
+    g ? `${g.left}px / ${g.right}px` : 'no split',
+  );
+  await ctx.close();
+}
+
 await browser.close();
 console.log('\n--- errors ---');
 console.log(errors.length ? errors.join('\n') : 'none');

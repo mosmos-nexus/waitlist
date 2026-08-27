@@ -446,10 +446,13 @@
     color: var(--bright-cyan);
   }
 
+  /* Tall enough that the widget holds its idle content without scrolling.
+     The product widget is 600px; at a 430px frame it was 398px and always
+     scrolled, which reads as a clipped panel rather than a floating one. */
   .viewport {
     position: relative;
     display: flex;
-    min-height: 430px;
+    min-height: 580px;
   }
   .page {
     flex: 1;
@@ -494,6 +497,7 @@
     width: 340px;
     display: flex;
     flex-direction: column;
+    min-height: 0;
     border-left: 1px solid var(--glass-line);
     background: rgba(10, 12, 18, 0.96);
   }
@@ -730,11 +734,21 @@
     color: var(--shell-meta);
   }
 
+  /* The widget has a fixed height, so the conversation is what gives — it
+     scrolls rather than being clipped by the browser frame. Measured 118px of
+     the suggestion list cut off at every width above 720px. `min-height: 0` is
+     what lets a flex child shrink below its content at all. */
   .body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
     display: flex;
     flex-direction: column;
     gap: var(--space-12);
     padding: var(--space-16);
+  }
+  .panel:not(.widget) .body {
     min-height: 292px;
   }
   .label {

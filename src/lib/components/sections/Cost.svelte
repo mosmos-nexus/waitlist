@@ -207,8 +207,8 @@
       column-gap: var(--space-48);
     }
     .split > .col + .col {
-      padding-left: var(--space-48);
-      margin-left: calc(var(--space-48) * -1);
+      padding-left: calc(var(--space-48) / 2);
+      margin-left: calc(var(--space-48) / -2);
       border-left: 1px dashed var(--glass-line);
     }
   }
