@@ -899,6 +899,9 @@
   }
   /* A row, not a column: the palette is above the canvas now and a stack of
      full-width cards would push the board off the screen. */
+  /* The rail always overflows its column, so the right-hand card is cut. On a
+     phone that read as broken rather than as "there is more this way", so the
+     cut edge fades out — the affordance every horizontal rail uses. */
   .cards {
     list-style: none;
     margin: 0;
@@ -907,6 +910,7 @@
     gap: var(--space-8);
     overflow-x: auto;
     overscroll-behavior-x: contain;
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
   }
   .cards li {
     flex: none;

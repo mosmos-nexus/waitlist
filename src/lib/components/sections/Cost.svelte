@@ -43,7 +43,7 @@
    */
   const ROWS = $derived([
     {
-      label: m.cost_d_slots(),
+      label: m.cost_d_storage(),
       values: [m.cost_v_basic(), m.cost_v_more(), m.cost_v_most()],
     },
     {
@@ -159,8 +159,6 @@
             <span class="eyebrow">{m.cost_how()}</span>
             <p>{m.cost_how_d()}</p>
           </div>
-
-          <p class="panel-note">{m.cost_mana_tbd()}</p>
         </div>
       </div>
     </div>
@@ -407,12 +405,5 @@
     font-size: 11.5px;
     line-height: 1.65;
     color: var(--shell-body);
-  }
-
-  .panel-note {
-    margin: var(--space-10) 0 0;
-    font-size: 11.5px;
-    line-height: 1.6;
-    color: var(--shell-faint);
   }
 </style>
