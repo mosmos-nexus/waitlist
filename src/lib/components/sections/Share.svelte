@@ -17,10 +17,15 @@
      the stage this page is announcing. What is decided is the shape: free
      costs the runner nothing extra, lending splits part of each run's charge,
      a Skill is bought once. */
+  /* Rent belongs to a Mon, purchase belongs to a Skill — the strategy makes Mon
+     a rental product and Skill a purchase product, and the reason is structural:
+     a Mon spends model time on every run, a Skill is a document that is read.
+     The list used to name the three modes without saying which asset each one
+     is for, so they read as three options for the same thing. */
   const MODES = $derived([
-    { name: m.share_free(), note: m.share_free_d() },
-    { name: m.share_paid(), note: m.share_paid_d() },
-    { name: m.share_skill(), note: m.share_skill_d() },
+    { name: m.share_free(), kind: m.share_free_k(), note: m.share_free_d(), skill: null },
+    { name: m.share_paid(), kind: m.share_paid_k(), note: m.share_paid_d(), skill: false },
+    { name: m.share_skill(), kind: m.share_skill_k(), note: m.share_skill_d(), skill: true },
   ]);
   let mode = $state(1);
 
@@ -78,11 +83,20 @@
               aria-pressed={mode === i}
               onclick={() => (mode = i)}
             >
-              <span class="mode-n">{mo.name}</span>
+              <span class="mode-h">
+                <span class="mode-n">{mo.name}</span>
+                <span
+                  class="mode-k"
+                  class:is-skill={mo.skill === true}
+                  class:is-mon={mo.skill === false}>{mo.kind}</span
+                >
+              </span>
               <span class="mode-d">{mo.note}</span>
             </button>
           {/each}
         </div>
+
+        <p class="why"><b>{m.share_why()}</b> {m.share_why_d()}</p>
 
         <div class="listing">
           <span class="eyebrow">{m.share_listed()}</span>
@@ -186,6 +200,42 @@
   .mode:focus-visible {
     outline: none;
     box-shadow: var(--shadow-focus);
+  }
+  .mode-h {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+  }
+  /* The asset the mode belongs to, coloured the way that asset is coloured
+     everywhere else on the page: cyan for the agent, purple for the document. */
+  .mode-k {
+    flex: none;
+    padding: 1px 7px;
+    border-radius: 4px;
+    background: rgba(112, 115, 124, 0.24);
+    font-size: 9.5px;
+    font-weight: 700;
+    color: var(--shell-meta);
+  }
+  .mode-k.is-mon {
+    background: rgba(31, 206, 206, 0.2);
+    color: var(--bright-cyan);
+  }
+  .mode-k.is-skill {
+    background: rgba(155, 110, 239, 0.28);
+    color: rgb(213, 195, 249);
+  }
+  .why {
+    margin: 0;
+    padding: 11px 13px;
+    border-radius: var(--radius-xs);
+    background: rgba(112, 115, 124, 0.14);
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: var(--shell-body);
+  }
+  .why b {
+    color: var(--shell-text);
   }
   .mode-n {
     font-size: 13px;

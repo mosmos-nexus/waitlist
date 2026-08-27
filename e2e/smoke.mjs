@@ -169,6 +169,67 @@ async function open(path = '/', o = {}) {
   await ctx.close();
 }
 
+// ---- 3b. Chat is an extension, not a widget planted in the page ----
+{
+  const { ctx, p } = await open();
+  const s = p.locator('section.decide');
+  await s.scrollIntoViewIfNeeded();
+  await p.waitForTimeout(600);
+
+  // The browser chrome and the lit extension icon are the marks that say this
+  // belongs to the browser rather than to the site.
+  ok('a browser frame', (await s.locator('.browser .chrome').count()) === 1);
+  ok('with a url', (await s.locator('.chrome .url').count()) === 1);
+  ok('and the extension icon lit', (await s.locator('.chrome .ext.lit').count()) === 1);
+  ok('the panel carries an extension bar', (await s.locator('.panel .ext-bar').count()) === 1);
+
+  // Sidebar pushes the page; it does not cover it. Both are in flow, so the
+  // page's right edge and the panel's left edge meet.
+  const side = await s.evaluate(() => {
+    const pg = document.querySelector('section.decide .page').getBoundingClientRect();
+    const pn = document.querySelector('section.decide .panel').getBoundingClientRect();
+    return { gap: Math.round(pn.left - pg.right), overlap: pn.left < pg.right - 2 };
+  });
+  ok('the sidebar pushes the page rather than covering it', !side.overlap, `gap ${side.gap}px`);
+
+  // Widget floats over it, which is the opposite arrangement.
+  await s.locator('.shells .pill').nth(1).click();
+  await p.waitForTimeout(350);
+  ok('the widget floats', (await s.locator('.panel.widget').count()) === 1);
+  const over = await s.evaluate(() => {
+    const pg = document.querySelector('section.decide .page').getBoundingClientRect();
+    const pn = document.querySelector('section.decide .panel').getBoundingClientRect();
+    return pn.left < pg.right;
+  });
+  ok('and overlaps the page', over);
+
+  // Button is the collapsed state, and it is still the extension.
+  await s.locator('.shells .pill').nth(2).click();
+  await p.waitForTimeout(350);
+  ok('the button collapses the panel', (await s.locator('.panel').count()) === 0);
+  ok('leaving a launcher', (await s.locator('.fab').count()) === 1);
+  await s.locator('.fab').click();
+  await p.waitForTimeout(350);
+  ok('which opens the widget again', (await s.locator('.panel.widget').count()) === 1);
+
+  // Buddy talks and calls no Mon; Manager delegates. Mos never executes in
+  // either, which is the whole point of the split.
+  await s.locator('.modes .mode').first().click();
+  await p.waitForTimeout(300);
+  ok('Buddy offers conversation', (await s.locator('.body .goals li').count()) === 3);
+  await s.locator('.body .goal').first().click();
+  await p.waitForTimeout(300);
+  ok('and answers without a Mon', (await s.locator('.body .run, .body .steps').count()) === 0);
+  await s.locator('.modes .mode').last().click();
+  await p.waitForTimeout(300);
+  await s.locator('.body .goal').first().click();
+  await p.waitForTimeout(300);
+  await s.locator('.body .opt').first().click();
+  await p.waitForTimeout(1200);
+  ok('Manager hands it to a Mon', (await s.locator('.body .run .steps li').count()) === 3);
+  await ctx.close();
+}
+
 // ---- 4. the patrol reads sentences ----
 {
   const { ctx, p } = await open();
@@ -396,6 +457,13 @@ async function open(path = '/', o = {}) {
   await s.locator('.mode').nth(2).click();
   await p.waitForTimeout(200);
   ok('and follows it again', (await price()).trim() === modes[2].trim(), await price());
+
+  // Rent belongs to a Mon, purchase belongs to a Skill. Each mode has to name
+  // which, or the three read as options for one thing.
+  const kinds = await s.locator('.mode-k').allInnerTexts();
+  ok('every payback mode names its asset', kinds.length === 3 && kinds.every((t) => t.trim()));
+  ok('one is Mon-only', (await s.locator('.mode-k.is-mon').count()) === 1, kinds.join(' / '));
+  ok('one is Skill-only', (await s.locator('.mode-k.is-skill').count()) === 1);
 
   // Hub trading, creator payout and certification are all inactive at the MVP
   // stage this page announces, so a rating, a run count or a Mana price on a
