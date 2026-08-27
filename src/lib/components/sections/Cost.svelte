@@ -51,10 +51,6 @@
       values: [m.cost_v_mem_short(), m.cost_v_mem_long(), m.cost_v_mem_long()],
     },
     {
-      label: m.cost_d_files(),
-      values: [m.cost_v_small(), m.cost_v_std(), m.cost_v_large()],
-    },
-    {
       label: m.cost_d_logs(),
       values: [m.cost_v_short(), m.cost_v_mid(), m.cost_v_long()],
     },
@@ -65,10 +61,6 @@
     {
       label: m.cost_d_queue(),
       values: [m.cost_v_fifo(), m.cost_v_fifo(), m.cost_v_first()],
-    },
-    {
-      label: m.cost_d_early(),
-      values: [m.cost_v_dash(), m.cost_v_dash(), m.cost_v_yes()],
     },
   ]);
 
@@ -82,12 +74,6 @@
     { what: m.cost_a3(), why: m.cost_a3_d() },
   ]);
   const FREE = $derived([m.cost_b1(), m.cost_b2(), m.cost_b3()]);
-
-  /* How the charge is worked out. This is the part that distinguishes Mana from
-     a token meter: the coefficient weighs task difficulty, which model actually
-     handled it, cache hit rate and paid tool calls, so the same request can
-     cost less on a second pass. Stated without a rate, which is unsettled. */
-  const HOW = $derived([m.cost_how_1(), m.cost_how_2(), m.cost_how_3()]);
 </script>
 
 <section class="cost section" aria-labelledby="cost-title">
@@ -138,7 +124,6 @@
               </div>
             {/each}
           </dl>
-          <p class="panel-note">{m.cost_amounts_tbd()}</p>
         </div>
 
         <p class="open">{m.cost_open()}</p>
@@ -174,11 +159,6 @@
           <div class="how">
             <span class="eyebrow">{m.cost_how()}</span>
             <p>{m.cost_how_d()}</p>
-            <ul>
-              {#each HOW as h (h)}
-                <li>{h}</li>
-              {/each}
-            </ul>
           </div>
 
           <p class="panel-note">{m.cost_mana_tbd()}</p>
@@ -438,31 +418,6 @@
     font-size: 11.5px;
     line-height: 1.65;
     color: var(--shell-body);
-  }
-  .how ul {
-    margin: 2px 0 0;
-    padding: 0;
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .how li {
-    position: relative;
-    padding-left: 14px;
-    font-size: 11px;
-    line-height: 1.5;
-    color: var(--shell-meta);
-  }
-  .how li::before {
-    content: '';
-    position: absolute;
-    left: 2px;
-    top: 0.5em;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--primary-bright);
   }
 
   .panel-note {

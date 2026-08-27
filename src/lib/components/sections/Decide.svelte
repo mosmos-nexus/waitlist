@@ -24,25 +24,17 @@
    * The panel used to float on the page with no frame, which read as a website
    * widget — the opposite of the claim. It sits inside a browser now: a chrome
    * bar with a URL and the extension icon lit, a page behind it, and the panel
-   * attached to the browser rather than planted in the page. Three shells,
-   * because that is what the product has: the sidebar pushes the page aside,
-   * the widget floats over it, the button is the collapsed state and carries a
-   * badge while delegated work runs.
+   * attached to the browser rather than planted in the page.
    *
-   * Two modes, because they are the honest split. Buddy talks and calls no Mon.
-   * Manager takes a goal, finds a Mon on the Hub and sets it going — it still
-   * never executes anything itself.
+   * One shell, not three. Which shape the panel opens in is a detail; what a
+   * visitor needs from this section is the split between the two modes, so the
+   * shell switcher is gone and the modes are the control. Buddy talks and calls
+   * no Mon. Manager takes a goal, finds a Mon on the Hub and sets it going —
+   * and still never executes anything itself.
    */
-  type Shell = 'side' | 'widget' | 'button';
-  let shell = $state<Shell>('side');
   type Mode = 'buddy' | 'manager';
   let mode = $state<Mode>('manager');
 
-  const SHELLS = $derived([
-    { key: 'side' as Shell, label: m.decide_sh_side(), note: m.decide_sh_side_d() },
-    { key: 'widget' as Shell, label: m.decide_sh_widget(), note: m.decide_sh_widget_d() },
-    { key: 'button' as Shell, label: m.decide_sh_button(), note: m.decide_sh_button_d() },
-  ]);
   const BUDDY = $derived([m.decide_b1(), m.decide_b2(), m.decide_b3()]);
   let said = $state(-1);
 
@@ -154,30 +146,16 @@
       <p class="lead">{m.decide_lead()}</p>
     </div>
 
-    <div class="shells" role="group" aria-label={m.decide_shell()} use:reveal={{ delay: 40 }}>
-      <span class="eyebrow">{m.decide_shell()}</span>
-      {#each SHELLS as sh (sh.key)}
-        <button
-          type="button"
-          class="pill"
-          class:on={shell === sh.key}
-          aria-pressed={shell === sh.key}
-          onclick={() => (shell = sh.key)}>{sh.label}</button
-        >
-      {/each}
-      <span class="sh-note">{SHELLS.find((x) => x.key === shell)?.note}</span>
-    </div>
-
     <div class="browser hud" use:reveal={{ delay: 80, scale: true }} use:scrub={{ y: 14 }}>
       <!-- Browser chrome. The lit extension icon is the whole point: this is
            attached to the browser, not built into the page. -->
       <div class="chrome">
         <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
         <span class="url" translate="no">news.example.com/article/2026-08-market</span>
-        <span class="ext" class:lit={shell !== 'button'} aria-hidden="true">m</span>
+        <span class="ext lit" aria-hidden="true">m</span>
       </div>
 
-      <div class="viewport" class:pushed={shell === 'side'}>
+      <div class="viewport">
         <div class="page" aria-hidden="true">
           <span class="sk w40 h14"></span>
           <span class="sk w70 h28"></span>
@@ -185,208 +163,153 @@
           {#each [1, 2, 3, 4, 5, 6] as i (i)}<span class="sk w92 h9"></span>{/each}
         </div>
 
-        {#if shell === 'button'}
-          <button type="button" class="fab" onclick={() => (shell = 'widget')}>
-            <span class="fab-m" aria-hidden="true">m</span>
-            {#if busy}<span class="fab-badge" aria-hidden="true">1</span>{/if}
-            <span class="visually-hidden">{m.decide_fab()}</span>
-          </button>
-        {:else}
-          <div class="panel" class:widget={shell === 'widget'}>
-            <div class="ext-bar">
-              <span class="ext-n">{m.decide_ext()}</span>
-              <span class="ext-a">{m.decide_pin()}</span>
-              <button type="button" class="ext-x" onclick={() => (shell = 'button')}>
-                <span aria-hidden="true">✕</span>
-                <span class="visually-hidden">{m.decide_close()}</span>
-              </button>
-            </div>
+        <div class="panel">
+          <div class="ext-bar">
+            <span class="ext-n">{m.decide_ext()}</span>
+            <span class="ext-a">{m.decide_close()}</span>
+          </div>
 
-            <header class="bar">
-              <span class="who">
-                <i class="dot" class:live={busy}></i>
-                {m.mos_name()}
-              </span>
-              <span class="state">{busy ? m.mos_state_busy() : m.mos_state_idle()}</span>
-            </header>
+          <header class="bar">
+            <span class="who">
+              <i class="dot" class:live={busy}></i>
+              {m.mos_name()}
+            </span>
+            <span class="state">{busy ? m.mos_state_busy() : m.mos_state_idle()}</span>
+          </header>
 
-            <div class="modes" role="group" aria-label={m.decide_mode()}>
-              {#each [{ k: 'buddy' as Mode, l: m.decide_buddy() }, { k: 'manager' as Mode, l: m.decide_manager() }] as md (md.k)}
-                <button
-                  type="button"
-                  class="mode"
-                  class:on={mode === md.k}
-                  aria-pressed={mode === md.k}
-                  onclick={() => {
-                    mode = md.k;
-                    reset();
-                    said = -1;
-                  }}>{md.l}</button
-                >
-              {/each}
-              <span class="sub"
-                >{mode === 'buddy' ? m.decide_buddy_sub() : m.decide_manager_sub()}</span
+          <div class="modes" role="group" aria-label={m.decide_mode()}>
+            {#each [{ k: 'buddy' as Mode, l: m.decide_buddy() }, { k: 'manager' as Mode, l: m.decide_manager() }] as md (md.k)}
+              <button
+                type="button"
+                class="mode"
+                class:on={mode === md.k}
+                aria-pressed={mode === md.k}
+                onclick={() => {
+                  mode = md.k;
+                  reset();
+                  said = -1;
+                }}>{md.l}</button
               >
-            </div>
+            {/each}
+            <span class="sub"
+              >{mode === 'buddy' ? m.decide_buddy_sub() : m.decide_manager_sub()}</span
+            >
+          </div>
 
-            <div class="chips">
-              <span class="chip">{m.decide_ctx()}</span>
-              <span class="chip">{m.decide_ctx2()}</span>
-            </div>
+          <div class="chips">
+            <span class="chip">{m.decide_ctx()}</span>
+            <span class="chip">{m.decide_ctx2()}</span>
+          </div>
 
-            <div class="body">
-              {#if mode === 'buddy'}
-                <p class="says">{m.decide_buddy_intro()}</p>
-                {#if said < 0}
-                  <span class="label">{m.decide_buddy_label()}</span>
-                  <ul class="goals">
-                    {#each BUDDY as b, i (b)}
-                      <li>
-                        <button type="button" class="goal" onclick={() => (said = i)}>{b}</button>
-                      </li>
-                    {/each}
-                  </ul>
-                {:else}
-                  <p class="mine">{BUDDY[said]}</p>
-                  <p class="says">{m.decide_buddy_reply()}</p>
-                  <div class="foot">
-                    <button type="button" class="again" onclick={() => (said = -1)}
-                      >{m.decide_again()}</button
-                    >
-                  </div>
-                {/if}
-              {:else if stage === 'pick'}
-                <p class="says">{m.decide_manager_intro()}</p>
-                <span class="label">{m.decide_pick()}</span>
+          <div class="body">
+            {#if mode === 'buddy'}
+              <p class="says">{m.decide_buddy_intro()}</p>
+              {#if said < 0}
+                <span class="label">{m.decide_buddy_label()}</span>
                 <ul class="goals">
-                  {#each GOALS as g, i (g.text)}
+                  {#each BUDDY as b, i (b)}
                     <li>
-                      <button type="button" class="goal" onclick={() => pick(i)}>{g.text}</button>
+                      <button type="button" class="goal" onclick={() => (said = i)}>{b}</button>
                     </li>
                   {/each}
                 </ul>
               {:else}
-                <p class="mine">{goal.text}</p>
+                <p class="mine">{BUDDY[said]}</p>
+                <p class="says">{m.decide_buddy_reply()}</p>
+                <div class="foot">
+                  <button type="button" class="again" onclick={() => (said = -1)}
+                    >{m.decide_again()}</button
+                  >
+                </div>
+              {/if}
+            {:else if stage === 'pick'}
+              <p class="says">{m.decide_manager_intro()}</p>
+              <span class="label">{m.decide_pick()}</span>
+              <ul class="goals">
+                {#each GOALS as g, i (g.text)}
+                  <li>
+                    <button type="button" class="goal" onclick={() => pick(i)}>{g.text}</button>
+                  </li>
+                {/each}
+              </ul>
+            {:else}
+              <p class="mine">{goal.text}</p>
 
-                {#if stage === 'ask'}
-                  <p class="says">{goal.ask}</p>
-                  <div class="options">
-                    {#each goal.options as opt, i (opt)}
-                      <button type="button" class="opt" onclick={() => agree(i)}>{opt}</button>
+              {#if stage === 'ask'}
+                <p class="says">{goal.ask}</p>
+                <div class="options">
+                  {#each goal.options as opt, i (opt)}
+                    <button type="button" class="opt" onclick={() => agree(i)}>{opt}</button>
+                  {/each}
+                </div>
+              {:else}
+                <div class="agreed">
+                  <span class="label">{m.decide_agreed()}</span>
+                  <p>{goal.text} — {goal.options[answer]}</p>
+                </div>
+
+                <p class="says">{m.decide_hand()}</p>
+
+                <div class="run">
+                  <div class="runner">
+                    <Mon tone={goal.tone} size={38} active={stage === 'run'} />
+                    <span class="kind">
+                      <b translate="no">{goal.mon}</b>
+                      {m.decide_kind_async()}
+                    </span>
+                    <span class="est">{m.decide_running()}</span>
+                  </div>
+
+                  <ol class="steps">
+                    {#each STEPS as st, i (st.text)}
+                      <li
+                        class:done={stage === 'done' || step > i}
+                        class:now={stage === 'run' && step === i}
+                      >
+                        <i></i>
+                        <b class="by" class:mon={st.by === 'mon'} translate="no"
+                          >{st.by === 'mon' ? m.decide_who_mon() : m.decide_who_mos()}</b
+                        >
+                        {st.text}
+                      </li>
                     {/each}
-                  </div>
-                {:else}
-                  <div class="agreed">
-                    <span class="label">{m.decide_agreed()}</span>
-                    <p>{goal.text} — {goal.options[answer]}</p>
-                  </div>
+                  </ol>
 
-                  <p class="says">{m.decide_hand()}</p>
+                  <div class="track"><div class="fill" style="width:{progress}%"></div></div>
+                </div>
 
-                  <div class="run">
-                    <div class="runner">
-                      <Mon tone={goal.tone} size={38} active={stage === 'run'} />
-                      <span class="kind">
-                        <b translate="no">{goal.mon}</b>
-                        {m.decide_kind_async()}
-                      </span>
-                      <span class="est">{m.decide_running()}</span>
+                {#if stage === 'done'}
+                  <div class="result">
+                    <span class="label">{m.decide_result()}</span>
+                    <p>{goal.result}</p>
+                    <div class="foot">
+                      <span class="spent">{m.decide_cost()}</span>
+                      <button type="button" class="again" onclick={reset}>{m.decide_again()}</button
+                      >
                     </div>
-
-                    <ol class="steps">
-                      {#each STEPS as st, i (st.text)}
-                        <li
-                          class:done={stage === 'done' || step > i}
-                          class:now={stage === 'run' && step === i}
-                        >
-                          <i></i>
-                          <b class="by" class:mon={st.by === 'mon'} translate="no"
-                            >{st.by === 'mon' ? m.decide_who_mon() : m.decide_who_mos()}</b
-                          >
-                          {st.text}
-                        </li>
-                      {/each}
-                    </ol>
-
-                    <div class="track"><div class="fill" style="width:{progress}%"></div></div>
-                    <p class="iso">{m.decide_isolated()}</p>
                   </div>
-
-                  {#if stage === 'done'}
-                    <div class="result">
-                      <span class="label">{m.decide_result()}</span>
-                      <p>{goal.result}</p>
-                      <div class="foot">
-                        <span class="spent">{m.decide_cost()}</span>
-                        <button type="button" class="again" onclick={reset}
-                          >{m.decide_again()}</button
-                        >
-                      </div>
-                    </div>
-                  {/if}
                 {/if}
               {/if}
-            </div>
-
-            <div class="composer">
-              <span class="ph">{m.decide_placeholder()}</span>
-              <span class="send" aria-hidden="true">↑</span>
-            </div>
-            <p class="c-note">
-              {mode === 'buddy' ? m.decide_buddy_note() : m.decide_manager_note()}
-            </p>
+            {/if}
           </div>
-        {/if}
+
+          <div class="composer">
+            <span class="ph">{m.decide_placeholder()}</span>
+            <span class="send" aria-hidden="true">↑</span>
+          </div>
+          <p class="c-note">
+            {mode === 'buddy' ? m.decide_buddy_note() : m.decide_manager_note()}
+          </p>
+        </div>
       </div>
     </div>
 
-    <p class="ext-note" use:reveal={{ delay: 110 }}>{m.decide_ext_note()}</p>
     <p class="note" use:reveal={{ delay: 130 }}>{m.decide_note()}</p>
   </div>
 </section>
 
 <style>
-  /* ---- shell switcher ---- */
-  .shells {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-8);
-    margin: var(--space-24) 0 var(--space-12);
-  }
-  .pill {
-    height: var(--control-m);
-    padding: 0 15px;
-    border: 1px solid var(--glass-line);
-    border-radius: var(--radius-full);
-    background: transparent;
-    font-size: 12px;
-    color: var(--shell-body);
-    cursor: pointer;
-    transition: var(--transition-base);
-  }
-  .pill:hover {
-    border-color: rgba(49, 220, 220, 0.55);
-  }
-  .pill.on {
-    border-color: transparent;
-    background: var(--primary-fill);
-    color: var(--static-white);
-    font-weight: 600;
-  }
-  .pill:focus-visible,
   .mode:focus-visible,
-  .fab:focus-visible,
-  .ext-x:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus);
-  }
-  .sh-note {
-    flex: 1 1 20ch;
-    font-size: 11px;
-    line-height: 1.5;
-    color: var(--shell-faint);
-  }
 
   /* ---- the browser ---- */
   .browser {
@@ -501,22 +424,11 @@
     border-left: 1px solid var(--glass-line);
     background: rgba(10, 12, 18, 0.96);
   }
-  .panel.widget {
-    position: absolute;
-    right: var(--space-16);
-    bottom: var(--space-16);
-    top: var(--space-16);
-    width: 320px;
-    border: 1px solid var(--glass-line);
-    border-radius: var(--radius-m);
-    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55);
-  }
   @media (max-width: 719px) {
     .page {
       display: none;
     }
-    .panel,
-    .panel.widget {
+    .panel {
       position: static;
       width: auto;
       flex: 1;
@@ -542,25 +454,8 @@
   .ext-a {
     color: var(--shell-faint);
   }
-  .ext-x {
-    position: relative;
-    margin-left: auto;
-    width: 18px;
-    border: 0;
-    background: transparent;
-    font-size: 10px;
-    color: var(--shell-meta);
-    cursor: pointer;
-  }
   /* 18px drawn, 44px hit: -14px each side. The extension bar cannot be 44px
      tall and still read as browser chrome, but the close target has to be. */
-  .ext-x::after {
-    content: '';
-    position: absolute;
-    inset: 50% -14px auto -14px;
-    height: var(--control-m);
-    transform: translateY(-50%);
-  }
 
   .modes {
     display: flex;
@@ -646,55 +541,9 @@
     line-height: 1.5;
     color: var(--shell-faint);
   }
-  .iso {
-    margin: var(--space-8) 0 0;
-    font-size: 10px;
-    line-height: 1.45;
-    color: var(--shell-faint);
-  }
 
   /* Collapsed. The badge is the reason this state matters: work keeps running
      with the panel shut. */
-  .fab {
-    position: absolute;
-    right: var(--space-20);
-    bottom: var(--space-20);
-    width: 52px;
-    height: 52px;
-    border: 1.5px solid var(--bright-cyan);
-    border-radius: 50%;
-    background: rgba(10, 26, 32, 0.96);
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
-    cursor: pointer;
-  }
-  .fab-m {
-    font-size: 17px;
-    font-weight: 700;
-    color: var(--bright-cyan);
-  }
-  .fab-badge {
-    position: absolute;
-    top: -3px;
-    right: -3px;
-    min-width: 18px;
-    height: 18px;
-    border-radius: var(--radius-full);
-    background: var(--summon-green);
-    font-size: 10px;
-    font-weight: 700;
-    line-height: 18px;
-    color: var(--static-black);
-  }
-  .ext-note {
-    margin: var(--space-20) 0 0;
-    max-width: 66ch;
-    font-size: var(--font-size-caption-1);
-    line-height: 1.65;
-    color: var(--shell-meta);
-  }
-  .ext-note + .note {
-    margin-top: var(--space-8);
-  }
 
   .inner {
     display: flex;

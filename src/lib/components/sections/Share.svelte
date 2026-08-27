@@ -96,8 +96,6 @@
           {/each}
         </div>
 
-        <p class="why"><b>{m.share_why()}</b> {m.share_why_d()}</p>
-
         <div class="listing">
           <span class="eyebrow">{m.share_listed()}</span>
           <article class="card mine">
@@ -138,12 +136,6 @@
             </header>
           </article>
         {/each}
-
-        <div class="reviews hud">
-          <span class="eyebrow">{m.share_review_label()}</span>
-          <p>{m.share_review_mos()}</p>
-          <p class="dim">{m.share_review_patron()}</p>
-        </div>
       </div>
     </div>
 
@@ -224,18 +216,6 @@
   .mode-k.is-skill {
     background: rgba(155, 110, 239, 0.28);
     color: rgb(213, 195, 249);
-  }
-  .why {
-    margin: 0;
-    padding: 11px 13px;
-    border-radius: var(--radius-xs);
-    background: rgba(112, 115, 124, 0.14);
-    font-size: 11.5px;
-    line-height: 1.6;
-    color: var(--shell-body);
-  }
-  .why b {
-    color: var(--shell-text);
   }
   .mode-n {
     font-size: 13px;
@@ -382,22 +362,5 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-10);
-  }
-  .reviews {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-8);
-    padding: var(--space-16);
-    border-radius: var(--radius-m);
-    box-shadow: none;
-  }
-  .reviews p {
-    margin: 0;
-    font-size: 12px;
-    line-height: 1.65;
-    color: var(--shell-body);
-  }
-  .reviews p.dim {
-    color: var(--shell-faint);
   }
 </style>

@@ -328,7 +328,7 @@
     <div class="stage hud" use:reveal={{ delay: 60, scale: true }}>
       <div class="bar">
         <span class="eyebrow">{m.make_palette()}</span>
-        <span class="hint">{m.make_canvas_hint()}</span>
+        <span class="hint">{m.make_palette_hint()}</span>
       </div>
 
       <!-- The palette sits above the canvas, so the drag runs downward into it.
@@ -471,7 +471,6 @@
           {/if}
         </div>
       </div>
-      <p class="pan">{m.make_pan_hint()}</p>
 
       <div class="brain">
         <div class="bar">
@@ -523,7 +522,6 @@
       </div>
     </div>
 
-    <p class="io-note" use:reveal={{ delay: 150 }}>{m.make_io_note()}</p>
     <p class="note" use:reveal={{ delay: 160 }}>{m.make_note()}</p>
   </div>
 </section>
@@ -812,16 +810,6 @@
     outline: none;
     box-shadow: var(--shadow-focus);
   }
-  .pan {
-    margin: 0;
-    font-size: 10.5px;
-    color: var(--shell-faint);
-  }
-  @media (min-width: 780px) {
-    .pan {
-      display: none;
-    }
-  }
 
   /* ---- prompt ---- */
   .brain {
@@ -1080,15 +1068,5 @@
     font-size: 11px;
     line-height: 1.55;
     color: var(--shell-faint);
-  }
-  .io-note {
-    margin: var(--space-20) 0 0;
-    max-width: 66ch;
-    font-size: var(--font-size-caption-1);
-    line-height: 1.65;
-    color: var(--shell-meta);
-  }
-  .io-note + .note {
-    margin-top: var(--space-8);
   }
 </style>

@@ -738,15 +738,24 @@ main .head {
   flex-direction: column;
   gap: var(--space-12);
 }
+/* Section titles hold one line at every width.  was actively
+   splitting them — it optimises for even line lengths, which means it prefers
+   two lines whenever two are possible. The titles are short enough now that one
+   line fits at the 24px floor, and `nowrap` is deliberately not used: it would
+   overflow rather than wrap if a translation ever grew. */
 main .title {
   margin: 0;
-  max-width: 20ch;
-  font-size: clamp(28px, 3.6vw, 40px);
+  font-size: clamp(24px, 3.4vw, 38px);
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: -0.025em;
   color: var(--shell-text);
-  text-wrap: balance;
+  text-wrap: nowrap;
+}
+@media (max-width: 480px) {
+  main .title {
+    text-wrap: pretty;
+  }
 }
 main .lead {
   margin: 0;

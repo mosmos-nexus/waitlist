@@ -169,7 +169,7 @@ async function open(path = '/', o = {}) {
   await ctx.close();
 }
 
-// ---- 3b. Chat is an extension, not a widget planted in the page ----
+// ---- 3b. Chat is an extension, and it has two modes ----
 {
   const { ctx, p } = await open();
   const s = p.locator('section.decide');
@@ -183,45 +183,30 @@ async function open(path = '/', o = {}) {
   ok('and the extension icon lit', (await s.locator('.chrome .ext.lit').count()) === 1);
   ok('the panel carries an extension bar', (await s.locator('.panel .ext-bar').count()) === 1);
 
-  // Sidebar pushes the page; it does not cover it. Both are in flow, so the
-  // page's right edge and the panel's left edge meet.
+  // The panel is in flow beside the page, so it pushes rather than covers —
+  // which is the difference between an extension panel and a site overlay.
   const side = await s.evaluate(() => {
     const pg = document.querySelector('section.decide .page').getBoundingClientRect();
     const pn = document.querySelector('section.decide .panel').getBoundingClientRect();
     return { gap: Math.round(pn.left - pg.right), overlap: pn.left < pg.right - 2 };
   });
-  ok('the sidebar pushes the page rather than covering it', !side.overlap, `gap ${side.gap}px`);
+  ok('it pushes the page rather than covering it', !side.overlap, `gap ${side.gap}px`);
 
-  // Widget floats over it, which is the opposite arrangement.
-  await s.locator('.shells .pill').nth(1).click();
-  await p.waitForTimeout(350);
-  ok('the widget floats', (await s.locator('.panel.widget').count()) === 1);
-  const over = await s.evaluate(() => {
-    const pg = document.querySelector('section.decide .page').getBoundingClientRect();
-    const pn = document.querySelector('section.decide .panel').getBoundingClientRect();
-    return pn.left < pg.right;
-  });
-  ok('and overlaps the page', over);
-
-  // Button is the collapsed state, and it is still the extension.
-  await s.locator('.shells .pill').nth(2).click();
-  await p.waitForTimeout(350);
-  ok('the button collapses the panel', (await s.locator('.panel').count()) === 0);
-  ok('leaving a launcher', (await s.locator('.fab').count()) === 1);
-  await s.locator('.fab').click();
-  await p.waitForTimeout(350);
-  ok('which opens the widget again', (await s.locator('.panel.widget').count()) === 1);
-
-  // Buddy talks and calls no Mon; Manager delegates. Mos never executes in
-  // either, which is the whole point of the split.
+  // Two modes, and they behave differently. Buddy talks and calls no Mon;
+  // Manager takes a goal to a Mon. Mos executes in neither.
+  ok('two modes', (await s.locator('.modes .mode').count()) === 2);
   await s.locator('.modes .mode').first().click();
   await p.waitForTimeout(300);
+  const buddySub = (await s.locator('.modes .sub').innerText()).trim();
   ok('Buddy offers conversation', (await s.locator('.body .goals li').count()) === 3);
   await s.locator('.body .goal').first().click();
   await p.waitForTimeout(300);
   ok('and answers without a Mon', (await s.locator('.body .run, .body .steps').count()) === 0);
+
   await s.locator('.modes .mode').last().click();
   await p.waitForTimeout(300);
+  const mgrSub = (await s.locator('.modes .sub').innerText()).trim();
+  ok('each mode explains itself differently', buddySub !== mgrSub, `${buddySub} / ${mgrSub}`);
   await s.locator('.body .goal').first().click();
   await p.waitForTimeout(300);
   await s.locator('.body .opt').first().click();
@@ -518,12 +503,13 @@ async function open(path = '/', o = {}) {
     return (await s.locator('.table dd').allInnerTexts()).join('|');
   };
   const [g, pl, pa] = [await rowsFor(0), await rowsFor(1), await rowsFor(2)];
-  ok('the comparison has a row per axis', g.split('|').length === 7, g);
+  ok('the comparison has a row per axis', g.split('|').length === 5, g);
   ok('and each plan answers it differently', new Set([g, pl, pa]).size === 3);
   ok(
     'Ground has no scheduled runs',
-    g.split('|')[4] !== pl.split('|')[4],
-    `${g.split('|')[4]} vs ${pl.split('|')[4]}`,
+    // Scheduled runs is the row Ground does not have — index 3 of the five.
+    g.split('|')[3] !== pl.split('|')[3],
+    `${g.split('|')[3]} vs ${pl.split('|')[3]}`,
   );
   await ctx.close();
 }

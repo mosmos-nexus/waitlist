@@ -606,12 +606,7 @@ function ok(l, c, e = '') {
     const p = await ctx.newPage();
     await p.goto(BASE + '/', { waitUntil: 'networkidle' });
     await p.waitForTimeout(600);
-    for (const shell of [0, 1, 2]) {
-      const pills = p.locator('section.decide .shells .pill');
-      if (await pills.count()) {
-        await pills.nth(shell).click();
-        await p.waitForTimeout(280);
-      }
+    {
       const found = await p.evaluate(() => {
         const bad = [];
         const de = document.documentElement;
@@ -642,7 +637,7 @@ function ok(l, c, e = '') {
       });
       const real = found.bad.filter((x) => !ALLOW.test(x.sel));
       rows.push({
-        at: `${w} ${['side', 'widget', 'button'][shell]}`,
+        at: `${w} panel`,
         clipped: real,
         pageOver: found.pageOver,
       });
