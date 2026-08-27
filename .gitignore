@@ -38,3 +38,6 @@ email-preview.html
 # 75MB 디자인 시스템 아카이브 — 정본은 Claude Design 프로젝트에 있다
 mosmos-design-system.zip
 .omc/artifacts/shots/
+
+# Playwright MCP writes page snapshots into the cwd
+.playwright-mcp/
