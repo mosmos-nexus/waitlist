@@ -916,6 +916,14 @@
     flex: none;
     width: 208px;
   }
+  /* On a phone one card plus a sliver of the next fits; at 208px the second
+     card is cut mid-sentence instead, which reads as truncated text rather
+     than as a rail. */
+  @media (max-width: 520px) {
+    .cards li {
+      width: 46vw;
+    }
+  }
   .card {
     width: 100%;
     height: 100%;
