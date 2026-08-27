@@ -757,16 +757,18 @@ main .title {
     text-wrap: pretty;
   }
 }
+/* 68ch, not 44. At 44ch the measure was ~440px inside a 1120px container, so
+   every lead broke on a desktop that had room to spare. And `pretty` rather
+   than `balance`: balance optimises for even line lengths, which means it
+   prefers two lines whenever two are possible — the same thing that was
+   splitting the titles. `pretty` only avoids a stranded last word. */
 main .lead {
   margin: 0;
-  max-width: 44ch;
+  max-width: 68ch;
   font-size: var(--font-size-body-1);
   line-height: 1.65;
   color: var(--shell-body);
-  /* Korean with `keep-all` breaks only at spaces, which strands very short last
-     lines — measured at 8-15% of the measure across these blocks. `balance` is
-     built for runs of a few lines, which is exactly what a lead is. */
-  text-wrap: balance;
+  text-wrap: pretty;
 }
 main .note {
   margin: var(--space-20) 0 0;

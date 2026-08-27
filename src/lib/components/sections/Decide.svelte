@@ -191,8 +191,11 @@
                 }}>{md.l}</button
               >
             {/each}
+            <!-- Both, not just the active one. With only the active mode
+                   described, Buddy went unexplained for the whole page. -->
+            <span class="sub"><b class="who-m">{m.decide_buddy()}</b> {m.decide_buddy_sub()}</span>
             <span class="sub"
-              >{mode === 'buddy' ? m.decide_buddy_sub() : m.decide_manager_sub()}</span
+              ><b class="who-m">{m.decide_manager()}</b> {m.decide_manager_sub()}</span
             >
           </div>
 
@@ -494,6 +497,10 @@
     font-size: 10.5px;
     line-height: 1.45;
     color: var(--shell-faint);
+  }
+  .modes .who-m {
+    font-weight: 700;
+    color: var(--shell-meta);
   }
   .chips {
     display: flex;

@@ -28,6 +28,10 @@
     { name: m.share_skill(), kind: m.share_skill_k(), note: m.share_skill_d(), skill: true },
   ]);
   let mode = $state(1);
+  /* A Mon cannot be sold — sale is the Skill's trade. With one fixed example
+     the "판매" mode put a sale badge on a Mon, contradicting its own
+     "Mon Skill만" label, so the example switches asset with the mode. */
+  const isSkill = $derived(MODES[mode].skill === true);
 
   /* A Mon and a Mon Skill are different assets and the list has to say so.
      A Mon is an agent you rent — it runs, and each run is charged. A Skill is a
@@ -35,6 +39,16 @@
      opens it. Drawing both as an avatar plus a line made the Hub's rent-versus-
      buy split unreadable, so the kind, the trade and the mark are all explicit,
      and only the agent gets a face. */
+  /* The path money takes, spelled out. A creator's only question is whether
+     they can earn and how — and the section previously answered it in a lead
+     sentence and left the rest to inference. */
+  const FLOW = $derived([
+    { t: m.share_f1(), d: m.share_f1_d() },
+    { t: m.share_f2(), d: m.share_f2_d() },
+    { t: m.share_f3(), d: m.share_f3_d() },
+    { t: m.share_f4(), d: m.share_f4_d() },
+  ]);
+
   const PEERS = $derived([
     {
       name: m.share_peer_1(),
@@ -98,16 +112,22 @@
 
         <div class="listing">
           <span class="eyebrow">{m.share_listed()}</span>
-          <article class="card mine">
+          <article class="card mine" class:is-skill={isSkill}>
             <header>
-              <Mon tone="design" size={44} />
+              {#if isSkill}
+                <span class="doc-mark" aria-hidden="true"></span>
+              {:else}
+                <Mon tone="design" size={44} />
+              {/if}
               <div class="who">
-                <span class="n" translate="no">{m.share_mine_name()}</span>
+                <span class="n" translate="no"
+                  >{isSkill ? m.share_mine_skill() : m.share_mine_name()}</span
+                >
                 <span class="by">{m.share_yours()}</span>
               </div>
               <span class="badge">{m.share_verified()}</span>
             </header>
-            <p class="desc">{m.share_mine_desc()}</p>
+            <p class="desc">{isSkill ? m.share_mine_skill_desc() : m.share_mine_desc()}</p>
             <footer>
               <span class="stars">{m.share_mode_label()}</span>
               <span class="price">{MODES[mode].name}</span>
@@ -117,6 +137,19 @@
       </div>
 
       <div class="peers" use:reveal={{ delay: 110 }} use:scrub={{ y: 24 }}>
+        <div class="flow hud">
+          <span class="eyebrow">{m.share_flow()}</span>
+          <ol>
+            {#each FLOW as f, i (f.t)}
+              <li class:last={i === FLOW.length - 1}>
+                <span class="f-n" aria-hidden="true">{i + 1}</span>
+                <span class="f-t">{f.t}</span>
+                <span class="f-d">{f.d}</span>
+              </li>
+            {/each}
+          </ol>
+        </div>
+
         {#each PEERS as p, i (p.name)}
           <article class="card hud" class:is-skill={p.skill}>
             <header>
@@ -246,6 +279,19 @@
     border-radius: var(--radius-m);
     background: rgba(31, 206, 206, 0.06);
   }
+  .card.mine.is-skill {
+    border-radius: 5px;
+    border-color: rgba(155, 110, 239, 0.45);
+    border-left: 4px solid rgba(155, 110, 239, 0.85);
+    background: rgba(122, 62, 234, 0.1);
+  }
+  .is-skill .badge {
+    border-color: rgba(155, 110, 239, 0.6);
+    color: rgb(213, 195, 249);
+  }
+  .is-skill .price {
+    color: rgb(213, 195, 249);
+  }
   .peers .card.hud {
     padding: var(--space-14) var(--space-16);
     border-radius: var(--radius-m);
@@ -356,6 +402,74 @@
     font-size: 15px;
     font-weight: 700;
     color: var(--bright-cyan);
+  }
+
+  /* Numbered because the order is the substance: build, publish, someone else
+     picks it, it settles. Remove a step and the sentence stops being true. */
+  .flow {
+    padding: var(--space-16);
+    border-radius: var(--radius-m);
+    box-shadow: none;
+  }
+  .flow ol {
+    list-style: none;
+    margin: var(--space-10) 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .flow li {
+    position: relative;
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 2px var(--space-10);
+    padding-bottom: var(--space-12);
+  }
+  .flow li::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 22px;
+    bottom: 0;
+    width: 1px;
+    background: rgba(49, 220, 220, 0.35);
+  }
+  .flow li.last {
+    padding-bottom: 0;
+  }
+  .flow li.last::before {
+    display: none;
+  }
+  .f-n {
+    grid-row: 1 / 3;
+    display: grid;
+    place-items: center;
+    width: 21px;
+    height: 21px;
+    border-radius: 50%;
+    background: rgba(31, 206, 206, 0.18);
+    border: 1px solid rgba(49, 220, 220, 0.45);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--bright-cyan);
+  }
+  .flow li.last .f-n {
+    background: var(--summon-green);
+    border-color: var(--summon-green);
+    color: var(--static-black);
+  }
+  .f-t {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--shell-text);
+  }
+  .flow li.last .f-t {
+    color: var(--summon-green);
+  }
+  .f-d {
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--shell-meta);
   }
 
   .peers {

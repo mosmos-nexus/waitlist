@@ -55,8 +55,6 @@
   }
 </script>
 
-ㄱ
-
 <Seo title={m.meta_title()} description={m.meta_description()} includeOrganization />
 
 {#if result}

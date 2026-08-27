@@ -26,6 +26,25 @@ async function open(path = '/', o = {}) {
   return { ctx, p };
 }
 
+// ---- 0. no stray text leaks into the document ----
+{
+  const { ctx, p } = await open();
+  // A single lost character sat between `<main>` and the world for three
+  // commits, rendering above the fold. Nothing should print before the first
+  // section.
+  const leading = await p.evaluate(() => {
+    const main = document.querySelector('main');
+    let t = '';
+    for (const n of main.childNodes) {
+      if (n.nodeType === 3) t += n.nodeValue;
+      else break;
+    }
+    return t.trim();
+  });
+  ok('nothing prints before the first section', leading === '', JSON.stringify(leading));
+  await ctx.close();
+}
+
 // ---- 1. the shell is the product's own deep-space chrome ----
 {
   const { ctx, p } = await open();
@@ -197,7 +216,6 @@ async function open(path = '/', o = {}) {
   ok('two modes', (await s.locator('.modes .mode').count()) === 2);
   await s.locator('.modes .mode').first().click();
   await p.waitForTimeout(300);
-  const buddySub = (await s.locator('.modes .sub').innerText()).trim();
   ok('Buddy offers conversation', (await s.locator('.body .goals li').count()) === 3);
   await s.locator('.body .goal').first().click();
   await p.waitForTimeout(300);
@@ -205,8 +223,12 @@ async function open(path = '/', o = {}) {
 
   await s.locator('.modes .mode').last().click();
   await p.waitForTimeout(300);
-  const mgrSub = (await s.locator('.modes .sub').innerText()).trim();
-  ok('each mode explains itself differently', buddySub !== mgrSub, `${buddySub} / ${mgrSub}`);
+  // Both descriptions are on screen at once. With only the active mode
+  // described, Buddy went unexplained for the whole page.
+  const subs = (await s.locator('.modes .sub').allInnerTexts()).map((t) => t.trim());
+  ok('both modes are described', subs.length === 2, subs.join(' | '));
+  ok('and differently', subs[0] !== subs[1]);
+  ok('the Mon term is glossed where it first appears', /Mon/.test(subs.join(' ')));
   await s.locator('.body .goal').first().click();
   await p.waitForTimeout(300);
   await s.locator('.body .opt').first().click();
@@ -449,6 +471,32 @@ async function open(path = '/', o = {}) {
   ok('every payback mode names its asset', kinds.length === 3 && kinds.every((t) => t.trim()));
   ok('one is Mon-only', (await s.locator('.mode-k.is-mon').count()) === 1, kinds.join(' / '));
   ok('one is Skill-only', (await s.locator('.mode-k.is-skill').count()) === 1);
+
+  // A Mon cannot be sold and a Skill cannot be rented, so the example listing
+  // has to change asset with the mode. It used to keep one Mon example and put
+  // a "판매" badge on it, directly contradicting that mode's own "Skill only".
+  // Read the asset from the badge's class, not from its text: the "both" mode's
+  // label contains the word "Skill" too.
+  const pairs = [];
+  for (const i of [0, 1, 2]) {
+    const mode = s.locator('.mode').nth(i);
+    await mode.click();
+    await p.waitForTimeout(220);
+    pairs.push({
+      skillOnly: (await mode.locator('.mode-k.is-skill').count()) === 1,
+      monOnly: (await mode.locator('.mode-k.is-mon').count()) === 1,
+      cardIsSkill: (await s.locator('.card.mine.is-skill').count()) === 1,
+    });
+  }
+  ok(
+    'a Skill-only mode shows a Skill, never a Mon',
+    pairs.every((x) => !x.skillOnly || x.cardIsSkill),
+    JSON.stringify(pairs),
+  );
+  ok(
+    'and a Mon-only mode never shows a Skill',
+    pairs.every((x) => !x.monOnly || !x.cardIsSkill),
+  );
 
   // Hub trading, creator payout and certification are all inactive at the MVP
   // stage this page announces, so a rating, a run count or a Mana price on a

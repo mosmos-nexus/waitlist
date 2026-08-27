@@ -64,14 +64,15 @@
     },
   ]);
 
-  /** What Mana is spent on, and what it is not. Both lists are the charging
-   *  model itself: execution is post-charged, making and storing are not
-   *  charged at all, and a Hub-sourced run splits part of the charge to the
-   *  Mon's author. */
-  const SPEND = $derived([
-    { what: m.cost_a1(), why: m.cost_a1_d() },
-    { what: m.cost_a2(), why: m.cost_a2_d() },
-    { what: m.cost_a3(), why: m.cost_a3_d() },
+  /* Benefits, not an accounting ledger.
+     This block used to list "when it is charged" and "what is not charged",
+     which is operationally true and reads as a company defending its costs —
+     and the pair invited the question "so am I billed twice?". What a reader
+     needs is why one balance beats several subscriptions. */
+  const GOOD = $derived([
+    { t: m.cost_g1(), d: m.cost_g1_d() },
+    { t: m.cost_g2(), d: m.cost_g2_d() },
+    { t: m.cost_g3(), d: m.cost_g3_d() },
   ]);
   const FREE = $derived([m.cost_b1(), m.cost_b2(), m.cost_b3()]);
 </script>
@@ -125,8 +126,6 @@
             {/each}
           </dl>
         </div>
-
-        <p class="open">{m.cost_open()}</p>
       </div>
 
       <div class="col" use:reveal={{ delay: 110 }} use:scrub={{ y: 20 }}>
@@ -139,17 +138,17 @@
         </div>
 
         <div class="wallet hud">
-          <span class="eyebrow spend-label">{m.cost_yes()}</span>
+          <span class="eyebrow spend-label">{m.cost_good()}</span>
           <ul class="spend">
-            {#each SPEND as s (s.what)}
+            {#each GOOD as g (g.t)}
               <li>
-                <span class="what">{s.what}</span>
-                <span class="why">{s.why}</span>
+                <span class="what">{g.t}</span>
+                <span class="why">{g.d}</span>
               </li>
             {/each}
           </ul>
 
-          <span class="eyebrow free-label">{m.cost_no()}</span>
+          <span class="eyebrow free-label">{m.cost_free()}</span>
           <ul class="free">
             {#each FREE as f (f)}
               <li>{f}</li>
@@ -331,16 +330,6 @@
      paying for" without a legend. */
   .changed dd {
     color: var(--summon-green);
-  }
-
-  .open {
-    margin: 0;
-    padding: 11px 14px;
-    border-radius: var(--radius-xs);
-    background: rgba(112, 115, 124, 0.14);
-    font-size: 12px;
-    line-height: 1.6;
-    color: var(--shell-body);
   }
 
   .wallet {
