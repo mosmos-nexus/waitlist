@@ -433,9 +433,15 @@ async function goalAgain(s, p) {
   // port and carries the document mark; only the agent has a face.
   await s.locator('.stage > .tabs .tab').last().click();
   await p.waitForTimeout(250);
+  // The pair is defined once, in the cast chapter. What stays here is the half
+  // a builder needs at the moment of attaching, plus the fact that only this
+  // screen can tell them: a document costs nothing to attach.
+  const whatSkill = await s.locator('.stage .what .is-skill').innerText();
+  ok('the Skill tab keeps the document apart from the agent', /Skill/.test(whatSkill), whatSkill);
   ok(
-    'the Skill tab explains the two nouns apart',
-    (await s.locator('.stage .what div').count()) === 2,
+    'and says attaching one is free',
+    /Mana/.test(whatSkill) && (await s.locator('.stage .what div').count()) === 1,
+    whatSkill,
   );
   await s.locator('.stage .cards .card').first().click();
   await p.waitForTimeout(350);
@@ -718,9 +724,9 @@ for (const [w, h] of [
   // The gloss is required on first use, so it cannot start life invisible —
   // which is what a scroll-reveal inset wider than the gap to the fold caused.
   const glossOpacity = await p
-    .locator('.hero .gloss')
+    .locator('.hero .anchor')
     .evaluate((e) => Number(getComputedStyle(e).opacity));
-  ok(`${w}px: the gloss line is visible at rest`, glossOpacity > 0.9, `${glossOpacity}`);
+  ok(`${w}px: the opening line is visible at rest`, glossOpacity > 0.9, `${glossOpacity}`);
   await ctx.close();
 }
 

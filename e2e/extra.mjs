@@ -415,11 +415,17 @@ function ok(l, c, e = '') {
       const svg = document.querySelector('.isle-svg').getBoundingClientRect();
       const surface = svg.top + 454 * (svg.width / 1440);
       const copyBottom = document.querySelector('.hero .copy').getBoundingClientRect().bottom;
+      // The lowest the surface can sit while still clearing the copy: the
+      // component places it at copy + 30px of air + Mos's own height.
+      const cs = getComputedStyle(document.querySelector('.world'));
+      const isleW = parseFloat(cs.getPropertyValue('--isle-w'));
+      const mosK = parseFloat(cs.getPropertyValue('--mos-k'));
       return {
         collide: Math.round(worst),
         on,
         overflow: document.documentElement.scrollWidth - window.innerWidth,
-        surfaceFrac: surface / window.innerHeight,
+        surface,
+        highest: copyBottom + 30 + isleW * mosK * 0.853,
         copyFrac: copyBottom / window.innerHeight,
       };
     });
@@ -428,20 +434,18 @@ function ok(l, c, e = '') {
       worstCollision = `${w}x${h} .${g.on} ${g.collide}px²`;
     }
     if (g.overflow > 0) overflows++;
-    // Where there is room for it, the island belongs in view rather than
-    // pressed against the bottom edge — the complaint this replaced was an
-    // island parked at 93% of the fold on every phone.
-    if (g.copyFrac < 0.72 && g.surfaceFrac > 0.88)
-      lowSurface.push(`${w}x${h} ${Math.round(g.surfaceFrac * 100)}%`);
+    // The island belongs directly under the copy, not pressed against the
+    // bottom edge — the complaint this replaced was an island parked at 93% of
+    // the fold on every phone. Measured as slack against the highest it could
+    // sit, because on a 667px screen carrying 460px of copy, "in view" is not
+    // something a fraction of the fold can ask for.
+    const slack = Math.round(g.surface - g.highest);
+    if (g.copyFrac < 0.72 && slack > 12) lowSurface.push(`${w}x${h} +${slack}px`);
     await ctx.close();
   }
   ok('the copy and the island never overlap', collisions === 0, worstCollision);
   ok('nothing overflows sideways at any width', overflows === 0, `${overflows} widths`);
-  ok(
-    'the island stays in view where there is room',
-    lowSurface.length === 0,
-    lowSurface.join(', '),
-  );
+  ok('the island sits as high as the copy allows', lowSurface.length === 0, lowSurface.join(', '));
 }
 
 // ---- Controls are reachable, and the cursor does not hide a caret ----

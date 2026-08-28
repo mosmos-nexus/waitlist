@@ -172,7 +172,6 @@
 
         <div class="panel">
           <div class="ext-bar">
-            <span class="ext-n">{m.decide_ext()}</span>
             <span class="ext-a">{m.decide_close()}</span>
           </div>
 
@@ -207,7 +206,6 @@
           </div>
 
           <div class="chips">
-            <span class="chip">{m.decide_ctx()}</span>
             <span class="chip">{m.decide_ctx2()}</span>
           </div>
 
@@ -235,7 +233,6 @@
               {/if}
             {:else if stage === 'pick'}
               <p class="says">{m.decide_manager_intro()}</p>
-              <span class="label">{m.decide_pick()}</span>
               <ul class="goals">
                 {#each GOALS as g, i (g.text)}
                   <li>
@@ -308,9 +305,6 @@
             <span class="ph">{m.decide_placeholder()}</span>
             <span class="send" aria-hidden="true">↑</span>
           </div>
-          <p class="c-note">
-            {mode === 'buddy' ? m.decide_buddy_note() : m.decide_manager_note()}
-          </p>
         </div>
       </div>
     </div>
@@ -459,9 +453,6 @@
     font-weight: 700;
     letter-spacing: 0.05em;
   }
-  .ext-n {
-    color: var(--bright-cyan);
-  }
   .ext-a {
     color: var(--shell-faint);
   }
@@ -549,12 +540,6 @@
     background: rgba(49, 220, 220, 0.2);
     font-size: 10px;
     color: var(--bright-cyan);
-  }
-  .c-note {
-    margin: var(--space-8) var(--space-14) var(--space-14);
-    font-size: 10.5px;
-    line-height: 1.5;
-    color: var(--shell-faint);
   }
 
   /* Collapsed. The badge is the reason this state matters: work keeps running

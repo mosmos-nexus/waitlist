@@ -30,7 +30,6 @@
     <div class="head" use:reveal>
       <span class="eyebrow">{m.cast_eyebrow()}</span>
       <h2 class="title" id="cast-title">{m.cast_title()}</h2>
-      <p class="lead">{m.cast_lead()}</p>
     </div>
 
     <ol class="cards">

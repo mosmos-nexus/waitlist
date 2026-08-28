@@ -323,7 +323,6 @@
     <div class="head" use:reveal>
       <span class="eyebrow">{m.make_eyebrow()}</span>
       <h2 class="title" id="make-title">{m.make_title()}</h2>
-      <p class="lead">{m.make_lead()}</p>
     </div>
 
     <div class="stage hud" use:reveal={{ delay: 60, scale: true }}>
@@ -349,10 +348,6 @@
 
       {#if tab === 'skill'}
         <dl class="what">
-          <div>
-            <dt>{m.make_what_mon()}</dt>
-            <dd>{m.make_what_mon_d()}</dd>
-          </div>
           <div class="is-skill">
             <dt>{m.make_what_skill()}</dt>
             <dd>{m.make_what_skill_d()}</dd>

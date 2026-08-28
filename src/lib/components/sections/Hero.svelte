@@ -28,9 +28,6 @@
       <div class="form-slot" use:reveal={{ delay: 200 }}>
         <WaitlistForm {onSuccess} />
       </div>
-
-      <!-- Glossed on first appearance, per the language rule for cold readers. -->
-      <p class="gloss" use:reveal={{ delay: 240 }}>{m.hero_gloss()}</p>
     </div>
   </div>
 
@@ -94,13 +91,6 @@
     width: 100%;
     max-width: 30rem;
   }
-  .gloss {
-    margin: 0;
-    font-size: var(--font-size-caption-1);
-    line-height: 1.6;
-    color: var(--shell-faint);
-  }
-
   .scroll-hint {
     position: absolute;
     left: 50%;

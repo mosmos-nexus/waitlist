@@ -82,7 +82,6 @@
     <div class="head" use:reveal>
       <span class="eyebrow">{m.share_eyebrow()}</span>
       <h2 class="title" id="share-title">{m.share_title()}</h2>
-      <p class="lead">{m.share_lead()}</p>
     </div>
 
     <div class="grid">
@@ -125,11 +124,9 @@
                 >
                 <span class="by">{m.share_yours()}</span>
               </div>
-              <span class="badge">{m.share_verified()}</span>
             </header>
             <p class="desc">{isSkill ? m.share_mine_skill_desc() : m.share_mine_desc()}</p>
             <footer>
-              <span class="stars">{m.share_mode_label()}</span>
               <span class="price">{MODES[mode].name}</span>
             </footer>
           </article>
@@ -286,10 +283,6 @@
     border-left: 4px solid rgba(155, 110, 239, 0.85);
     background: rgba(122, 62, 234, 0.1);
   }
-  .is-skill .badge {
-    border-color: rgba(155, 110, 239, 0.6);
-    color: rgb(213, 195, 249);
-  }
   .is-skill .price {
     color: rgb(213, 195, 249);
   }
@@ -371,16 +364,6 @@
     font-size: 11px;
     color: var(--shell-meta);
   }
-  .badge {
-    margin-left: auto;
-    flex: none;
-    padding: 4px 9px;
-    border-radius: var(--radius-full);
-    border: 1px solid rgba(49, 220, 220, 0.6);
-    font-size: 10.5px;
-    font-weight: 700;
-    color: var(--bright-cyan);
-  }
   .desc {
     margin: 0;
     font-size: 12.5px;
@@ -394,12 +377,7 @@
     padding-top: var(--space-10);
     border-top: 1px dashed var(--glass-line-soft);
   }
-  .stars {
-    font-size: 11.5px;
-    color: var(--shell-meta);
-  }
   .price {
-    margin-left: auto;
     font-size: 15px;
     font-weight: 700;
     color: var(--bright-cyan);
