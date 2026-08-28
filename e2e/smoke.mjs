@@ -134,6 +134,38 @@ async function open(path = '/', o = {}) {
   await ctx.close();
 }
 
+// ---- 2b. the three names are defined before anything uses them ----
+{
+  const { ctx, p } = await open();
+  const s = p.locator('section.cast');
+  await s.scrollIntoViewIfNeeded();
+  await p.waitForTimeout(400);
+
+  ok('the cast chapter is on the page', (await s.count()) === 1);
+  const names = (await s.locator('.card .n').allInnerTexts()).map((t) => t.trim());
+  ok('three names', names.length === 3, names.join(','));
+  ok("and they are the product's own", names.join(',') === 'Mos,Mon,Mon Skill', names.join(','));
+  const roles = (await s.locator('.card .r').allInnerTexts()).map((t) => t.trim());
+  ok('each has a role', roles.length === 3 && roles.every(Boolean), roles.join(' | '));
+  ok('and no two share one', new Set(roles).size === 3);
+
+  // Definitions are worth little without the order they happen in.
+  const flow = (await s.locator('.flow').innerText()).trim();
+  ok(
+    'the sequence is stated',
+    names.every((n) => flow.includes(n)),
+    flow,
+  );
+
+  // It has to land before the section that spends the words.
+  const order = await p.evaluate(() => {
+    const y = (sel) => document.querySelector(sel).getBoundingClientRect().top + window.scrollY;
+    return { cast: y('section.cast'), decide: y('section.decide') };
+  });
+  ok('and it comes before Chat', order.cast < order.decide);
+  await ctx.close();
+}
+
 // ---- 3. the console settles a goal before anything runs ----
 {
   const { ctx, p } = await open();
@@ -221,8 +253,36 @@ async function open(path = '/', o = {}) {
   await p.waitForTimeout(300);
   ok('and answers without a Mon', (await s.locator('.body .run, .body .steps').count()) === 0);
 
+  // One reply per opener. A single fixed answer met "이 기사 어떻게 봤어" with a
+  // line about procrastination — the demo argued with itself.
+  const said = [];
+  for (let i = 0; i < 3; i++) {
+    if (i) await s.locator('.body .goal').nth(i).click();
+    await p.waitForTimeout(250);
+    said.push([
+      (await s.locator('.body .mine').innerText()).trim(),
+      (await s.locator('.body .says').last().innerText()).trim(),
+    ]);
+    await s.locator('.body .again').click();
+    await p.waitForTimeout(250);
+  }
+  ok('every opener gets its own answer', new Set(said.map((x) => x[1])).size === 3);
+  ok(
+    'and the answer belongs to what was asked',
+    // The article opener is answered about the article, not about putting
+    // things off — the mismatch that made the demo read as canned.
+    /문단|기사|paragraph|article|段落|記事/.test(said[1][1]),
+    said[1].join(' -> '),
+  );
+  await s.locator('.body .goal').first().click();
+  await p.waitForTimeout(250);
+  const backLabel = (await s.locator('.body .again').innerText()).trim();
+  await s.locator('.body .again').click();
+  await p.waitForTimeout(250);
+
   await s.locator('.modes .mode').last().click();
   await p.waitForTimeout(300);
+  ok('Buddy does not offer to swap a goal it never had', backLabel !== (await goalAgain(s, p)));
   // Both descriptions are on screen at once. With only the active mode
   // described, Buddy went unexplained for the whole page.
   const subs = (await s.locator('.modes .sub').allInnerTexts()).map((t) => t.trim());
@@ -235,6 +295,18 @@ async function open(path = '/', o = {}) {
   await p.waitForTimeout(1200);
   ok('Manager hands it to a Mon', (await s.locator('.body .run .steps li').count()) === 3);
   await ctx.close();
+}
+
+/** Manager's own reset label, for comparing against Buddy's. */
+async function goalAgain(s, p) {
+  await s.locator('.body .goal').first().click();
+  await p.waitForTimeout(250);
+  await s.locator('.body .opt').first().click();
+  await p.waitForTimeout(2600);
+  const t = (await s.locator('.body .again').innerText()).trim();
+  await s.locator('.body .again').click();
+  await p.waitForTimeout(250);
+  return t;
 }
 
 // ---- 4. the patrol reads sentences ----

@@ -4,6 +4,7 @@
   import SkyIsland from '$lib/components/world/SkyIsland.svelte';
   import ManaCursor from '$lib/components/world/ManaCursor.svelte';
   import Hero from '$lib/components/sections/Hero.svelte';
+  import Cast from '$lib/components/sections/Cast.svelte';
   import Decide from '$lib/components/sections/Decide.svelte';
   import Watch from '$lib/components/sections/Watch.svelte';
   import Make from '$lib/components/sections/Make.svelte';
@@ -78,6 +79,9 @@
 
     <p class="ache" data-claims-pointer use:reveal>{m.ache()}</p>
 
+    <!-- Names before the sections that use them: Chat introduced six unfamiliar
+         words at once and left the reader assembling the product from them. -->
+    <Cast />
     <Decide bind:busy />
     <Watch />
     <Make />

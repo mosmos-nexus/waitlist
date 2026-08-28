@@ -35,7 +35,14 @@
   type Mode = 'buddy' | 'manager';
   let mode = $state<Mode>('manager');
 
-  const BUDDY = $derived([m.decide_b1(), m.decide_b2(), m.decide_b3()]);
+  /* One reply per opener. A single fixed answer meant asking about an article
+     was met with a line about procrastination — the demo contradicted itself in
+     the one place it is supposed to feel like a conversation. */
+  const BUDDY = $derived([
+    { q: m.decide_b1(), a: m.decide_b1_a() },
+    { q: m.decide_b2(), a: m.decide_b2_a() },
+    { q: m.decide_b3(), a: m.decide_b3_a() },
+  ]);
   let said = $state(-1);
 
   type Stage = 'pick' | 'ask' | 'run' | 'done';
@@ -210,18 +217,19 @@
               {#if said < 0}
                 <span class="label">{m.decide_buddy_label()}</span>
                 <ul class="goals">
-                  {#each BUDDY as b, i (b)}
+                  {#each BUDDY as b, i (b.q)}
                     <li>
-                      <button type="button" class="goal" onclick={() => (said = i)}>{b}</button>
+                      <button type="button" class="goal" onclick={() => (said = i)}>{b.q}</button>
                     </li>
                   {/each}
                 </ul>
               {:else}
-                <p class="mine">{BUDDY[said]}</p>
-                <p class="says">{m.decide_buddy_reply()}</p>
+                <p class="mine">{BUDDY[said].q}</p>
+                <p class="says">{BUDDY[said].a}</p>
                 <div class="foot">
+                  <!-- Buddy has no goal to swap, so it does not offer to. -->
                   <button type="button" class="again" onclick={() => (said = -1)}
-                    >{m.decide_again()}</button
+                    >{m.decide_b_again()}</button
                   >
                 </div>
               {/if}
