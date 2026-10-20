@@ -1,9 +1,9 @@
 # Mosmos
 
 > 결정은 내가, 맡길 일은 Mos가. 내 AI 매니저 Mos가 애매한 것만 먼저 묻고, 이번 일에 맞는
-> AI 작업자들로 작업팀을 꾸려요. 결과는 작업마다 한 폴더에 모아 드려요.
+> AI 작업자들로 작업팀을 꾸려요.
 > You keep the decisions; Mos, your AI manager, asks only what's unclear, then puts together
-> a team of AI workers that fits the job. Results land in one folder per task. This site is
+> a team of AI workers that fits the job. This site is
 > the prelaunch waitlist (waitlist.mosmos.world).
 
 ## Key terms

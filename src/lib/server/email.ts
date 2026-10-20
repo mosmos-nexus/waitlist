@@ -64,7 +64,7 @@ const COPY: Record<AppLocale, Copy> = {
       'Thanks for joining the waitlist. I’ll let you know by email as we roll out gradually.',
     heading: 'Hi, I’m Mos',
     paragraphs: [
-      'Thanks for joining the waitlist. I’m Mos, your AI manager. I ask you only what you need to decide, and for each job I call in the AI workers it needs and put them together as a team. The results land in one folder per task.',
+      'Thanks for joining the waitlist. I’m Mos, your AI manager. I ask you only what you need to decide, and for each job I call in the AI workers it needs and put them together as a team.',
       'We’re still getting ready, and we’ll roll out gradually. I’ll let you know by email as we go. We’re starting with a few people at a time, because we want to really listen to each person.',
       'If there’s launch news in the meantime, I’ll let you know by email.',
     ],
@@ -82,7 +82,7 @@ const COPY: Record<AppLocale, Copy> = {
       '事前登録いただき、ありがとうございます。準備が整いしだい、順次メールでご案内します。',
     heading: 'はじめまして、Mosです',
     paragraphs: [
-      '事前登録いただき、ありがとうございます。AIマネージャーのMosです。おたずねするのは、ご自身で決めていただきたいことだけです。仕事ごとに、その仕事に合ったAIメンバーを呼んで作業チームを組み、結果は作業ごとにひとつのフォルダにまとめます。',
+      '事前登録いただき、ありがとうございます。AIマネージャーのMosです。おたずねするのは、ご自身で決めていただきたいことだけです。仕事ごとに、その仕事に合ったAIメンバーを呼んで作業チームを組みます。',
       'いまはまだ準備中です。準備が整いしだい、順次メールでご案内します。はじめは少人数から、少しずつお迎えします。お一人おひとりのお話を、きちんと伺いたいからです。',
       'それまでにリリースのお知らせがあれば、メールでお伝えします。',
     ],
@@ -101,7 +101,7 @@ const COPY: Record<AppLocale, Copy> = {
       '대기 명단에 등록해 주셔서 고마워요. 준비되는 대로 순차적으로 메일로 안내해 드릴게요.',
     heading: '안녕하세요, 저는 Mos예요',
     paragraphs: [
-      '대기 명단에 등록해 주셔서 고마워요. 저는 AI 매니저 Mos예요. 정하실 것만 여쭤보고, 일마다 그 일에 맞는 AI 작업자들을 불러 작업팀을 꾸릴게요. 결과는 작업마다 한 폴더에 모아 드려요.',
+      '대기 명단에 등록해 주셔서 고마워요. 저는 AI 매니저 Mos예요. 정하실 것만 여쭤보고, 일마다 그 일에 맞는 AI 작업자들을 불러 작업팀을 꾸릴게요.',
       '아직은 준비 중이에요. 준비되는 대로 순차적으로 메일로 안내해 드릴게요. 처음엔 적은 인원부터 차근차근 문을 열 거예요. 한 분 한 분의 이야기를 깊이 듣고 싶거든요.',
       '그전에 출시 소식이 생기면 메일로 알려 드릴게요.',
     ],

@@ -328,25 +328,12 @@
       width: 32px;
       height: calc(100% - 72px);
     }
-    /* The label rides the vertical return line, set upright in CJK. */
-    .loop {
-      position: relative;
-    }
+    /* Set sideways on the return line it was 12px and unreadable, so on a
+       phone the label sits level under the column instead. */
     .again {
-      position: absolute;
-      left: 10px;
-      top: 50%;
-      margin: 0;
-      padding: var(--space-8) 0;
-      font-size: var(--font-size-caption-2);
-      white-space: nowrap;
-      writing-mode: vertical-rl;
-      transform: translate(-50%, -50%);
-    }
-    /* Upright Hangul would stack syllable by syllable; turn the line instead,
-       the way English already runs. Japanese keeps its own upright columns. */
-    :global(html:lang(ko)) .again {
-      text-orientation: sideways;
+      margin-top: var(--space-12);
+      padding: 0;
+      font-size: var(--font-size-caption-1);
     }
   }
 </style>
