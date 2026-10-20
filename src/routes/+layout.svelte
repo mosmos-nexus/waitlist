@@ -31,9 +31,13 @@
 <header class="site-header">
   <div class="container bar">
     <a href={localizeHref('/')} class="brand" aria-label="mosmos">
-      <Logo height={24} />
+      <Logo height={34} />
     </a>
-    <LanguageToggle />
+    <div class="actions">
+      <LanguageToggle />
+      <!-- Absolute to the home page, so it also works from /privacy. -->
+      <a class="to-waitlist" href={localizeHref('/') + '#waitlist'}>{m.nav_waitlist()}</a>
+    </div>
   </div>
 </header>
 
@@ -43,10 +47,13 @@
 
 <footer class="site-footer">
   <div class="container foot">
-    <Logo height={20} />
-    <nav class="links" aria-label={m.footer_contact()}>
+    <Logo height={24} />
+    <nav class="links">
       <a href={localizeHref('/privacy')}>{m.footer_privacy()}</a>
       <a href="mailto:{contactEmail}">{m.footer_contact()}</a>
+      <a href={localizeHref('/careers')} target="_blank" rel="noopener"
+        >{m.footer_careers()}<span class="visually-hidden"> ({m.footer_new_tab()})</span></a
+      >
     </nav>
     <span class="copy">{m.footer_copyright({ year })}</span>
   </div>
@@ -70,72 +77,103 @@
     top: 12px;
   }
 
-  /* A plain bar on paper, in the wireframes' own chrome: a hairline under it
-     and nothing else. Fixed, so the email field stays one gesture away all the
-     way down the page. */
-  /*
-   * Monitor floats its bar over the world rather than banding it. On a page
-   * that scrolls, though, a 72%-opaque bar leaves whole lines of body copy
-   * legible through it at the top edge — it reads as a rendering fault. The
-   * scrim is therefore taller than the bar and opaque where the text arrives,
-   * fading out below. No `backdrop-filter`: it would re-sample the moving world
-   * on every frame for no visual gain over the gradient.
-   */
+  /* Sticky rather than fixed: it keeps its own 64px in the flow, so nothing
+     has to be padded to clear it. Frosted so the page reads through. */
   .site-header {
-    position: fixed;
-    inset: 0 0 auto 0;
+    position: sticky;
+    top: 0;
     z-index: 30;
-    height: 96px;
-    /* The fade region is decoration; only the bar itself takes clicks. */
-    pointer-events: none;
-    background: linear-gradient(
-      rgb(7, 8, 12) 0%,
-      rgba(7, 8, 12, 0.94) 46%,
-      rgba(7, 8, 12, 0.62) 72%,
-      rgba(7, 8, 12, 0) 100%
-    );
+    border-bottom: 1px solid var(--line-normal-alternative);
+    background: rgba(247, 248, 249, 0.86);
+    backdrop-filter: saturate(1.8) blur(12px);
   }
   .bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 64px;
-    pointer-events: auto;
+    gap: var(--space-12);
+    height: var(--header-height);
   }
   .brand {
     display: inline-flex;
     align-items: center;
+    flex: none;
+    min-height: var(--control-m);
+  }
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+  }
+  /* Secondary, so the hero's own button stays the page's one loud action.
+     The transparent border keeps a 44px target around a 36px pill. */
+  .to-waitlist {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-m);
+    padding-inline: var(--space-14);
+    border: 4px solid transparent;
+    border-radius: var(--radius-full);
+    background: var(--background-card) padding-box;
+    box-shadow: inset 0 0 0 1px var(--line-normal-normal);
+    color: var(--label-strong);
+    font-size: var(--font-size-label-2);
+    font-weight: var(--weight-semibold);
+    white-space: nowrap;
+    transition: box-shadow var(--duration-base) var(--ease-out);
+  }
+  .to-waitlist:hover {
+    box-shadow: inset 0 0 0 1px var(--primary-light);
+    color: var(--primary-strong);
   }
 
-  /* Same reasoning as the header: Mos drifts behind this and showed through a
-     72% fill. Opaque enough to end the page, no blur to pay for. */
+  /* On a small phone the wordmark, three endonyms and the anchor cannot share
+     one row (Japanese runs longest), so the lockup is cropped to its symbol. */
+  @media (max-width: 380px) {
+    .brand :global(img) {
+      width: 39px;
+      object-fit: cover;
+      object-position: left;
+    }
+    .bar,
+    .actions {
+      gap: var(--space-4);
+    }
+    .to-waitlist {
+      padding-inline: var(--space-8);
+    }
+  }
+
   .site-footer {
-    position: relative;
-    z-index: 1;
-    border-top: 1px solid var(--glass-line-soft);
-    background: rgba(7, 8, 12, 0.94);
+    border-top: 1px solid var(--line-normal-normal);
+    background: var(--background-card);
   }
   .foot {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-16) var(--space-24);
-    padding-block: var(--space-32);
+    min-height: 160px;
+    padding-block: var(--space-40);
   }
   .links {
     display: flex;
-    gap: var(--space-24);
+    flex-wrap: wrap;
+    gap: var(--space-4) var(--space-24);
     margin-right: auto;
   }
   .links a {
-    color: var(--shell-meta);
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-m);
+    color: var(--label-alternative);
     font-size: var(--font-size-body-2);
   }
   .links a:hover {
-    color: var(--shell-text);
+    color: var(--label-strong);
   }
   .copy {
-    color: var(--shell-faint);
+    color: var(--label-assistive);
     font-size: var(--font-size-caption-1);
   }
 </style>

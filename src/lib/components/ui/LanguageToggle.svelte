@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { track } from '@vercel/analytics';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { deLocalizeHref, locales } from '$lib/paraglide/runtime';
@@ -25,6 +26,7 @@
       return;
     event.preventDefault();
     if (loc === current) return;
+    track('locale_switch', { from: current, to: loc });
     rememberLocale(loc as AppLocale);
     goto(href, { keepFocus: true, noScroll: true });
   }
@@ -54,27 +56,25 @@
 </div>
 
 <style>
+  /* Compact: three quiet labels, the current one on a soft tint. */
   .lang {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
-    padding: 3px;
-    background: var(--field);
-    border: 1px solid var(--line-normal-normal);
-    border-radius: var(--radius-full);
-    backdrop-filter: blur(10px);
   }
+  /* 44px tall to tap, 28px to see: the transparent border block is part of the
+     target but not of the painted pill (background stops at the padding box). */
   a {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    /* 44px tap target is kept by the padding block below, not by min-width —
-       three endonym labels would otherwise overflow narrow phones. */
-    padding: 10px 12px;
+    min-height: var(--control-m);
+    padding: 0 10px;
+    border-block: 8px solid transparent;
+    border-radius: var(--radius-full);
+    background-clip: padding-box;
     font-size: var(--font-size-caption-1);
     font-weight: var(--weight-semibold);
     color: var(--label-alternative);
-    border-radius: var(--radius-full);
     white-space: nowrap;
     transition:
       background var(--duration-base) var(--ease-out),
@@ -82,20 +82,17 @@
   }
   a:hover {
     color: var(--label-strong);
-    background: var(--fill-weak);
+    background-color: var(--fill-weak);
   }
-  a.active {
-    color: var(--static-white);
-    background: var(--primary-fill);
-  }
+  a.active,
   a.active:hover {
-    background: var(--primary-fill-hover);
-    color: var(--static-white);
+    color: var(--primary-strong);
+    background-color: var(--background-tint);
   }
 
   @media (max-width: 400px) {
     a {
-      padding: 10px 9px;
+      padding: 0 7px;
       font-size: var(--font-size-caption-2);
     }
   }

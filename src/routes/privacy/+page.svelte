@@ -21,32 +21,42 @@
         <dd>{m.privacy_purpose()}</dd>
       </div>
       <div>
+        <dt>{m.privacy_optional_label()}</dt>
+        <dd>{m.privacy_optional()}</dd>
+      </div>
+      <div>
+        <dt>{m.privacy_retention_label()}</dt>
+        <dd>{m.privacy_retention()}</dd>
+      </div>
+      <div>
+        <dt>{m.privacy_processors_label()}</dt>
+        <dd>{m.privacy_processors()}</dd>
+      </div>
+      <div>
         <dt>{m.privacy_consent_label()}</dt>
         <dd>{m.privacy_consent()}</dd>
       </div>
       <div>
-        <dt>{m.privacy_optional_label()}</dt>
-        <dd>{m.privacy_optional()}</dd>
+        <dt>{m.privacy_contact_label()}</dt>
+        <dd>
+          {m.privacy_contact()}<br />
+          <a href="mailto:hello@mosmos.world">hello@mosmos.world</a>
+        </dd>
       </div>
     </dl>
+
+    <p class="version">{m.privacy_version()}</p>
 
     <a class="back" href={localizeHref('/')}>{m.privacy_back()}</a>
   </div>
 </section>
 
 <style>
-  /* Same sky the rest of the site sits in, so a legal page still reads as
-     part of the world rather than a bare document. */
+  /* Same sky wash as the home page, so a legal page still reads as part of
+     the site rather than a bare document. */
   .privacy {
-    min-height: calc(100svh - 64px);
-    padding-top: calc(var(--section-y-mobile) + 64px);
-    background:
-      radial-gradient(70% 50% at 50% 0%, rgba(15, 111, 218, 0.12), transparent 70%), var(--app-bg);
-  }
-  @media (min-width: 1024px) {
-    .privacy {
-      padding-top: calc(var(--section-y-desktop) + 64px);
-    }
+    min-height: calc(100svh - var(--header-height));
+    background: var(--gradient-sky);
   }
 
   .narrow {
@@ -66,7 +76,7 @@
     display: grid;
     gap: var(--space-24);
   }
-  /* Each pair is its own bordered block — the four items are unrelated, so a
+  /* Each pair is its own bordered block — the items are unrelated, so a
      shared divider between them would imply a sequence. */
   dl > div {
     padding-left: var(--space-16);
@@ -84,12 +94,18 @@
     color: var(--label-assistive);
   }
 
+  .version {
+    margin-top: var(--space-32);
+    font-size: var(--font-size-caption-1);
+    color: var(--label-assistive);
+  }
+
   .back {
     display: inline-block;
-    margin-top: var(--space-40);
+    margin-top: var(--space-24);
     min-height: var(--control-m);
     line-height: var(--control-m);
-    color: var(--primary-bright);
+    color: var(--primary-normal);
     font-size: var(--font-size-label-1);
     font-weight: var(--weight-medium);
   }

@@ -1,136 +1,144 @@
 <script lang="ts">
   import WaitlistForm from '$lib/components/WaitlistForm.svelte';
+  import DemoBoard from '$lib/components/demo/DemoBoard.svelte';
   import { m } from '$lib/locale.svelte';
-  import { reveal } from '$lib/anime/motion';
 
   interface Props {
     onSuccess: (result: { id: string; emailSent: boolean }) => void;
   }
   let { onSuccess }: Props = $props();
-
-  /**
-   * The opening.
-   *
-   * One promise and one field, nothing else — the pattern every high-converting
-   * waitlist in the research shares. The island behind it is the demonstration;
-   * the copy does not describe it, so the two never say the same thing twice.
-   */
 </script>
 
 <section class="hero" aria-labelledby="hero-title">
-  <div class="container inner">
-    <div class="copy" data-claims-pointer>
-      <span class="eyebrow" use:reveal>{m.hero_eyebrow()}</span>
-      <h1 class="title" id="hero-title" use:reveal={{ delay: 60 }}>{m.hero_tagline()}</h1>
-      <p class="sub" use:reveal={{ delay: 110 }}>{m.hero_sub()}</p>
-      <p class="anchor" use:reveal={{ delay: 150 }}>{m.hero_anchor()}</p>
-
-      <div class="form-slot" use:reveal={{ delay: 200 }}>
-        <WaitlistForm {onSuccess} />
+  <div class="container grid">
+    <div class="copy">
+      <p class="eyebrow"><span class="dot" aria-hidden="true"></span>{m.hero_eyebrow()}</p>
+      <h1 id="hero-title">{m.hero_title()}</h1>
+      <p class="sub">{m.hero_sub()}</p>
+      <div class="form">
+        <WaitlistForm {onSuccess} position="hero" />
       </div>
+      <p class="micro">{m.hero_micro()}</p>
+    </div>
+
+    <div class="board">
+      <DemoBoard />
     </div>
   </div>
-
-  <span class="scroll-hint" aria-hidden="true">{m.hero_scroll()}</span>
 </section>
 
 <style>
   .hero {
-    position: relative;
-    display: flex;
-    /*
-     * Top-aligned while the layout is stacked. Centring made the copy's bottom
-     * edge move with the viewport height — on a tall phone it sank far enough
-     * to push the island off the bottom of the screen, and on a short one it
-     * ran into it. Pinned to the top, the copy ends at roughly the same place
-     * on every phone and the island can be placed once.
-     */
-    align-items: flex-start;
-    min-height: 100svh;
-    /* Clears the 96px header scrim, so the eyebrow is never read through it. */
-    padding-top: clamp(84px, 12vh, 108px);
-    padding-bottom: var(--space-64);
+    padding-block: var(--space-24) var(--space-56);
+    background:
+      radial-gradient(56% 48% at 82% 34%, rgba(15, 111, 218, 0.1), transparent 70%),
+      var(--gradient-sky);
   }
-  .inner {
-    width: 100%;
+
+  .grid {
+    display: grid;
+    gap: var(--space-40);
   }
+
   .copy {
     display: flex;
     flex-direction: column;
-    gap: var(--space-14);
-    max-width: 34rem;
+    align-items: flex-start;
   }
 
-  .title {
-    margin: 0;
-    font-size: clamp(38px, 6.4vw, 64px);
-    font-weight: 800;
-    line-height: 1.16;
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--status-positive-fill);
+    box-shadow: 0 0 0 3px rgba(79, 161, 54, 0.18);
+  }
+
+  h1 {
+    margin-top: var(--space-12);
+    font-size: var(--font-size-h1);
+    font-weight: var(--weight-bold);
+    line-height: var(--line-height-h1);
     letter-spacing: -0.03em;
-    color: var(--shell-text);
+    color: var(--label-strong);
     text-wrap: balance;
-    /* The island is bright behind the copy on narrow screens. */
-    text-shadow: 0 4px 28px rgba(7, 8, 12, 0.7);
   }
+
   .sub {
-    margin: 0;
-    font-size: clamp(17px, 2.2vw, 21px);
-    line-height: 1.5;
-    color: var(--shell-body);
-    text-shadow: 0 2px 18px rgba(7, 8, 12, 0.7);
-  }
-  .anchor {
-    margin: 0;
-    font-size: var(--font-size-body-2);
-    line-height: 1.6;
-    color: var(--shell-meta);
+    margin-top: var(--space-16);
+    max-width: 34em;
+    font-size: var(--font-size-lead);
+    line-height: var(--line-height-lead);
+    color: var(--label-alternative);
   }
 
-  .form-slot {
-    margin-top: var(--space-10);
+  .form {
     width: 100%;
-    max-width: 30rem;
-  }
-  .scroll-hint {
-    position: absolute;
-    left: 50%;
-    bottom: var(--space-24);
-    translate: -50% 0;
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--shell-faint);
-    white-space: nowrap;
-  }
-  .scroll-hint::after {
-    content: '';
-    display: block;
-    width: 1px;
-    height: 26px;
-    margin: 8px auto 0;
-    background: linear-gradient(rgba(174, 184, 194, 0.5), transparent);
+    margin-top: var(--space-24);
   }
 
-  /* While stacked the hint would land on the island, and the island is the
-     better invitation. */
-  @media (max-width: 719px) {
-    .scroll-hint {
+  /* One caption stack under the CTA: same size, colour and rhythm as the
+     form's own microcopy above it. */
+  .micro {
+    margin-top: var(--space-8);
+    font-size: var(--font-size-caption-2);
+    line-height: var(--line-height-label);
+    color: var(--label-assistive);
+  }
+
+  /* The board's Mos avatar overhangs its top edge; leave it room. */
+  .board {
+    padding-top: 12px;
+  }
+  @media (min-width: 641px) {
+    .board {
+      padding-top: 42px;
+    }
+  }
+
+  /* Phone: tighter, so the email field fits the first screen and the board's
+     request and both lanes show under the form. The micro line goes — §4
+     makes the same promise in full. */
+  @media (max-width: 640px) {
+    .hero {
+      padding-top: var(--space-12);
+    }
+    .grid {
+      gap: var(--space-12);
+    }
+    h1 {
+      margin-top: var(--space-8);
+    }
+    .sub {
+      margin-top: var(--space-10);
+      font-size: 15px;
+      line-height: var(--line-height-body-reading);
+    }
+    .form {
+      margin-top: var(--space-16);
+    }
+    .form :global(form) {
+      gap: var(--space-12);
+    }
+    .micro {
       display: none;
     }
   }
-  /* Side by side from here: the copy gives up the right-hand half. */
-  @media (min-width: 720px) {
+
+  @media (min-width: 1024px) {
     .hero {
+      padding-block: var(--space-48) var(--space-80);
+    }
+    .grid {
+      grid-template-columns: minmax(0, 1fr) min(560px, 48%);
+      column-gap: clamp(40px, 4vw, 64px);
       align-items: center;
     }
-    .copy {
-      max-width: 24rem;
+    .sub {
+      margin-top: var(--space-20);
     }
-  }
-  @media (min-width: 1000px) {
-    .copy {
-      max-width: 30rem;
+    .form {
+      margin-top: var(--space-32);
     }
   }
 </style>

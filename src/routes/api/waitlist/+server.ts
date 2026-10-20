@@ -2,7 +2,7 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { checkRateLimit } from '$lib/server/ratelimit';
 import { isDuplicateEmail, createWaitlistEntry } from '$lib/server/notion';
 import { sendWelcomeEmail } from '$lib/server/email';
-import { signupSchema, EMAIL_RE, normalizeEmail } from '$lib/server/validation';
+import { signupSchema, EMAIL_RE, normalizeEmail, sanitizeUtm } from '$lib/server/validation';
 import { features } from '$lib/config/features';
 import type { AppLocale } from '$lib/i18n';
 
@@ -43,7 +43,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
     if (await isDuplicateEmail(email)) {
       return json({ error: 'duplicate' }, { status: 409 });
     }
-    const id = await createWaitlistEntry(email);
+    const id = await createWaitlistEntry(email, sanitizeUtm(parsed.data.utm));
 
     let emailSent = false;
     if (features.welcomeEmail) {

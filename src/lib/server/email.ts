@@ -60,57 +60,58 @@ interface Copy {
 const COPY: Record<AppLocale, Copy> = {
   en: {
     subject: 'Welcome — I’m Mos',
-    preheader: 'Thanks for joining the front of the line. I’ll be the first to come find you.',
+    preheader:
+      'Thanks for joining the waitlist. I’ll let you know by email as we roll out gradually.',
     heading: 'Hi, I’m Mos',
     paragraphs: [
-      'Thanks for joining the front of the line. I’m Mos — the AI companion that grows up alongside you. From here on, there’s no picking the right tools or wrestling with prompts: just tell me the goal, and I’ll do the moving and bring back the result.',
-      'We’re still getting ready. The moment everything’s in place, I’ll be the very first to bring your invite. We start small, just a few people at a time, because we want to listen closely to your story.',
-      'Until then, I’ll share how we’re growing — honestly — now and then.',
+      'Thanks for joining the waitlist. I’m Mos, your AI manager. I ask you only what you need to decide, and for each job I call in the AI workers it needs and put them together as a team. The results land in one folder per task.',
+      'We’re still getting ready, and we’ll roll out gradually. I’ll let you know by email as we go. We’re starting with a few people at a time, because we want to really listen to each person.',
+      'If there’s launch news in the meantime, I’ll let you know by email.',
     ],
     ctaLabel: 'Take a look around Mosmos',
     spamNote: 'If this landed in spam, marking it “not spam” keeps my next note from getting lost.',
     signoff: '— Mos',
-    heroAlt: 'Mos, your AI companion, waving hello',
-    tagline: 'Mosmos — a world where your AI grows up',
-    optout: 'Not curious anymore? Just tell us at hello@mosmos.world and we’ll stop right away.',
+    heroAlt: 'Mos, your AI manager, waving hello',
+    tagline: 'Mosmos — the right AI team for every task, put together for you',
+    optout: 'Rather not hear from us? Email hello@mosmos.world and we’ll stop right away.',
   },
 
   ja: {
-    subject: 'ようこそ — わたしはMosです',
+    subject: 'ようこそ。AIマネージャーのMosです',
     preheader:
-      '前の列にご一緒いただき、ありがとうございます。準備ができたら、いちばん最初にお迎えにあがります。',
-    heading: 'はじめまして、わたしはMosです',
+      '事前登録いただき、ありがとうございます。準備が整いしだい、順次メールでご案内します。',
+    heading: 'はじめまして、Mosです',
     paragraphs: [
-      '前の列にご一緒いただき、ありがとうございます。わたしはMos — あなたと一緒に育っていくAIの相棒です。これからは、どの道具を選ぶか迷ったり、プロンプトを整えたりする必要はありません。目標だけ伝えてください。動くのはわたしがやって、結果までお届けします。',
-      'いまはまだ準備中です。すべて整い次第、いちばん最初にご招待をお持ちします。はじめは少ない人数から、ゆっくりお迎えします — お一人ずつのお話を、きちんと聞きたいからです。',
-      'それまでは、わたしたちがどう育っているかを、ときどき正直にお伝えします。',
+      '事前登録いただき、ありがとうございます。AIマネージャーのMosです。おたずねするのは、ご自身で決めていただきたいことだけです。仕事ごとに、その仕事に合ったAIメンバーを呼んで作業チームを組み、結果は作業ごとにひとつのフォルダにまとめます。',
+      'いまはまだ準備中です。準備が整いしだい、順次メールでご案内します。はじめは少人数から、少しずつお迎えします。お一人おひとりのお話を、きちんと伺いたいからです。',
+      'それまでにリリースのお知らせがあれば、メールでお伝えします。',
     ],
     ctaLabel: 'Mosmosをのぞいてみる',
     spamNote:
       'このメールが迷惑メールに入っていたら、「迷惑メールではない」と設定してください。次のお知らせを見逃さずに受け取れます。',
     signoff: '— Mos',
-    heroAlt: 'あいさつをしているAIの相棒、Mos',
-    tagline: 'わたしのAIが育つ世界、Mosmos',
-    optout:
-      'もう興味がなくなったら、hello@mosmos.world までお知らせください。すぐに配信を止めます。',
+    heroAlt: 'あいさつをしているAIマネージャー、Mos',
+    tagline: 'Mosmos — 仕事ごとにぴったりのAIチームを、おまかせで',
+    optout: '配信停止をご希望の場合は、hello@mosmos.world までご連絡ください。すぐに停止します。',
   },
 
   ko: {
     subject: '환영해요 — 저는 Mos예요',
-    preheader: '앞줄에 함께해 주셔서 고마워요. 준비되는 대로 제가 가장 먼저 찾아올게요.',
+    preheader:
+      '대기 명단에 등록해 주셔서 고마워요. 준비되는 대로 순차적으로 메일로 안내해 드릴게요.',
     heading: '안녕하세요, 저는 Mos예요',
     paragraphs: [
-      '앞줄에 함께해 주셔서 고마워요. 저는 당신과 함께 자라날 AI 동반자예요. 앞으로는 어떤 도구를 쓸지 고르거나 프롬프트를 다듬지 않아도 돼요 — 목표만 말해 주시면, 움직이는 건 제가 할게요. 결과까지 챙겨서 가져다드릴게요.',
-      '아직은 준비 중이에요. 다 갖춰지는 대로, 제가 가장 먼저 초대장을 들고 찾아올게요. 처음엔 한 분 한 분 천천히 모실 거예요 — 당신의 이야기를 깊이 듣고 싶거든요.',
-      '그때까지 가끔, 우리가 어떻게 자라고 있는지 솔직하게 들려드릴게요.',
+      '대기 명단에 등록해 주셔서 고마워요. 저는 AI 매니저 Mos예요. 정하실 것만 여쭤보고, 일마다 그 일에 맞는 AI 작업자들을 불러 작업팀을 꾸릴게요. 결과는 작업마다 한 폴더에 모아 드려요.',
+      '아직은 준비 중이에요. 준비되는 대로 순차적으로 메일로 안내해 드릴게요. 처음엔 적은 인원부터 차근차근 문을 열 거예요. 한 분 한 분의 이야기를 깊이 듣고 싶거든요.',
+      '그전에 출시 소식이 생기면 메일로 알려 드릴게요.',
     ],
     ctaLabel: 'Mosmos 둘러보기',
     spamNote:
       '혹시 이 메일이 스팸함에 있었다면 ‘스팸 아님’으로 표시해 주세요. 다음 소식을 놓치지 않아요.',
     signoff: '— Mos 드림',
-    heroAlt: '인사하는 AI 동반자 Mos',
-    tagline: '내 AI가 자라는 세계, Mosmos',
-    optout: '이 소식이 더는 궁금하지 않다면 hello@mosmos.world로 알려주세요. 바로 멈출게요.',
+    heroAlt: '인사하는 AI 매니저 Mos',
+    tagline: '과업마다 딱 맞는 AI 팀, 알아서 꾸려 드립니다 · Mosmos',
+    optout: '이 소식이 더는 궁금하지 않다면 hello@mosmos.world로 알려 주세요. 바로 멈출게요.',
   },
 };
 
@@ -121,7 +122,7 @@ function copyFor(locale: AppLocale): Copy {
 function welcomeContent(locale: AppLocale): MailContent {
   const c = copyFor(locale);
   const text = [
-    c.heading.replace(' 👋', ''),
+    c.heading,
     '',
     ...c.paragraphs,
     '',
@@ -130,6 +131,8 @@ function welcomeContent(locale: AppLocale): MailContent {
     c.spamNote,
     '',
     c.signoff,
+    '',
+    c.optout,
     '',
     `${c.tagline} · ${SITE}`,
   ].join('\n');
@@ -241,6 +244,8 @@ export async function sendWelcomeEmail(to: string, locale: AppLocale): Promise<b
     subject,
     html,
     text,
+    // The consent text promises recipients can stop these at any time.
+    headers: { 'List-Unsubscribe': '<mailto:hello@mosmos.world?subject=unsubscribe>' },
     // Inline (cid:) attachments so the brand art renders without depending on a deploy or
     // the recipient allowing remote images.
     attachments: [

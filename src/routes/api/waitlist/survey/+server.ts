@@ -1,6 +1,13 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { updateWaitlistSurvey } from '$lib/server/notion';
-import { surveySchema, sanitizeJob, sanitizeAiTasks } from '$lib/server/validation';
+import {
+  surveySchema,
+  sanitizeJob,
+  sanitizeAiTasks,
+  sanitizeCountry,
+  sanitizeAiCount,
+  sanitizeText,
+} from '$lib/server/validation';
 
 const NOTION_ID_RE = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
 
@@ -20,11 +27,22 @@ export const POST: RequestHandler = async ({ request }) => {
 
   const job = sanitizeJob(parsed.data.job);
   const aiTasks = sanitizeAiTasks(parsed.data.aiTasks);
-  const jobOther = parsed.data.jobOther?.slice(0, 1000);
-  const taskOther = parsed.data.taskOther?.slice(0, 1000);
+  const country = sanitizeCountry(parsed.data.country);
+  const aiCount = sanitizeAiCount(parsed.data.aiCount);
+  const firstTask = sanitizeText(parsed.data.firstTask);
+  const jobOther = sanitizeText(parsed.data.jobOther);
+  const taskOther = sanitizeText(parsed.data.taskOther);
 
   try {
-    await updateWaitlistSurvey(parsed.data.id, { job, aiTasks, jobOther, taskOther });
+    await updateWaitlistSurvey(parsed.data.id, {
+      job,
+      aiTasks,
+      country,
+      aiCount,
+      firstTask,
+      jobOther,
+      taskOther,
+    });
     return json({ ok: true });
   } catch (err) {
     console.error('survey update failed', err);

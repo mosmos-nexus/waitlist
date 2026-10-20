@@ -59,14 +59,16 @@
     color: var(--label-alternative);
   }
 
-  /* `--line-normal-strong`, not `--line-normal-normal`: the divider token
-     composites to 1.41:1 here, and an empty text field has nothing but its
-     border to announce itself with — WCAG 1.4.11 wants 3:1 for exactly this.
-     The stronger token measures 3.69:1 and is what the checkbox already uses. */
+  /* An empty text field has nothing but its border to announce itself with —
+     WCAG 1.4.11 wants 3:1 against what is around it. The fill is near-white on
+     a near-white page, so the edge has to clear 3:1 against the hero's blue
+     glow, where `--line-normal-strong` alone measures 2.77:1. Halfway between
+     it and the next step of the scale (blue-gray 59 → 44) is 3.57:1 there
+     (3.9:1 on white) and still reads as a light field, not a black box. */
   .control {
     width: 100%;
     background: var(--field);
-    border: 1px solid var(--line-normal-strong);
+    border: 1px solid rgb(120, 129, 142);
     border-radius: var(--radius-s);
     color: var(--label-strong);
     transition:
@@ -91,7 +93,7 @@
   .lg {
     height: var(--control-l);
     padding-inline: var(--space-20);
-    font-size: var(--font-size-subtitle-1);
+    font-size: var(--font-size-body-1);
   }
 
   .control:hover {
