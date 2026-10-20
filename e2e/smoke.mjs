@@ -1,41 +1,51 @@
-import { chromium } from 'playwright-core';
-import { chromePath } from './resolve-chrome.mjs';
+import { BASE, LOCALES, msg, launch, open, ok, textOf, settle, finish } from './util.mjs';
 
-const BASE = process.env.BASE ?? 'http://localhost:5199';
-const errors = [];
-const browser = await chromium.launch({ executablePath: chromePath() });
+/**
+ * Structure and copy rules of the rebuilt landing (spec: deep-interview-waitlist-landing-rebuild).
+ * Selectors are section ids, roles and data attributes; expected copy comes from messages/*.json.
+ */
+const browser = await launch();
 
-function ok(label, cond, extra = '') {
-  console.log(`${cond ? 'PASS' : 'FAIL'}  ${label}${extra ? '  ' + extra : ''}`);
-  if (!cond) process.exitCode = 1;
-}
+const SECTION_ORDER = ['hero', 'empathy', 'moments', 'waitlist', 'faq', 'final'];
+/** A section is addressed by its heading id, which does not depend on class names. */
+const SEC = (name) => `main > section[aria-labelledby="${name}-title"]`;
 
-const MANA_FIG = /Mana[^\S\n]*\d|\d[^\S\n]*Mana/i;
+const MANA_FIG = /(?:Mana|마나|マナ)[^\S\n]*\d|\d[^\S\n]*(?:Mana|마나|マナ)/i;
+const MODEL_NAMES = /GPT|Claude|Gemini|Grok|OpenAI|Anthropic/i;
+const PILOT = /파일럿|パイロット|pilot/i;
+const MON = /몬|\bMon\b/;
 
-async function open(path = '/', o = {}) {
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...o });
-  const p = await ctx.newPage();
-  p.on('pageerror', (e) => errors.push(e.message));
-  p.on('console', (m) => {
-    // Vercel's analytics scripts 404 off a Vercel deploy and the console message
-    // carries no URL, so they cannot be filtered by name.
-    if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(m.text());
-  });
-  await p.goto(BASE + path, { waitUntil: 'networkidle' });
-  await p.waitForTimeout(1400);
-  return { ctx, p };
-}
+/** All page text plus the head copy a crawler or a share card would show. */
+const fullText = async (p) =>
+  (await textOf(p)) +
+  '\n' +
+  (await p.evaluate(() =>
+    [
+      document.title,
+      ...[...document.querySelectorAll('meta[name=description], meta[property^="og:"]')].map(
+        (m) => m.content,
+      ),
+    ].join('\n'),
+  ));
+
+/** How many text-bearing elements inside `scope` are actually painted (opacity and visibility counted). */
+const painted = (p, scope) =>
+  p.evaluate(
+    (sel) =>
+      [...document.querySelector(sel).querySelectorAll('*')].filter(
+        (e) =>
+          [...e.childNodes].some((n) => n.nodeType === 3 && n.nodeValue.trim()) &&
+          e.checkVisibility({ opacityProperty: true, visibilityProperty: true }),
+      ).length,
+    scope,
+  );
 
 // ---- 0. no stray text leaks into the document ----
 {
-  const { ctx, p } = await open();
-  // A single lost character sat between `<main>` and the world for three
-  // commits, rendering above the fold. Nothing should print before the first
-  // section.
+  const { ctx, p } = await open(browser);
   const leading = await p.evaluate(() => {
-    const main = document.querySelector('main');
     let t = '';
-    for (const n of main.childNodes) {
+    for (const n of document.querySelector('main').childNodes) {
       if (n.nodeType === 3) t += n.nodeValue;
       else break;
     }
@@ -45,719 +55,556 @@ async function open(path = '/', o = {}) {
   await ctx.close();
 }
 
-// ---- 1. the shell is the product's own deep-space chrome ----
+// ---- 1. six sections, in the blueprint's order, in every locale ----
+for (const { loc, path } of LOCALES) {
+  const { ctx, p } = await open(browser, path);
+  const order = await p.evaluate(() =>
+    [...document.querySelectorAll('main > section')].map((s) =>
+      s.getAttribute('aria-labelledby').replace(/-title$/, ''),
+    ),
+  );
+  ok(
+    `${loc}: hero, empathy, moments, waitlist, faq, final`,
+    order.join() === SECTION_ORDER.join(),
+    order.join(),
+  );
+  const tops = await p.evaluate(
+    (sels) => sels.map((s) => document.querySelector(s).getBoundingClientRect().top),
+    SECTION_ORDER.map(SEC),
+  );
+  ok(
+    `${loc}: and they stack top to bottom`,
+    tops.every((t, i) => !i || t > tops[i - 1]),
+    tops.map(Math.round).join(' < '),
+  );
+  ok(
+    `${loc}: the waitlist section is the #waitlist anchor`,
+    (await p.locator(`${SEC('waitlist')}#waitlist`).count()) === 1,
+  );
+  await ctx.close();
+}
+
+// ---- 2. one h1 per locale, and it is the promise ----
+for (const { loc, path } of LOCALES) {
+  const { ctx, p } = await open(browser, path);
+  const h1s = await p.locator('h1').allInnerTexts();
+  ok(`${loc}: exactly one h1`, h1s.length === 1, `${h1s.length}`);
+  ok(`${loc}: it reads hero_title`, h1s[0]?.trim() === msg[loc].hero_title, JSON.stringify(h1s[0]));
+  ok(`${loc}: it sits in the hero`, (await p.locator(`${SEC('hero')} h1`).count()) === 1);
+  ok(`${loc}: <title> is meta_title`, (await p.title()) === msg[loc].meta_title, await p.title());
+  await ctx.close();
+}
+
+// ---- 3. three forms with their own ids ----
 {
-  const { ctx, p } = await open();
-  const shell = await p.evaluate(() => {
-    const root = getComputedStyle(document.documentElement);
-    return {
-      theme: document.documentElement.dataset.theme,
-      scheme: document.querySelector('meta[name="color-scheme"]')?.content,
-      appBg: root.getPropertyValue('--app-bg').trim(),
-      // Resolved through a probe rather than read raw: the production
-      // minifier rewrites `rgb(15, 111, 218)` to `#0f6fda`, so comparing the
-      // declaration text passes in dev and fails in the build.
-      core: (() => {
-        const el = document.createElement('span');
-        el.style.color = 'var(--core-blue)';
-        document.body.append(el);
-        const v = getComputedStyle(el).color;
-        el.remove();
-        return v;
-      })(),
-      cyan: (() => {
-        const el = document.createElement('span');
-        el.style.color = 'var(--bright-cyan)';
-        document.body.append(el);
-        const v = getComputedStyle(el).color;
-        el.remove();
-        return v;
-      })(),
-      html: root.backgroundColor,
-      // Hangul has no inter-word break rule; without keep-all the browser
-      // splits words mid-token ("또 하 / 나의").
-      breaking: getComputedStyle(document.body).wordBreak,
-    };
+  const { ctx, p } = await open(browser);
+  const forms = await p.evaluate(() =>
+    [...document.querySelectorAll('form[data-form-position]')].map((f) => {
+      const email = f.querySelector('input[type="email"]');
+      return {
+        pos: f.dataset.formPosition,
+        id: email.id,
+        labelled: !!document.querySelector(`label[for="${email.id}"]`),
+        consent: !!f.querySelector('input[type="checkbox"][name="consent"]'),
+        submit: f.querySelector('button[type="submit"]')?.textContent.trim(),
+        section: f.closest('section').getAttribute('aria-labelledby'),
+      };
+    }),
+  );
+  ok(
+    'three forms: hero, join, final',
+    forms.map((f) => f.pos).join() === 'hero,join,final',
+    forms.map((f) => f.pos).join(),
+  );
+  ok(
+    'in the hero, the waitlist and the closing band',
+    forms.map((f) => f.section).join() === 'hero-title,waitlist-title,final-title',
+  );
+  ok(
+    'each email field has its own id',
+    new Set(forms.map((f) => f.id)).size === 3,
+    forms.map((f) => f.id).join(),
+  );
+  ok(
+    'and its own label',
+    forms.every((f) => f.labelled),
+  );
+  ok(
+    'and a consent box',
+    forms.every((f) => f.consent),
+  );
+  const dupes = await p.evaluate(() => {
+    const seen = new Set();
+    return [...document.querySelectorAll('[id]')]
+      .map((e) => e.id)
+      .filter((id) => seen.size === seen.add(id).size);
   });
-  ok('the shell is dark', shell.theme === 'dark' && shell.scheme === 'dark');
-  ok('on the app-chrome ground', shell.appBg === '#07080c', shell.appBg);
-  ok('html paints it too', shell.html === 'rgb(7, 8, 12)', shell.html);
-  ok(
-    'Core Blue and Bright Cyan are the accents',
-    /15, 111, 218/.test(shell.core) && /49, 220, 220/.test(shell.cyan),
-  );
-  ok('Korean breaks between words, not inside them', shell.breaking === 'keep-all', shell.breaking);
-
-  // Micro labels are Pretendard at 700/.1em, not a second family — Monitor
-  // loads no mono face and neither should this.
-  const eyebrow = await p
-    .locator('.eyebrow')
-    .first()
-    .evaluate((e) => getComputedStyle(e));
-  ok(
-    'eyebrows are the brand face',
-    /Pretendard/.test(eyebrow.fontFamily),
-    eyebrow.fontFamily.slice(0, 30),
-  );
-  ok('and tracked out', eyebrow.letterSpacing !== 'normal', eyebrow.letterSpacing);
+  ok('no id appears twice in the document', dupes.length === 0, dupes.join());
   await ctx.close();
 }
-
-// ---- 2. the world, and the one thing in it you can operate ----
-{
-  const { ctx, p } = await open();
-  ok('the world is behind the page', (await p.locator('.world').count()) === 1);
-  const layers = await p.locator('.world [data-px]').count();
-  ok('it has depth layers', layers >= 5, `${layers}`);
-
-  // The authored path is a placeholder for no-JS; the running scene replaces it
-  // with a generated silhouette every frame.
-  const d = await p.locator('[data-anim="mos-fill"]').getAttribute('d');
-  ok('the silhouette is generated, not the authored one', !d.startsWith('M610.94'), d.slice(0, 14));
+for (const { loc, path } of LOCALES) {
+  const { ctx, p } = await open(browser, path);
+  const labels = (
+    await p.locator('form[data-form-position] button[type="submit"]').allInnerTexts()
+  ).map((t) => t.trim());
   ok(
-    'and it is a closed curve',
-    d.endsWith('Z') && d.split('C').length > 80,
-    `${d.split('C').length} segments`,
-  );
-
-  // Regression guard. The hero is a full-viewport box sitting over Mos, so any
-  // wrapper that claims the pointer makes Mos unpokeable — which has happened
-  // twice, once via the section and once via its container.
-  await p.locator('.poke').click({ timeout: 4000 });
-  await p.waitForTimeout(500);
-  const said = await p.locator('.world .say').innerText();
-  ok(
-    'Mos can be poked through the hero',
-    said.trim().length > 0,
-    JSON.stringify(said.slice(0, 20)),
+    `${loc}: every form's CTA reads hero_cta`,
+    labels.length === 3 && labels.every((t) => t === msg[loc].hero_cta),
+    labels.join(' | '),
   );
   await ctx.close();
 }
 
-// ---- 2b. the three names are defined before anything uses them ----
-{
-  const { ctx, p } = await open();
-  const s = p.locator('section.cast');
-  await s.scrollIntoViewIfNeeded();
-  await p.waitForTimeout(400);
-
-  ok('the cast chapter is on the page', (await s.count()) === 1);
-  const names = (await s.locator('.card .n').allInnerTexts()).map((t) => t.trim());
-  ok('three names', names.length === 3, names.join(','));
-  ok("and they are the product's own", names.join(',') === 'Mos,Mon,Mon Skill', names.join(','));
-  const roles = (await s.locator('.card .r').allInnerTexts()).map((t) => t.trim());
-  ok('each has a role', roles.length === 3 && roles.every(Boolean), roles.join(' | '));
-  ok('and no two share one', new Set(roles).size === 3);
-
-  // Definitions are worth little without the order they happen in.
-  const flow = (await s.locator('.flow').innerText()).trim();
-  ok(
-    'the sequence is stated',
-    names.every((n) => flow.includes(n)),
-    flow,
-  );
-
-  // It has to land before the section that spends the words.
-  const order = await p.evaluate(() => {
-    const y = (sel) => document.querySelector(sel).getBoundingClientRect().top + window.scrollY;
-    return { cast: y('section.cast'), decide: y('section.decide') };
-  });
-  ok('and it comes before Chat', order.cast < order.decide);
+// ---- 4. copy rules: no Mana figures, no model names, no pilot wording, in any locale ----
+for (const { loc, path } of LOCALES) {
+  const { ctx, p } = await open(browser, path);
+  const text = await fullText(p);
+  ok(`${loc}: no Mana figure`, !MANA_FIG.test(text), text.match(MANA_FIG)?.[0]);
+  ok(`${loc}: no model or provider name`, !MODEL_NAMES.test(text), text.match(MODEL_NAMES)?.[0]);
+  ok(`${loc}: no pilot wording`, !PILOT.test(text), text.match(PILOT)?.[0]);
   await ctx.close();
 }
 
-// ---- 3. the console settles a goal before anything runs ----
-{
-  const { ctx, p } = await open();
-  const s = p.locator('section.decide');
-  await s.scrollIntoViewIfNeeded();
-  await p.waitForTimeout(600);
-
-  ok('three goals to choose from', (await s.locator('.goal').count()) === 3);
-  await s.locator('.goal').first().click();
-  await p.waitForTimeout(300);
-  ok('Mos asks before acting', (await s.locator('.opt').count()) === 2);
-  ok('and nothing has run yet', (await s.locator('.run').count()) === 0);
-
-  await s.locator('.opt').first().click();
-  await p.waitForTimeout(700);
-  ok('the agreed goal is shown back', (await s.locator('.agreed p').innerText()).includes('—'));
-  ok('a delegated run walks its steps', (await s.locator('.steps li').count()) === 3);
-  ok('and the island is told it is busy', (await s.locator('.dot.live').count()) === 1);
-
-  await p.waitForTimeout(3200);
-  const result = await s.locator('.result p').innerText();
-  ok('a result comes back', result.trim().length > 10, JSON.stringify(result.slice(0, 24)));
-  ok('and busy is cleared', (await s.locator('.dot.live').count()) === 0);
-  // The charge line says *when* it is charged, never *how much*. What a run
-  // costs in Mana is set by a coefficient the monetization strategy still
-  // lists as an open experiment, so a figure here would be an invented price.
-  const spent = await s.locator('.spent').innerText();
-  ok('the run is charged after it finishes', spent.trim().length > 4, spent);
-  ok('and names no figure', !/\d/.test(spent), spent);
-
-  // Mos orchestrates and never executes: it settles the goal and reports back,
-  // and the middle step — the one that runs — is always a Mon. The section used
-  // to run one of the three goals on Mos directly.
-  const actors = await s.locator('.steps .by').allInnerTexts();
-  ok('the run is walked by three actors', actors.length === 3, actors.join(','));
-  ok('and only the middle one is the Mon', actors[1] !== actors[0] && actors[1] !== actors[2]);
-  const monClass = await s.locator('.steps li').nth(1).locator('.by.mon').count();
-  ok('the executing step is marked as the Mon', monClass === 1);
-
-  // The other shape: Mos answers directly, with no Mon and no steps.
-  await s.locator('.again').click();
-  await p.waitForTimeout(250);
-  await s.locator('.goal').nth(1).click();
-  await p.waitForTimeout(250);
-  await s.locator('.opt').first().click();
-  await p.waitForTimeout(1400);
-  // Every goal is delegated now, so every goal walks the same steps. Nothing
-  // resolves on Mos.
-  ok('a second goal also delegates', (await s.locator('.steps li').count()) === 3);
-  ok('and names a Mon', (await s.locator('.runner .kind b').innerText()).trim().length > 1);
-  ok('and still names no figure', !/\d/.test(await s.locator('.spent').innerText()));
-  await ctx.close();
-}
-
-// ---- 3b. Chat is an extension, and it has two modes ----
-{
-  const { ctx, p } = await open();
-  const s = p.locator('section.decide');
-  await s.scrollIntoViewIfNeeded();
-  await p.waitForTimeout(600);
-
-  // The browser chrome and the lit extension icon are the marks that say this
-  // belongs to the browser rather than to the site.
-  ok('a browser frame', (await s.locator('.browser .chrome').count()) === 1);
-  ok('with a url', (await s.locator('.chrome .url').count()) === 1);
-  ok('and the extension icon lit', (await s.locator('.chrome .ext.lit').count()) === 1);
-  ok('the panel carries an extension bar', (await s.locator('.panel .ext-bar').count()) === 1);
-
-  // The panel is in flow beside the page, so it pushes rather than covers —
-  // which is the difference between an extension panel and a site overlay.
-  const side = await s.evaluate(() => {
-    const pg = document.querySelector('section.decide .page').getBoundingClientRect();
-    const pn = document.querySelector('section.decide .panel').getBoundingClientRect();
-    return { gap: Math.round(pn.left - pg.right), overlap: pn.left < pg.right - 2 };
-  });
-  ok('it pushes the page rather than covering it', !side.overlap, `gap ${side.gap}px`);
-
-  // Two modes, and they behave differently. Buddy talks and calls no Mon;
-  // Manager takes a goal to a Mon. Mos executes in neither.
-  ok('two modes', (await s.locator('.modes .mode').count()) === 2);
-  await s.locator('.modes .mode').first().click();
-  await p.waitForTimeout(300);
-  ok('Buddy offers conversation', (await s.locator('.body .goals li').count()) === 3);
-  await s.locator('.body .goal').first().click();
-  await p.waitForTimeout(300);
-  ok('and answers without a Mon', (await s.locator('.body .run, .body .steps').count()) === 0);
-
-  // One reply per opener. A single fixed answer met "이 기사 어떻게 봤어" with a
-  // line about procrastination — the demo argued with itself.
-  const said = [];
-  for (let i = 0; i < 3; i++) {
-    if (i) await s.locator('.body .goal').nth(i).click();
-    await p.waitForTimeout(250);
-    said.push([
-      (await s.locator('.body .mine').innerText()).trim(),
-      (await s.locator('.body .says').last().innerText()).trim(),
-    ]);
-    await s.locator('.body .again').click();
-    await p.waitForTimeout(250);
+// ---- 5. Mon never reaches the page; section 3 explains the 작업팀 ----
+// Reduced motion hands the visitor the stepper, so every frame of the hero demo
+// can be read without waiting out the 16s loop.
+for (const { loc, path } of LOCALES) {
+  const { ctx, p } = await open(browser, path, { reducedMotion: 'reduce' });
+  const step = p.getByRole('button', { name: msg[loc].demo_step });
+  const seen = [];
+  for (let f = 0; f < 8; f++) {
+    seen.push(await textOf(p, SEC('hero')));
+    await step.click();
   }
-  ok('every opener gets its own answer', new Set(said.map((x) => x[1])).size === 3);
+  const leak = seen.findIndex((t) => MON.test(t));
   ok(
-    'and the answer belongs to what was asked',
-    // The article opener is answered about the article, not about putting
-    // things off — the mismatch that made the demo read as canned.
-    /문단|기사|paragraph|article|段落|記事/.test(said[1][1]),
-    said[1].join(' -> '),
+    `${loc}: the hero says no Mon in any of its 8 frames`,
+    leak < 0,
+    leak < 0 ? '' : `frame ${leak}: ${seen[leak].match(MON)[0]}`,
   );
-  await s.locator('.body .goal').first().click();
-  await p.waitForTimeout(250);
-  const backLabel = (await s.locator('.body .again').innerText()).trim();
-  await s.locator('.body .again').click();
-  await p.waitForTimeout(250);
-
-  await s.locator('.modes .mode').last().click();
-  await p.waitForTimeout(300);
-  ok('Buddy does not offer to swap a goal it never had', backLabel !== (await goalAgain(s, p)));
-  // Both descriptions are on screen at once. With only the active mode
-  // described, Buddy went unexplained for the whole page.
-  const subs = (await s.locator('.modes .sub').allInnerTexts()).map((t) => t.trim());
-  ok('both modes are described', subs.length === 2, subs.join(' | '));
-  ok('and differently', subs[0] !== subs[1]);
-  ok('the Mon term is glossed where it first appears', /Mon/.test(subs.join(' ')));
-  await s.locator('.body .goal').first().click();
-  await p.waitForTimeout(300);
-  await s.locator('.body .opt').first().click();
-  await p.waitForTimeout(1200);
-  ok('Manager hands it to a Mon', (await s.locator('.body .run .steps li').count()) === 3);
+  const empathy = await textOf(p, SEC('empathy'));
+  ok(`${loc}: nor does the empathy section`, !MON.test(empathy), empathy.match(MON)?.[0]);
+  const moments = await textOf(p, SEC('moments'));
+  ok(`${loc}: section 3 carries its sub line`, moments.includes(msg[loc].moments_sub));
+  // "Mon" stays internal: outside copy says 작업자 / 작업팀, and section 3 is
+  // where the team is explained. 전문 AI read as an AI router, so it is gone too.
+  ok(`${loc}: section 3 never says Mon either`, !MON.test(moments), moments.match(MON)?.[0]);
+  ok(
+    `${loc}: and section 3 names the job team`,
+    { ko: /작업팀/, ja: /作業チーム/, en: /team/i }[loc].test(msg[loc].moments_sub),
+    `"${msg[loc].moments_sub}"`,
+  );
+  const page = await fullText(p);
+  const ROUTER = { ko: /전문 AI/, ja: /専門AI/, en: /specialist AI/i }[loc];
+  ok(`${loc}: and the page never says ${ROUTER.source}`, !ROUTER.test(page), page.match(ROUTER)?.[0]);
   await ctx.close();
 }
 
-/** Manager's own reset label, for comparing against Buddy's. */
-async function goalAgain(s, p) {
-  await s.locator('.body .goal').first().click();
-  await p.waitForTimeout(250);
-  await s.locator('.body .opt').first().click();
-  await p.waitForTimeout(2600);
-  const t = (await s.locator('.body .again').innerText()).trim();
-  await s.locator('.body .again').click();
-  await p.waitForTimeout(250);
-  return t;
-}
-
-// ---- 4. the patrol reads sentences ----
-{
-  const { ctx, p } = await open();
-  const s = p.locator('section.watch');
-  await s.scrollIntoViewIfNeeded();
-  await p.waitForTimeout(500);
-
-  const lines = await s.locator('.lines li').allInnerTexts();
-  ok('the memo starts with real rules', lines.length === 3, `${lines.length}`);
-  ok(
-    'written as sentences, not conditions',
-    lines.every((t) => t.trim().length > 8),
-    JSON.stringify(lines[0]?.slice(0, 22)),
-  );
-
-  await s.locator('.add input').fill('배포가 실패하면 알려 줘');
-  await s.locator('.add button').click();
-  await p.waitForTimeout(300);
-  ok('a line can be added', (await s.locator('.lines li').count()) === 4);
-  await s.locator('.lines li').last().locator('.x').click();
-  await p.waitForTimeout(250);
-  ok('and removed', (await s.locator('.lines li').count()) === 3);
-
-  ok('the trace is a sampler', (await s.locator('.trace span').count()) === 28);
-  const first = s.locator('.switch').first();
-  ok('a booked job starts on', (await first.getAttribute('aria-checked')) === 'true');
-  await first.click();
-  await p.waitForTimeout(250);
-  ok('and can be switched off', (await first.getAttribute('aria-checked')) === 'false');
-  await ctx.close();
-}
-
-// ---- 5. Studio is a node canvas you can actually wire ----
-{
-  const { ctx, p } = await open();
-  const s = p.locator('section.make');
-  await s.scrollIntoViewIfNeeded();
-  await p.waitForTimeout(600);
-
-  // The nodes are positioned in absolute pixels inside a fixed coordinate
-  // space while the wires are an SVG with a viewBox. If the box is ever allowed
-  // to stretch, the two disagree and every wire leaves its node — which is what
-  // happened the first time this was built. So the canvas must not scale.
-  const geom = await s.locator('.canvas').evaluate((el) => {
-    const svg = el.querySelector('svg.wires');
-    const r = el.getBoundingClientRect();
-    return {
-      w: Math.round(r.width),
-      h: Math.round(r.height),
-      vb: svg.getAttribute('viewBox'),
-      sw: Math.round(svg.getBoundingClientRect().width),
-    };
+// ---- 6. nothing scrolls sideways from 320 to 430 ----
+// Deliberately no `isMobile`: it rewrites the viewport (320x568 becomes 402x714),
+// so a pass would be about a width no phone has.
+for (const { loc, path } of LOCALES) {
+  const { ctx, p } = await open(browser, path, {
+    viewport: { width: 320, height: 568 },
+    hasTouch: true,
   });
-  const [, , vbW, vbH] = geom.vb.split(/\s+/).map(Number);
-  // Tolerance of 1: a fractional layout rounds the client rect. What is being
-  // checked is that the box is not *scaled*, not that it is pixel-exact.
-  const near = (a, b) => Math.abs(a - b) <= 1;
-  ok(
-    'the canvas is its coordinate space, unscaled',
-    near(geom.w, vbW) && near(geom.h, vbH),
-    JSON.stringify(geom),
-  );
-  ok('and the wire layer matches it', near(geom.sw, vbW), `${geom.sw} vs ${vbW}`);
-
-  // The two read-only side nodes hold no control: a Mon takes work only from
-  // Mos and returns it only to Mos, so there is nothing here to choose.
-  ok('two read-only side nodes', (await s.locator('.canvas .node.fixed').count()) === 2);
-  ok(
-    'and neither holds a control',
-    (await s.locator('.canvas .node.fixed button, .canvas .node.fixed input').count()) === 0,
-  );
-  ok('the core exposes two ports', (await s.locator('.core .port').count()) === 2);
-  ok('nothing is wired yet', (await s.locator('.canvas .node.placed').count()) === 0);
-  // Two dashed wires for the fixed sides, and no others.
-  ok('only the fixed wires are drawn', (await s.locator('.canvas svg.wires > path').count()) === 2);
-
-  // Click to attach: a connector becomes a node, wired to the core.
-  const firstCard = (await s.locator('.stage .cards .card-n').first().innerText()).trim();
-  await s.locator('.stage .cards .card').first().click();
-  await p.waitForTimeout(350);
-  ok('attaching adds a node', (await s.locator('.canvas .node.placed').count()) === 1);
-  ok('and a wire with it', (await s.locator('.canvas svg.wires > path').count()) === 3);
-  const nodeName = (await s.locator('.node.placed .p-n').first().innerText()).split('\n')[0].trim();
-  ok('the node names what was attached', nodeName === firstCard, `${nodeName} / ${firstCard}`);
-  ok('the core counts what feeds it', /1/.test(await s.locator('.core .c-row').last().innerText()));
-
-  // Every node carries its own one-line description, so the board reads without
-  // opening anything.
-  const sub = (await s.locator('.node.placed .p-s').first().innerText()).trim();
-  ok('the node describes itself', sub.length > 3, sub);
-
-  // Drag from the palette onto the canvas: the node lands where it was dropped.
-  await s.locator('.stage > .tabs .tab').nth(1).click();
-  await p.waitForTimeout(200);
-  const card = s.locator('.stage .cards .card').first();
-  const cb = await card.boundingBox();
-  const cv = await s.locator('.canvas').boundingBox();
-  const before = await s.locator('.canvas .node.placed').count();
-  await p.mouse.move(cb.x + cb.width / 2, cb.y + cb.height / 2);
-  await p.mouse.down();
-  await p.mouse.move(cv.x + cv.width * 0.2, cv.y + cv.height * 0.62, { steps: 12 });
-  await p.waitForTimeout(200);
-  ok('dragging shows a ghost node', (await s.locator('.canvas .node.ghost').count()) === 1);
-  ok(
-    'and a ghost wire to its port',
-    (await s.locator('.canvas svg.wires > path.ghost').count()) === 1,
-  );
-  await p.mouse.up();
-  await p.waitForTimeout(350);
-  ok('dropping attaches it', (await s.locator('.canvas .node.placed').count()) === before + 1);
-  const dropped = await s
-    .locator('.canvas .node.placed')
-    .last()
-    .evaluate((el) => ({ x: parseFloat(el.style.left), y: parseFloat(el.style.top) }));
-  ok(
-    'where it was dropped, not in a slot',
-    dropped.y > 150,
-    `${Math.round(dropped.x)},${Math.round(dropped.y)}`,
-  );
-
-  // A Mon Skill is a document, not a second kind of agent. It wires to its own
-  // port and carries the document mark; only the agent has a face.
-  await s.locator('.stage > .tabs .tab').last().click();
-  await p.waitForTimeout(250);
-  // The pair is defined once, in the cast chapter. What stays here is the half
-  // a builder needs at the moment of attaching, plus the fact that only this
-  // screen can tell them: a document costs nothing to attach.
-  const whatSkill = await s.locator('.stage .what .is-skill').innerText();
-  ok('the Skill tab keeps the document apart from the agent', /Skill/.test(whatSkill), whatSkill);
-  ok(
-    'and says attaching one is free',
-    /Mana/.test(whatSkill) && (await s.locator('.stage .what div').count()) === 1,
-    whatSkill,
-  );
-  await s.locator('.stage .cards .card').first().click();
-  await p.waitForTimeout(350);
-  ok('a Skill lands as a document node', (await s.locator('.node.placed.skill').count()) === 1);
-  ok('marked as a document', (await s.locator('.node.placed.skill .tag').count()) === 1);
-  const tools = await s.locator('.node.placed:not(.skill)').count();
-  ok(
-    'and tools are not',
-    (await s.locator('.node.placed:not(.skill) .tag').count()) === 0,
-    String(tools),
-  );
-
-  // Every palette group carries something, and reports its own count.
-  const tabs = await s.locator('.stage > .tabs .tab').count();
-  ok('five palette groups', tabs === 5, String(tabs));
-  let empty = 0;
-  for (let i = 0; i < tabs; i++) {
-    await s.locator('.stage > .tabs .tab').nth(i).click();
-    await p.waitForTimeout(150);
-    if ((await s.locator('.stage .cards .card').count()) === 0) empty++;
-  }
-  ok('and none is a dead end', empty === 0);
-  const counts = await s.locator('.stage > .tabs .tab .n').allInnerTexts();
-  ok(
-    'the counts add up to what is on the canvas',
-    counts.reduce((n, t) => n + Number(t), 0) === (await s.locator('.node.placed').count()),
-    counts.join(','),
-  );
-
-  // The brain is the model this Mon runs on, and it has to be Studio's own list
-  // rather than three abstractions. Picking a purpose marks the models that
-  // suit it; picking a model shows on the core, so the canvas and the panel
-  // never disagree about what this Mon runs on.
-  // The roster is collapsed by default: "you do not need model names" followed
-  // by twelve version names is a contradiction, and on a phone the list filled
-  // the screen. Open it to check that Studio's full list is still all there.
-  ok(
-    'the chosen brain shows without opening anything',
-    (await s.locator('.brain .p-v').count()) === 1,
-  );
-  ok('and the roster starts collapsed', (await s.locator('.brain .models').count()) === 0);
-  await s.locator('.brain .disclose').click();
-  await p.waitForTimeout(250);
-  const providers = await s.locator('.brain .pv-n').allInnerTexts();
-  ok('four providers', providers.length === 4, providers.join(','));
-  ok('and eleven models', (await s.locator('.brain .model').count()) === 11);
-  const fitFor = async (i) => {
-    await s.locator('.brain .purposes .tab').nth(i).click();
-    await p.waitForTimeout(200);
-    return (await s.locator('.brain .model.fit .m-n').allInnerTexts()).join(',');
-  };
-  const f0 = await fitFor(0);
-  const f3 = await fitFor(3);
-  ok('a purpose marks some models', f0.length > 0, f0);
-  ok('and another purpose marks different ones', f0 !== f3, `${f0} / ${f3}`);
-  await s.locator('.brain .model').first().click();
-  await p.waitForTimeout(250);
-  const picked = (await s.locator('.brain .p-v').innerText()).trim();
-  const onCore = (await s.locator('.core .c-row').first().innerText()).trim();
-  ok('the core shows the chosen model', onCore.includes(picked), `${onCore} / ${picked}`);
-  ok('and quotes no figure for it', !MANA_FIG.test(await s.locator('.brain').innerText()));
-
-  // The instruction editor is gone from the demo.
-  ok('no prompt editor', (await s.locator('.prompt, .pbody').count()) === 0);
-
-  const body = await s.innerText();
-  ok('no guard category remains', !/안전장치|Guardrail/i.test(body));
-  await ctx.close();
-}
-
-// ---- 5b. the early-team ask is on the page ----
-{
-  const { ctx, p } = await open();
-  const s = p.locator('section.recruit');
-  await s.scrollIntoViewIfNeeded();
-  // Long enough for the entrance to settle. The panel reveals with
-  // `scale: true`, and a scaled ancestor shrinks every box inside it — measured
-  // 43.86px for a control whose computed height is exactly 44.
-  await p.waitForTimeout(1400);
-  ok('the recruit block renders', (await s.count()) === 1);
-  ok('three roles, each with who it is for', (await s.locator('.roles li').count()) === 3);
-  const whos = await s.locator('.role-w').allInnerTexts();
-  ok(
-    'and none of those lines is empty',
-    whos.every((t) => t.trim().length > 4),
-  );
-  const link = s.locator('a.go');
-  ok('it links out in a new tab', (await link.getAttribute('target')) === '_blank');
-  ok('with rel set', /noopener/.test(await link.getAttribute('rel')));
-  const box = await link.boundingBox();
-  ok('and the link clears the target floor', box.height >= 44, `${Math.round(box.height)}px`);
-  await ctx.close();
-}
-
-// ---- 6. the Hub price is the maker's decision ----
-{
-  const { ctx, p } = await open();
-  const s = p.locator('section.share');
-  await s.scrollIntoViewIfNeeded();
-  await p.waitForTimeout(500);
-
-  ok('three ways to be paid back', (await s.locator('.mode').count()) === 3);
-  const price = () => s.locator('.price').innerText();
-  const modes = await s.locator('.mode-n').allInnerTexts();
-  await s.locator('.mode').nth(1).click();
-  await p.waitForTimeout(200);
-  ok('the listing follows the choice', (await price()).trim() === modes[1].trim(), await price());
-  await s.locator('.mode').nth(2).click();
-  await p.waitForTimeout(200);
-  ok('and follows it again', (await price()).trim() === modes[2].trim(), await price());
-
-  // Rent belongs to a Mon, purchase belongs to a Skill. Each mode has to name
-  // which, or the three read as options for one thing.
-  const kinds = await s.locator('.mode-k').allInnerTexts();
-  ok('every payback mode names its asset', kinds.length === 3 && kinds.every((t) => t.trim()));
-  ok('one is Mon-only', (await s.locator('.mode-k.is-mon').count()) === 1, kinds.join(' / '));
-  ok('one is Skill-only', (await s.locator('.mode-k.is-skill').count()) === 1);
-
-  // A Mon cannot be sold and a Skill cannot be rented, so the example listing
-  // has to change asset with the mode. It used to keep one Mon example and put
-  // a "판매" badge on it, directly contradicting that mode's own "Skill only".
-  // Read the asset from the badge's class, not from its text: the "both" mode's
-  // label contains the word "Skill" too.
-  const pairs = [];
-  for (const i of [0, 1, 2]) {
-    const mode = s.locator('.mode').nth(i);
-    await mode.click();
-    await p.waitForTimeout(220);
-    pairs.push({
-      skillOnly: (await mode.locator('.mode-k.is-skill').count()) === 1,
-      monOnly: (await mode.locator('.mode-k.is-mon').count()) === 1,
-      cardIsSkill: (await s.locator('.card.mine.is-skill').count()) === 1,
+  for (const [w, h] of [
+    [320, 568],
+    [360, 640],
+    [375, 667],
+    [390, 844],
+    [430, 932],
+  ]) {
+    await p.setViewportSize({ width: w, height: h });
+    await settle(p);
+    const r = await p.evaluate(() => {
+      // `body { overflow-x: hidden }` hides a spill from the document check alone, so
+      // also look for boxes that poke past the edge with no clipping ancestor of their own.
+      const clipped = (el) => {
+        for (let a = el.parentElement; a && a !== document.body; a = a.parentElement)
+          if (getComputedStyle(a).overflowX !== 'visible') return true;
+        return false;
+      };
+      const wide = [...document.querySelectorAll('main *, header *, footer *')]
+        .filter((e) => {
+          const b = e.getBoundingClientRect();
+          return (
+            b.width &&
+            (b.right > innerWidth + 1 || b.left < -1) &&
+            !clipped(e) &&
+            !e.closest('.visually-hidden')
+          );
+        })
+        .slice(0, 3)
+        .map(
+          (e) =>
+            `${e.tagName.toLowerCase()}.${String(e.className).split(' ')[0]} ${Math.round(e.getBoundingClientRect().right)}`,
+        );
+      return { page: document.documentElement.scrollWidth - innerWidth, wide };
     });
+    ok(
+      `${loc} ${w}px: the page does not scroll sideways`,
+      r.page <= 0,
+      `${r.page}px wider than the viewport`,
+    );
+    ok(`${loc} ${w}px: no box pokes past the edge`, r.wide.length === 0, r.wide.join(' | '));
   }
-  ok(
-    'a Skill-only mode shows a Skill, never a Mon',
-    pairs.every((x) => !x.skillOnly || x.cardIsSkill),
-    JSON.stringify(pairs),
-  );
-  ok(
-    'and a Mon-only mode never shows a Skill',
-    pairs.every((x) => !x.monOnly || !x.cardIsSkill),
-  );
+  await ctx.close();
+}
 
-  // Hub trading, creator payout and certification are all inactive at the MVP
-  // stage this page announces, so a rating, a run count or a Mana price on a
-  // peer row would be describing something that does not exist yet.
-  const peers = await s.locator('.peers .card .by').allInnerTexts();
+// ---- 7. the first screen at 375x667 holds the email field, and nothing covers the hero ----
+for (const { loc, path } of LOCALES) {
+  const { ctx, p } = await open(browser, path, {
+    viewport: { width: 375, height: 667 },
+    hasTouch: true,
+  });
+  const r = await p.evaluate(() => {
+    const field = document
+      .querySelector('form[data-form-position="hero"] input[type="email"]')
+      .getBoundingClientRect();
+    const header = document.querySelector('header').getBoundingClientRect();
+    const h1 = document.querySelector('h1');
+    const at = (b) => document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+    return {
+      top: field.top,
+      bottom: field.bottom,
+      headerBottom: header.bottom,
+      fieldReachable: at(field)?.matches('input[type="email"]'),
+      h1Reachable: h1.contains(at(h1.getBoundingClientRect())),
+    };
+  });
   ok(
-    'peer rows say what a Mon does, not what it earns',
-    peers.length === 3 && peers.every((t) => t.trim().length > 4 && !/[\d★]/.test(t)),
-    peers[0],
+    `${loc}: the email field is inside the first screen`,
+    r.top >= r.headerBottom - 1 && r.bottom <= 667,
+    `${Math.round(r.top)}-${Math.round(r.bottom)} of 667`,
+  );
+  ok(`${loc}: and nothing sits on top of it`, r.fieldReachable);
+  ok(`${loc}: or on top of the h1`, r.h1Reachable);
+  await ctx.close();
+}
+
+// ---- 8. at 390x844 the board is more than a sliver ----
+for (const { loc, path } of LOCALES) {
+  const { ctx, p } = await open(browser, path, {
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+  });
+  const shown = await p.evaluate(() => {
+    const b = document.querySelector('[data-frame]').getBoundingClientRect();
+    return Math.min(b.bottom, innerHeight) - Math.max(b.top, 0);
+  });
+  ok(`${loc}: at least 120px of the board shows`, shown >= 120, `${Math.round(shown)}px`);
+  await ctx.close();
+}
+
+// ---- 9. 44px tap targets ----
+// Same floor as the old suite: 43.5 for a control whose computed height is exactly 44.
+for (const [loc, path, vp] of [
+  ...LOCALES.map((l) => [l.loc, l.path, { width: 390, height: 844 }]),
+  ['ko', '/', { width: 1440, height: 900 }],
+]) {
+  const { ctx, p } = await open(browser, path, { viewport: vp, hasTouch: vp.width < 600 });
+  const small = await p.evaluate(() => {
+    const out = [];
+    const sel = 'a[href], button, select, summary, input:not([type="hidden"]), [role="button"]';
+    for (let e of document.querySelectorAll(sel)) {
+      if (e.matches('a[href="#main"]')) continue; // skip link, parked off screen until focused
+      // The visible target of a checkbox is the whole row it sits in.
+      if (e.matches('input[type="checkbox"]')) e = e.closest('label') ?? e;
+      if (!e.getClientRects().length || !e.checkVisibility({ visibilityProperty: true })) continue;
+      const cs = getComputedStyle(e);
+      // WCAG exempts a link set inside a sentence.
+      if (e.tagName === 'A' && cs.display === 'inline') continue;
+      const b = e.getBoundingClientRect();
+      const label = (e.textContent || e.getAttribute('aria-label') || '').trim().slice(0, 16);
+      const needsWidth = e.tagName !== 'A' || !(e.textContent || '').trim();
+      if (b.height < 43.5 || (needsWidth && b.width < 43.5))
+        out.push(
+          `${e.tagName.toLowerCase()} "${label}" ${Math.round(b.width)}x${Math.round(b.height)}`,
+        );
+    }
+    return out;
+  });
+  ok(
+    `${loc} ${vp.width}px: every control is at least 44px tall`,
+    small.length === 0,
+    small.join(' | '),
   );
   await ctx.close();
 }
 
-// ---- 7. the two payments, and the arithmetic behind them ----
+// ---- 10. reduced motion: the still frame, and everything on the page already visible ----
+const hiddenContent = (p) =>
+  p.evaluate(() => {
+    const bad = [];
+    for (const s of document.querySelectorAll('main > section')) {
+      const walk = document.createTreeWalker(s, NodeFilter.SHOW_TEXT);
+      for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+        if (!n.nodeValue.trim()) continue;
+        const el = n.parentElement;
+        // The board's layers swap on purpose and are checked on their own; a closed
+        // <details> hides its answer by design.
+        if (el.closest('[data-frame], .visually-hidden')) continue;
+        if (el.closest('details:not([open])') && !el.closest('summary')) continue;
+        if (!el.checkVisibility({ opacityProperty: true, visibilityProperty: true }))
+          bad.push(`${s.getAttribute('aria-labelledby')}: "${n.nodeValue.trim().slice(0, 24)}"`);
+      }
+    }
+    return bad;
+  });
+
+for (const { loc, path } of LOCALES) {
+  const { ctx, p } = await open(browser, path, { reducedMotion: 'reduce' });
+  // A negative: the loop would have left F0 at 600ms, so give it time to prove it does not.
+  await p.waitForTimeout(2500);
+  ok(
+    `${loc} reduced motion: the board rests on F0`,
+    (await p.locator('[data-frame]').getAttribute('data-frame')) === '0',
+  );
+  // What F0 says is the demo's own business; that it is painted, not blank, is the page's.
+  ok(`${loc} reduced motion: the still frame is painted`, (await painted(p, '[data-frame]')) > 4);
+  ok(
+    `${loc} reduced motion: the stepper replaces pause`,
+    (await p.getByRole('button', { name: msg[loc].demo_step }).isVisible()) &&
+      !(await p.getByRole('button', { name: msg[loc].demo_pause }).isVisible()),
+  );
+  const bad = await hiddenContent(p);
+  ok(
+    `${loc} reduced motion: every section's content is visible`,
+    bad.length === 0,
+    bad.slice(0, 3).join(' | '),
+  );
+  await ctx.close();
+}
 {
-  const { ctx, p } = await open();
-  const s = p.locator('section.cost');
-  await s.scrollIntoViewIfNeeded();
-  await p.waitForTimeout(500);
-
-  const plans = await s.locator('.plan-n').allInnerTexts();
+  // Scroll-triggered reveals must not hide anything from a visitor who has not scrolled yet.
+  const { ctx, p } = await open(browser);
+  const bad = await hiddenContent(p);
   ok(
-    "the three plans are the product's own",
-    plans.join(',') === 'Ground,Plot,Parcel',
-    plans.join(','),
-  );
-  // Every plan says the price is not set, because it is not: subscription
-  // price, USD-to-Mana rate, top-up bonuses and storage caps are all listed as
-  // open experiments. The page showed $0 / $18 / $48 and "100 Mana ~ $1",
-  // none of which came from anywhere but a wireframe.
-  const tbd = await s.locator('.plan-tbd').allInnerTexts();
-  ok('every plan states its price', tbd.length === 3 && tbd.every((t) => t.trim()));
-  ok('Ground is free', (await s.locator('.plan-tbd.free').count()) === 1, tbd.join(' / '));
-  ok('and the paid two are unset', (await s.locator('.plan-tbd:not(.free)').count()) === 2);
-
-  const body = await s.innerText();
-  ok(
-    'and the section quotes no money at all',
-    !/[$₩¥€]\s?\d/.test(body),
-    body.match(/[$₩¥€]\s?\d\S*/)?.[0],
-  );
-  // Same-line only: the column marker "2" sits directly above the heading
-  // "Mana — ...", and a newline-crossing \s would read that pair as a price.
-  const MANA_AMOUNT = /Mana[^\S\n]*\d|\d[^\S\n]*Mana/i;
-  ok('nor any Mana amount', !MANA_AMOUNT.test(body), body.match(MANA_AMOUNT)?.[0]);
-
-  // Picking a plan re-answers every row of the comparison, which is the part
-  // that *is* decided: which axes a tier moves on.
-  const rowsFor = async (i) => {
-    await s.locator('.plan').nth(i).click();
-    await p.waitForTimeout(200);
-    return (await s.locator('.table dd').allInnerTexts()).join('|');
-  };
-  const [g, pl, pa] = [await rowsFor(0), await rowsFor(1), await rowsFor(2)];
-  ok('the comparison has a row per axis', g.split('|').length === 5, g);
-  ok('and each plan answers it differently', new Set([g, pl, pa]).size === 3);
-  ok(
-    'Ground has no scheduled runs',
-    // Scheduled runs is the row Ground does not have — index 3 of the five.
-    g.split('|')[3] !== pl.split('|')[3],
-    `${g.split('|')[3]} vs ${pl.split('|')[3]}`,
+    "at rest, before any scroll, every section's content is visible",
+    bad.length === 0,
+    bad.slice(0, 3).join(' | '),
   );
   await ctx.close();
 }
 
-// ---- 8. the email capture, which is the point of the page ----
+// ---- 11. the light theme ----
 {
-  const { ctx, p } = await open();
-  const field = p.locator('.hero input[type="email"]');
-  const box = await field.boundingBox();
+  // A dark OS preference must not turn the page dark: dark mode is out of scope.
+  const { ctx, p } = await open(browser, '/', { colorScheme: 'dark' });
+  const t = await p.evaluate(() => {
+    const rgb = (s) => s.match(/[\d.]+/g).map(Number);
+    const lum = ([r, g, b]) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    return {
+      dataTheme: document.documentElement.dataset.theme,
+      darkClass: document.documentElement.classList.contains('dark'),
+      scheme: document.querySelector('meta[name="color-scheme"]')?.content,
+      themeColor: document.querySelector('meta[name="theme-color"]')?.content,
+      body: rgb(getComputedStyle(document.body).backgroundColor),
+      html: rgb(getComputedStyle(document.documentElement).backgroundColor),
+      ink: lum(rgb(getComputedStyle(document.querySelector('h1')).color)),
+    };
+  });
+  const clearWhite = ([r, g, b]) =>
+    Math.min(r, g, b) >= 240 && Math.max(r, g, b) - Math.min(r, g, b) <= 8;
+  ok('html carries no dark theme', t.dataTheme !== 'dark' && !t.darkClass, `${t.dataTheme}`);
+  ok('the page declares a light colour scheme', t.scheme === 'light', t.scheme);
+  ok('the body is on the Clear White ground', clearWhite(t.body), `rgb(${t.body})`);
+  ok('and so is the canvas behind it', clearWhite(t.html), `rgb(${t.html})`);
   ok(
-    'the field is above the fold',
-    box.y + box.height < 900,
-    `bottom ${Math.round(box.y + box.height)}`,
+    'the browser chrome is tinted to match',
+    /^#f[0-9a-f]f[0-9a-f]f[0-9a-f]$/i.test(t.themeColor),
+    t.themeColor,
   );
+  ok('the h1 is dark ink on it', t.ink < 0.25, t.ink.toFixed(2));
+  await ctx.close();
+}
+{
+  const { ctx, p } = await open(browser);
+  ok(
+    'Korean breaks between words, not inside them',
+    (await p.evaluate(() => getComputedStyle(document.body).wordBreak)) === 'keep-all',
+  );
+  await ctx.close();
+}
 
-  const attrs = await field.evaluate((i) => ({
-    type: i.type,
-    name: i.name,
-    auto: i.autocomplete,
-    spell: i.spellcheck,
-    labelled: !!document.querySelector(`label[for="${i.id}"]`),
+// ---- 12. header anchor, footer, language metadata ----
+for (const { loc, path } of LOCALES) {
+  const { ctx, p } = await open(browser, path);
+  await p
+    .getByRole('banner')
+    .getByRole('link', { name: msg[loc].nav_waitlist, exact: true })
+    .click();
+  // Smooth scrolling: wait until two consecutive polls read the same offset.
+  await p.waitForFunction(
+    () => {
+      const prev = window.__y;
+      window.__y = scrollY;
+      return scrollY > 0 && prev === scrollY;
+    },
+    null,
+    { polling: 120 },
+  );
+  const at = await p.evaluate(() => ({
+    hash: location.hash,
+    top: document.getElementById('waitlist').getBoundingClientRect().top,
+    header: document.querySelector('header').getBoundingClientRect().bottom,
   }));
-  ok('it is a real email field', attrs.type === 'email' && attrs.name === 'email');
-  ok('it autofills and does not spellcheck', attrs.auto === 'email' && attrs.spell === false);
-  ok('it has a label', attrs.labelled);
+  ok(`${loc}: the header link goes to #waitlist`, at.hash === '#waitlist', at.hash);
+  ok(
+    `${loc}: and the section lands clear of the sticky header`,
+    at.top >= at.header - 1 && at.top < 400,
+    `top ${Math.round(at.top)}`,
+  );
 
-  // The page carries the form twice, so the generated ids have to differ or one
-  // of the two labels points at the wrong field.
-  const ids = await p.locator('input[type="email"]').evaluateAll((els) => els.map((e) => e.id));
-  ok('both forms have distinct ids', ids.length === 2 && ids[0] !== ids[1], ids.join(' / '));
-  ok('one h1', (await p.locator('main h1').count()) === 1);
-
-  const consent = await p.locator('.hero input[type="checkbox"]').count();
-  ok('consent is on the first form', consent === 1);
+  const foot = await p.evaluate(() =>
+    [...document.querySelectorAll('footer a')].map((a) => ({
+      path: new URL(a.href).pathname.replace(/\/$/, ''),
+      href: a.getAttribute('href'),
+      target: a.target,
+      rel: a.rel,
+    })),
+  );
+  const prefix = loc === 'ko' ? '' : `/${loc}`;
+  ok(
+    `${loc}: the footer links to the privacy page`,
+    foot.some((a) => a.path === `${prefix}/privacy`),
+    foot.map((a) => a.path).join(),
+  );
+  const careers = foot.find((a) => a.path === `${prefix}/careers`);
+  ok(
+    `${loc}: and to careers, in a new tab without the opener`,
+    careers?.target === '_blank' && /noopener/.test(careers.rel),
+    careers?.href,
+  );
+  // The team page lives in Notion; /careers only redirects there.
+  const res = await ctx.request.get(`${BASE}${prefix}/careers`, { maxRedirects: 0 });
+  ok(
+    `${loc}: and /careers redirects to the Notion team page`,
+    res.status() === 308 && /^https:\/\/mosmos-world\.notion\.site\//.test(res.headers().location),
+    `${res.status()} ${res.headers().location}`,
+  );
   await ctx.close();
 }
-
-// ---- 9. reduced motion gets the finished frame ----
 {
-  const { ctx, p } = await open('/', { reducedMotion: 'reduce' });
-  const hidden = await p
-    .locator('main .head, main .hud, main .ache, main h1, main h2')
-    .evaluateAll((els) => els.filter((e) => Number(getComputedStyle(e).opacity) < 0.9).length);
-  ok('nothing is left hidden', hidden === 0, `${hidden} under-opaque`);
-  // The resting silhouette is still emitted, so the scene is composed.
-  const d = await p.locator('[data-anim="mos-fill"]').getAttribute('d');
-  ok('the silhouette is still painted', !d.startsWith('M610.94') && d.endsWith('Z'));
+  const { ctx, p } = await open(browser, '/en');
+  await p.locator('footer').getByRole('link', { name: msg.en.footer_privacy }).click();
+  await p.waitForURL(/\/en\/privacy\/?$/);
   ok(
-    'and no cursor takeover',
-    !(await p.evaluate(() => document.documentElement.classList.contains('orb-cursor'))),
+    'the privacy link opens the English policy',
+    (await p.locator('main h1').count()) >= 1,
+    p.url(),
+  );
+  await ctx.close();
+}
+for (const { loc, path } of LOCALES) {
+  const { ctx, p } = await open(browser, path);
+  const norm = (u) => new URL(u).pathname.replace(/\/$/, '') || '/';
+  const m = await p.evaluate(() => ({
+    lang: document.documentElement.lang,
+    canonical: document.querySelector('link[rel="canonical"]').href,
+    alts: Object.fromEntries(
+      [...document.querySelectorAll('link[rel="alternate"][hreflang]')].map((l) => [
+        l.hreflang,
+        l.href,
+      ]),
+    ),
+    toggle: [...document.querySelectorAll('header a[hreflang]')].map((a) => [
+      a.getAttribute('hreflang'),
+      a.getAttribute('lang'),
+      a.getAttribute('aria-current'),
+      a.href,
+    ]),
+  }));
+  ok(`${loc}: <html lang> is ${loc}`, m.lang === loc, m.lang);
+  ok(
+    `${loc}: canonical is this locale's URL`,
+    norm(m.canonical) === (loc === 'ko' ? '/' : `/${loc}`),
+    m.canonical,
+  );
+  ok(
+    `${loc}: hreflang alternates cover ko, en, ja and x-default`,
+    ['ko', 'en', 'ja', 'x-default'].every((k) => m.alts[k]) &&
+      norm(m.alts.ko) === '/' &&
+      norm(m.alts.en) === '/en' &&
+      norm(m.alts.ja) === '/ja' &&
+      norm(m.alts['x-default']) === '/',
+    JSON.stringify(Object.fromEntries(Object.entries(m.alts).map(([k, v]) => [k, norm(v)]))),
+  );
+  ok(
+    `${loc}: the language toggle links each locale with lang and hreflang, marking the current one`,
+    m.toggle.length === 3 &&
+      m.toggle.every(([h, l, , href]) => h === l && norm(href) === (h === 'ko' ? '/' : `/${h}`)) &&
+      m.toggle
+        .filter(([, , cur]) => cur === 'true')
+        .map(([h]) => h)
+        .join() === loc,
+    JSON.stringify(m.toggle.map((t) => t.slice(0, 3))),
   );
   await ctx.close();
 }
 
-// ---- 10. a phone gets the same document, at its real width ----
-//
-// Deliberately no `isMobile`: that option rewrites the viewport — 320x568
-// becomes 402x714 — so this used to pass by testing a width no phone has, and
-// missed a real 82px horizontal overflow at 320px.
-for (const [w, h] of [
-  [320, 568],
-  [360, 640],
-  [390, 844],
-  [430, 932],
-]) {
-  const { ctx, p } = await open('/', { viewport: { width: w, height: h }, hasTouch: true });
-  ok(`${w}px: every section survives`, (await p.locator('section').count()) >= 6);
-  const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  ok(`${w}px: nothing overflows sideways`, over <= 0, `${over}px wider than the viewport`);
-  const field = await p.locator('.hero input[type="email"]').boundingBox();
+// ---- 13. the FAQ is native <details>, one per faq_N_q message, closed, at reading width ----
+for (const { loc, path } of LOCALES) {
+  const { ctx, p } = await open(browser, path, { viewport: { width: 1440, height: 900 } });
+  const faq = await p.evaluate(() => {
+    const items = [
+      ...document.querySelectorAll(`main > section[aria-labelledby="faq-title"] details`),
+    ];
+    return {
+      n: items.length,
+      open: items.filter((d) => d.open).length,
+      width: Math.max(...items.map((d) => d.getBoundingClientRect().width)),
+      q: items.map((d) => d.querySelector('summary').textContent.trim()),
+      a: items.map((d) => d.querySelector('p')?.textContent.trim()),
+    };
+  });
+  const asked = Object.keys(msg[loc]).filter((k) => /^faq_\d+_q$/.test(k)).length;
   ok(
-    `${w}px: the field is above the fold`,
-    field.y + field.height < h,
-    `bottom ${Math.round(field.y + field.height)}`,
+    `${loc}: one <details> per faq question (at least six), all closed`,
+    faq.n === asked && faq.n >= 6 && faq.open === 0,
+    `${faq.n} items for ${asked} questions, ${faq.open} open`,
   );
-  // The gloss is required on first use, so it cannot start life invisible —
-  // which is what a scroll-reveal inset wider than the gap to the fold caused.
-  const glossOpacity = await p
-    .locator('.hero .anchor')
-    .evaluate((e) => Number(getComputedStyle(e).opacity));
-  ok(`${w}px: the opening line is visible at rest`, glossOpacity > 0.9, `${glossOpacity}`);
+  ok(`${loc}: no wider than 720px`, faq.width <= 720, `${faq.width}px`);
+  ok(
+    `${loc}: questions and answers are the translated copy`,
+    faq.q.every(
+      (q, i) => q === msg[loc][`faq_${i + 1}_q`] && faq.a[i] === msg[loc][`faq_${i + 1}_a`],
+    ),
+  );
   await ctx.close();
 }
 
-// ---- 11. three locales, each complete ----
-for (const [path, h1, lang] of [
-  ['/', '내 AI가 자라는 세계', 'ko'],
-  ['/en', 'A world where my AI grows up', 'en'],
-  ['/ja', 'わたしのAIが育つ世界', 'ja'],
-]) {
-  const { ctx, p } = await open(path);
+// ---- 14. only Mos is drawn, nothing from the old world is left ----
+{
+  const { ctx, p } = await open(browser);
+  // Lazy images only load near the viewport, so walk the page first.
+  await p.evaluate(async () => {
+    for (let y = 0; y <= document.documentElement.scrollHeight; y += 600) {
+      scrollTo(0, y);
+      await new Promise((r) => setTimeout(r, 60));
+    }
+  });
+  await p
+    .waitForFunction(() => [...document.images].every((i) => i.complete && i.naturalWidth > 0))
+    .catch(() => {}); // the assertion below names what did not load
+  const art = await p.evaluate(() => ({
+    srcs: [...document.images].map((i) => i.getAttribute('src')),
+    broken: [...document.images]
+      .filter((i) => !(i.complete && i.naturalWidth > 0))
+      .map((i) => i.getAttribute('src')),
+    leftovers: document.querySelectorAll('canvas, .world, [data-anim]').length,
+  }));
+  const allowed =
+    /^\/characters\/mos-(greeting|happy|curious|working|resting|sleeping)\.webp$|^\/brand\//;
+  ok('every image loads', art.broken.length === 0, art.broken.join());
   ok(
-    `${lang} opening copy`,
-    (await p.locator('main h1').innerText()) === h1,
-    JSON.stringify(await p.locator('main h1').innerText()),
+    'and every one is a Mos pose or a brand mark',
+    art.srcs.every((s) => allowed.test(s)),
+    art.srcs.filter((s) => !allowed.test(s)).join(),
   );
-  ok(
-    `${lang} stamps <html lang>`,
-    (await p.evaluate(() => document.documentElement.lang)) === lang,
-  );
-  const memos = await p.locator('section.watch .lines li').allInnerTexts();
-  ok(
-    `${lang} patrol rules translated`,
-    memos.length === 3 && memos.every((t) => t.trim()),
-    JSON.stringify(memos[0]?.slice(0, 18)),
-  );
-  const goals = await p.locator('section.decide .goal').allInnerTexts();
-  ok(`${lang} goals translated`, goals.length === 3 && goals.every((t) => t.trim()));
+  ok('the sky-island world is gone', art.leftovers === 0, `${art.leftovers} elements`);
   await ctx.close();
 }
 
-await browser.close();
-console.log('\n--- console/page errors ---');
-console.log(errors.length ? errors.join('\n') : 'none');
-if (errors.length) process.exitCode = 1;
+await finish(browser);
