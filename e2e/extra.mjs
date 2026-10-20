@@ -3,7 +3,7 @@ import { LOCALES, msg, firstLine, launch, open, ok, events, settle, finish } fro
 
 /**
  * The flows that need a network stub or a clock: signup -> confirmation -> survey,
- * error states, the hero demo's playback controls, analytics events, scroll cost.
+ * error states, analytics events, scroll cost.
  * `/api/waitlist*` is stubbed (the real one needs Notion), so only the UI path is under test.
  */
 const browser = await launch();
@@ -19,6 +19,7 @@ const stubSignup = (p, reply = json(200, { id: 'test-page-id', emailSent: true }
   p.route(SIGNUP, (r) => r.fulfill(reply));
 const stubSurvey = (p) => p.route(SURVEY, (r) => r.fulfill(json(200, {})));
 const isPost = (url) => (r) => r.method() === 'POST' && r.url().endsWith(url);
+const HERO = 'main > section[aria-labelledby="hero-title"]';
 
 /** Every analytics event any page emitted, for the suite-wide checks at the end. */
 const seen = [];
@@ -85,7 +86,7 @@ const AI_COUNT = { few: '0–1개', many: '4개 이상' };
   await p.getByRole('heading', { level: 2, name: firstLine(msg.ko.confirm_title) }).waitFor();
   ok(
     'the confirmation replaces the marketing flow',
-    (await p.locator('form[data-form-position], [data-frame]').count()) === 0,
+    (await p.locator(`form[data-form-position], ${HERO}`).count()) === 0,
   );
   ok('and the visitor is back at the top of it', (await p.evaluate(() => scrollY)) === 0);
   ok(
@@ -247,7 +248,7 @@ for (const position of ['join', 'final']) {
     ok(`${label} shows its message`, (await alertText()) === text, await alertText());
     ok(
       `${label} stays on the page, form usable again`,
-      (await p.locator('[data-frame]').count()) === 1 &&
+      (await p.locator(`${HERO} figure`).count()) === 1 &&
         (await hero.locator('button[type="submit"]').isEnabled()),
     );
     const e = (await events(p)).slice(before);
@@ -438,113 +439,7 @@ for (const position of ['hero', 'join', 'final']) {
   await ctx.close();
 }
 
-// ---- 5. the hero demo: it plays, and it can be stopped ----
-{
-  const { ctx, p } = await open(browser);
-  const board = p.locator('[data-frame]');
-  const pause = p.getByRole('button', { name: msg.ko.demo_pause });
-  await p.evaluate(() => {
-    const el = document.querySelector('[data-frame]');
-    window.__frames = [el.dataset.frame];
-    new MutationObserver(() => window.__frames.push(el.dataset.frame)).observe(el, {
-      attributes: true,
-      attributeFilter: ['data-frame'],
-    });
-  });
-  const count = () => p.evaluate(() => window.__frames.length);
-  /** True if the frame did not change for `ms` — a negative, so it has to wait. */
-  const holds = async (ms = 2600) => {
-    const n = await count();
-    await p.waitForTimeout(ms);
-    return (await count()) === n;
-  };
-  const advances = (from) =>
-    p
-      .waitForFunction((n) => window.__frames.length > n, from, { timeout: 9000 })
-      .then(
-        () => true,
-        () => false,
-      );
-
-  ok('it starts on the split summary (F0)', (await board.getAttribute('data-frame')) === '0');
-  await p.waitForFunction(() => window.__frames.length >= 9, null, { timeout: 30000 });
-  const seq = (await p.evaluate(() => window.__frames)).slice(0, 9).join('');
-  ok('it walks F1 to F7 over the loop, then wraps to F1 rather than F0', seq === '012345671', seq);
-
-  // Hover holds it, leaving lets it go.
-  await board.hover({ position: { x: 40, y: 200 } });
-  ok('hovering the board holds the frame', await holds());
-  let n = await count();
-  await p.mouse.move(2, 2);
-  ok('moving away resumes it', await advances(n));
-
-  // The button holds it on its own, whatever the pointer does.
-  await pause.click();
-  await p.mouse.move(2, 2);
-  ok('pause is a pressed toggle', (await pause.getAttribute('aria-pressed')) === 'true');
-  ok('the pause button holds the frame with the pointer elsewhere', await holds());
-  ok(
-    'and exposes the playing state again on a second press',
-    await pause.click().then(async () => (await pause.getAttribute('aria-pressed')) === 'false'),
-  );
-  n = await count();
-  ok('playing again resumes the loop', await advances(n));
-  await p.mouse.move(2, 2);
-
-  // Off screen the loop stops, back on screen it goes on.
-  await p.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
-  await settle(p);
-  ok('the board is off screen', await board.evaluate((b) => b.getBoundingClientRect().bottom < 0));
-  ok('scrolled away, the loop holds', await holds());
-  n = await count();
-  await p.evaluate(() => scrollTo(0, 0));
-  ok('scrolled back, it resumes', await advances(n));
-
-  // A hidden tab holds it too.
-  await p.evaluate(() => {
-    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
-    document.dispatchEvent(new Event('visibilitychange'));
-  });
-  ok('in a hidden tab the loop holds', await holds());
-  n = await count();
-  await p.evaluate(() => {
-    delete document.hidden;
-    document.dispatchEvent(new Event('visibilitychange'));
-  });
-  ok('and resumes when the tab returns', await advances(n));
-
-  const e = (await track(p)).filter((x) => x.name === 'demo_pause');
-  ok('demo_pause fires once, on pausing and not on resuming', e.length === 1, `${e.length}`);
-  await ctx.close();
-}
-{
-  // Reduced motion never runs the loop; the visitor steps through it instead.
-  const { ctx, p } = await open(browser, '/', { reducedMotion: 'reduce' });
-  const board = p.locator('[data-frame]');
-  const step = p.getByRole('button', { name: msg.ko.demo_step });
-  const frames = [];
-  for (let i = 0; i < 8; i++) {
-    await step.click();
-    frames.push(await board.getAttribute('data-frame'));
-  }
-  ok(
-    'each press shows the next frame, and the eighth returns to F0',
-    frames.join('') === '12345670',
-    frames.join(''),
-  );
-  const e = (await track(p)).filter((x) => x.name === 'demo_step');
-  ok(
-    'demo_step is tracked for F1 to F7',
-    isDeepStrictEqual(
-      e.map((x) => x.data.step),
-      [1, 2, 3, 4, 5, 6, 7],
-    ),
-    JSON.stringify(e.map((x) => x.data)),
-  );
-  await ctx.close();
-}
-
-// ---- 6. the confirmation fits a 320px phone, in every locale ----
+// ---- 5. the confirmation fits a 320px phone, in every locale ----
 for (const { loc, path } of LOCALES) {
   const { ctx, p } = await open(browser, path, {
     viewport: { width: 320, height: 568 },
@@ -575,7 +470,7 @@ for (const { loc, path } of LOCALES) {
   await ctx.close();
 }
 
-// ---- 7. scrolling stays inside the frame budget ----
+// ---- 6. scrolling stays inside the frame budget ----
 {
   const { ctx, p } = await open(browser);
   // Best of three: the runner is a software rasteriser, and a single pass on a busy
@@ -615,7 +510,7 @@ for (const { loc, path } of LOCALES) {
   await ctx.close();
 }
 
-// ---- 8. across the whole run: every event fired, and none carries a person ----
+// ---- 7. across the whole run: every event fired, and none carries a person ----
 {
   const names = new Set(seen.map((e) => e.name));
   const wanted = [
@@ -624,8 +519,6 @@ for (const { loc, path } of LOCALES) {
     'signup_error',
     'survey_submit',
     'survey_skip',
-    'demo_pause',
-    'demo_step',
     'faq_open',
     'locale_switch',
   ];

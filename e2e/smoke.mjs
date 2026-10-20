@@ -166,22 +166,10 @@ for (const { loc, path } of LOCALES) {
 }
 
 // ---- 5. Mon never reaches the page; section 3 explains the 작업팀 ----
-// Reduced motion hands the visitor the stepper, so every frame of the hero demo
-// can be read without waiting out the 16s loop.
 for (const { loc, path } of LOCALES) {
-  const { ctx, p } = await open(browser, path, { reducedMotion: 'reduce' });
-  const step = p.getByRole('button', { name: msg[loc].demo_step });
-  const seen = [];
-  for (let f = 0; f < 8; f++) {
-    seen.push(await textOf(p, SEC('hero')));
-    await step.click();
-  }
-  const leak = seen.findIndex((t) => MON.test(t));
-  ok(
-    `${loc}: the hero says no Mon in any of its 8 frames`,
-    leak < 0,
-    leak < 0 ? '' : `frame ${leak}: ${seen[leak].match(MON)[0]}`,
-  );
+  const { ctx, p } = await open(browser, path);
+  const hero = await textOf(p, SEC('hero'));
+  ok(`${loc}: the hero says no Mon`, !MON.test(hero), hero.match(MON)?.[0]);
   const empathy = await textOf(p, SEC('empathy'));
   ok(`${loc}: nor does the empathy section`, !MON.test(empathy), empathy.match(MON)?.[0]);
   const moments = await textOf(p, SEC('moments'));
@@ -196,7 +184,169 @@ for (const { loc, path } of LOCALES) {
   );
   const page = await fullText(p);
   const ROUTER = { ko: /전문 AI/, ja: /専門AI/, en: /specialist AI/i }[loc];
-  ok(`${loc}: and the page never says ${ROUTER.source}`, !ROUTER.test(page), page.match(ROUTER)?.[0]);
+  ok(
+    `${loc}: and the page never says ${ROUTER.source}`,
+    !ROUTER.test(page),
+    page.match(ROUTER)?.[0],
+  );
+  await ctx.close();
+}
+
+// ---- 5b. the hero card: one finished example, as text a screen reader reads too ----
+const CARD = `${SEC('hero')} figure`;
+const CARD_COPY = [
+  'demo_task',
+  'demo_example',
+  'demo_request',
+  'demo_ask',
+  'demo_mine',
+  'demo_answer',
+  'demo_handoff',
+  'demo_worker_copy',
+  'demo_worker_image',
+  'demo_status_done',
+  'demo_result',
+];
+for (const { loc, path } of LOCALES) {
+  const t = msg[loc];
+  const { ctx, p } = await open(browser, path);
+  ok(`${loc}: the hero holds one example card`, (await p.locator(CARD).count()) === 1);
+  const text = await textOf(p, CARD);
+  const missing = CARD_COPY.filter((k) => !text.includes(t[k]));
+  ok(
+    `${loc}: it shows the request, Mos's question, my answer, both AI workers and the result`,
+    missing.length === 0,
+    missing.join(),
+  );
+  ok(
+    `${loc}: the answer is marked as mine`,
+    await p.evaluate(
+      ([sel, mine, answer]) =>
+        [...document.querySelectorAll(`${sel} p`)].some(
+          (e) => e.textContent.includes(mine) && e.textContent.includes(answer),
+        ),
+      [CARD, t.demo_mine, t.demo_answer],
+    ),
+  );
+  ok(`${loc}: the example tag says it once`, text.split(t.demo_example).length - 1 === 1);
+  ok(
+    `${loc}: the card is a figure named by its caption`,
+    (await p.getByRole('figure', { name: t.demo_task }).count()) === 1,
+  );
+  ok(
+    `${loc}: its two AI workers are a list`,
+    (await p.locator(CARD).getByRole('listitem').count()) === 2,
+  );
+  const tree = await p.locator(CARD).ariaSnapshot();
+  ok(
+    `${loc}: and its words reach assistive tech`,
+    [t.demo_request, t.demo_ask, t.demo_worker_copy, t.demo_result].every((s) => tree.includes(s)),
+  );
+  ok(
+    `${loc}: it has nothing to press`,
+    (await p.locator(`${CARD} :is(button, a, input, [tabindex])`).count()) === 0,
+  );
+  // Server-rendered in its final state: no blank card waiting on hydration.
+  const html = await (await ctx.request.get(BASE + path)).text();
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const unserved = CARD_COPY.filter((k) => !html.includes(esc(t[k])));
+  ok(`${loc}: the server sends the whole card`, unserved.length === 0, unserved.join());
+  await ctx.close();
+}
+{
+  // Without JS the card still settles into its full state.
+  const ctx = await browser.newContext({ javaScriptEnabled: false });
+  const p = await ctx.newPage();
+  await p.goto(BASE + '/', { waitUntil: 'load' });
+  await p.waitForTimeout(1500);
+  const r = await p.evaluate((sel) => {
+    const texts = [...document.querySelector(sel).querySelectorAll('*')].filter((e) =>
+      [...e.childNodes].some((n) => n.nodeType === 3 && n.nodeValue.trim()),
+    );
+    return {
+      all: texts.length,
+      shown: texts.filter((e) =>
+        e.checkVisibility({ opacityProperty: true, visibilityProperty: true }),
+      ).length,
+    };
+  }, CARD);
+  ok(
+    'without JS, every line of the card is painted',
+    r.all > 8 && r.shown === r.all,
+    `${r.shown}/${r.all}`,
+  );
+  await ctx.close();
+}
+{
+  // One reveal on load, short and finite; then the hero holds still.
+  const { ctx, p } = await open(browser);
+  const anims = await p.evaluate((sel) => {
+    const s = (v) => (v.endsWith('ms') ? parseFloat(v) : parseFloat(v) * 1000);
+    return [...document.querySelector(sel).querySelectorAll('*')]
+      .map((e) => getComputedStyle(e))
+      .filter((cs) => cs.animationName !== 'none')
+      .map((cs) => ({
+        end: s(cs.animationDelay) + s(cs.animationDuration),
+        count: cs.animationIterationCount,
+      }));
+  }, SEC('hero'));
+  ok(
+    'the hero reveal plays once and is over within 1.2s',
+    anims.length > 0 && anims.every((a) => a.count === '1' && a.end <= 1200),
+    `${anims.length} animated, last ends at ${Math.max(...anims.map((a) => a.end))}ms`,
+  );
+  await p.waitForTimeout(2000);
+  const frame = () =>
+    p.evaluate((sel) => {
+      const hero = document.querySelector(sel);
+      return {
+        running: document
+          .getAnimations()
+          .filter((a) => hero.contains(a.effect?.target) && a.playState !== 'finished').length,
+        boxes: [...hero.querySelectorAll('*')]
+          .map((e) => {
+            const b = e.getBoundingClientRect();
+            return `${b.x},${b.y},${b.width},${b.height},${getComputedStyle(e).opacity}`;
+          })
+          .join('|'),
+      };
+    }, SEC('hero'));
+  const a = await frame();
+  ok('2s in, nothing in the hero is animating', a.running === 0, `${a.running} running`);
+  await p.waitForTimeout(1000);
+  ok('and nothing in it moves over the next second', (await frame()).boxes === a.boxes);
+  await ctx.close();
+}
+
+// ---- 5c. section 3 is three plain steps ----
+for (const { loc, path } of LOCALES) {
+  const t = msg[loc];
+  const { ctx, p } = await open(browser, path);
+  const steps = await p.evaluate(
+    (sel) =>
+      [...document.querySelectorAll(`${sel} ol > li`)].map((li) => ({
+        title: li.querySelector('h3')?.textContent.trim(),
+        body: li.querySelector('p')?.textContent.trim(),
+      })),
+    SEC('moments'),
+  );
+  ok(`${loc}: section 3 shows three steps`, steps.length === 3, `${steps.length}`);
+  ok(
+    `${loc}: each with its title and one line`,
+    steps.every(
+      (s, i) => s.title === t[`moments_${i + 1}_title`] && s.body === t[`moments_${i + 1}_body`],
+    ),
+    JSON.stringify(steps.map((s) => s.title)),
+  );
+  ok(
+    `${loc}: and section 3 still leads to the form`,
+    (await p.locator(`${SEC('moments')} a[href="#waitlist"]`).count()) === 1,
+  );
+  ok(
+    `${loc}: the waitlist panel is the title, two lines and the form`,
+    (await p.locator(`${SEC('waitlist')} :is(ol, ul)`).count()) === 0 &&
+      (await p.locator(`${SEC('waitlist')} form`).count()) === 1,
+  );
   await ctx.close();
 }
 
@@ -283,17 +433,17 @@ for (const { loc, path } of LOCALES) {
   await ctx.close();
 }
 
-// ---- 8. at 390x844 the board is more than a sliver ----
+// ---- 8. at 390x844 the hero card is more than a sliver ----
 for (const { loc, path } of LOCALES) {
   const { ctx, p } = await open(browser, path, {
     viewport: { width: 390, height: 844 },
     hasTouch: true,
   });
-  const shown = await p.evaluate(() => {
-    const b = document.querySelector('[data-frame]').getBoundingClientRect();
+  const shown = await p.evaluate((sel) => {
+    const b = document.querySelector(sel).getBoundingClientRect();
     return Math.min(b.bottom, innerHeight) - Math.max(b.top, 0);
-  });
-  ok(`${loc}: at least 120px of the board shows`, shown >= 120, `${Math.round(shown)}px`);
+  }, CARD);
+  ok(`${loc}: at least 120px of the card shows`, shown >= 120, `${Math.round(shown)}px`);
   await ctx.close();
 }
 
@@ -333,7 +483,7 @@ for (const [loc, path, vp] of [
   await ctx.close();
 }
 
-// ---- 10. reduced motion: the still frame, and everything on the page already visible ----
+// ---- 10. reduced motion: nothing animates, and everything on the page is already visible ----
 const hiddenContent = (p) =>
   p.evaluate(() => {
     const bad = [];
@@ -342,9 +492,8 @@ const hiddenContent = (p) =>
       for (let n = walk.nextNode(); n; n = walk.nextNode()) {
         if (!n.nodeValue.trim()) continue;
         const el = n.parentElement;
-        // The board's layers swap on purpose and are checked on their own; a closed
-        // <details> hides its answer by design.
-        if (el.closest('[data-frame], .visually-hidden')) continue;
+        // A closed <details> hides its answer by design.
+        if (el.closest('.visually-hidden')) continue;
         if (el.closest('details:not([open])') && !el.closest('summary')) continue;
         if (!el.checkVisibility({ opacityProperty: true, visibilityProperty: true }))
           bad.push(`${s.getAttribute('aria-labelledby')}: "${n.nodeValue.trim().slice(0, 24)}"`);
@@ -355,19 +504,15 @@ const hiddenContent = (p) =>
 
 for (const { loc, path } of LOCALES) {
   const { ctx, p } = await open(browser, path, { reducedMotion: 'reduce' });
-  // A negative: the loop would have left F0 at 600ms, so give it time to prove it does not.
-  await p.waitForTimeout(2500);
-  ok(
-    `${loc} reduced motion: the board rests on F0`,
-    (await p.locator('[data-frame]').getAttribute('data-frame')) === '0',
+  const animated = await p.evaluate(
+    (sel) =>
+      [...document.querySelector(sel).querySelectorAll('*')].filter(
+        (e) => getComputedStyle(e).animationName !== 'none',
+      ).length,
+    SEC('hero'),
   );
-  // What F0 says is the demo's own business; that it is painted, not blank, is the page's.
-  ok(`${loc} reduced motion: the still frame is painted`, (await painted(p, '[data-frame]')) > 4);
-  ok(
-    `${loc} reduced motion: the stepper replaces pause`,
-    (await p.getByRole('button', { name: msg[loc].demo_step }).isVisible()) &&
-      !(await p.getByRole('button', { name: msg[loc].demo_pause }).isVisible()),
-  );
+  ok(`${loc} reduced motion: nothing in the hero animates`, animated === 0, `${animated}`);
+  ok(`${loc} reduced motion: the card is painted`, (await painted(p, CARD)) > 8);
   const bad = await hiddenContent(p);
   ok(
     `${loc} reduced motion: every section's content is visible`,
@@ -378,7 +523,17 @@ for (const { loc, path } of LOCALES) {
 }
 {
   // Scroll-triggered reveals must not hide anything from a visitor who has not scrolled yet.
+  // The hero's one load-time reveal is let finish first.
   const { ctx, p } = await open(browser);
+  await p
+    .waitForFunction(
+      () => document.getAnimations().every((a) => a.playState === 'finished'),
+      null,
+      {
+        timeout: 5000,
+      },
+    )
+    .catch(() => {});
   const bad = await hiddenContent(p);
   ok(
     "at rest, before any scroll, every section's content is visible",

@@ -1,4 +1,4 @@
-import { LOCALES, msg, launch, open, ok, finish } from './util.mjs';
+import { LOCALES, launch, open, ok, finish } from './util.mjs';
 
 /**
  * WCAG 2.1 AA contrast audit, by pixel sampling.
@@ -15,8 +15,7 @@ import { LOCALES, msg, launch, open, ok, finish } from './util.mjs';
  * label tokens and anything dimmed by a faded wrapper.
  *
  * Motion is frozen via `reducedMotion` so the rects and the screenshot describe the
- * same frame. The hero demo is then stepped through F1 to F7 by its own button and
- * each frame is audited on its own, since only F0 is on the page at rest.
+ * same frame.
  *
  * Usage: node e2e/contrast.mjs [--fail-only]
  */
@@ -57,7 +56,7 @@ const collect = (p, scope) =>
       if (!n.nodeValue.trim()) continue;
       const el = n.parentElement;
       if (!el || el.closest('script, style, noscript, .visually-hidden')) continue;
-      // Not aria-hidden: the demo board is hidden from assistive tech but sighted readers read it.
+      // Not aria-hidden: words hidden from assistive tech are still read by sighted readers.
       if (!el.checkVisibility({ opacityProperty: true, visibilityProperty: true })) continue;
       const eff = effectiveOpacity(el);
       const cs = getComputedStyle(el);
@@ -67,8 +66,8 @@ const collect = (p, scope) =>
       const size = parseFloat(cs.fontSize);
       const weight = +cs.fontWeight || 400;
       // Text that a clipping ancestor cuts off, or that sits in a masked fade, is leaving
-      // the screen rather than being read (the demo feed scrolls older items up under a
-      // 56px fade). The sampler would read whatever is behind it, so it is not audited.
+      // the screen rather than being read. The sampler would read whatever is behind it,
+      // so it is not audited.
       const clips = [];
       for (let a = el; a && a !== document.body; a = a.parentElement) {
         const acs = getComputedStyle(a);
@@ -257,21 +256,8 @@ async function audit(path, viewport, label) {
     await hide(p, false);
   }
 
-  // 1. The page at rest (the demo on F0), top to bottom.
+  // The page at rest, top to bottom.
   await measure(await collect(p, 'body'), '');
-
-  // 2. The demo's other frames, one press of its stepper each.
-  const step = p.getByRole('button', { name: msg[label.loc].demo_step });
-  for (let f = 1; f <= 7; f++) {
-    await step.click();
-    await p.waitForTimeout(500); // CSS transitions between layers
-    await p.evaluate(() => {
-      const b = document.querySelector('[data-frame]').getBoundingClientRect();
-      scrollTo(0, scrollY + b.top - 80);
-    });
-    await p.waitForTimeout(150);
-    await measure(await collect(p, '[data-frame]'), `F${f}`);
-  }
 
   await ctx.close();
   return { label: label.text, findings };
