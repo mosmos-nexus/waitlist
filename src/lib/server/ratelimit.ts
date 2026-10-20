@@ -20,7 +20,9 @@ export async function checkRateLimit(ip: string): Promise<boolean> {
   if (!redis) return true; // not configured (e.g. local dev) — don't block
   const key = `waitlist:ratelimit:${ip}`;
   const count = await redis.incr(key);
-  if (count === 1) {
+  // Also re-arm a key left without a TTL (an expire lost after its incr), which
+  // would otherwise block that IP for good.
+  if (count === 1 || (await redis.ttl(key)) < 0) {
     await redis.expire(key, WINDOW_SECONDS);
   }
   return count <= LIMIT;

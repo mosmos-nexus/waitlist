@@ -1,704 +1,667 @@
-import { chromium } from 'playwright-core';
-import { chromePath } from './resolve-chrome.mjs';
+import { isDeepStrictEqual } from 'node:util';
+import { LOCALES, msg, firstLine, launch, open, ok, events, settle, finish } from './util.mjs';
 
-const BASE = process.env.BASE ?? 'http://localhost:5199';
-const errors = [];
-const browser = await chromium.launch({ executablePath: chromePath() });
-function ok(l, c, e = '') {
-  console.log(`${c ? 'PASS' : 'FAIL'}  ${l}${e ? '  ' + e : ''}`);
-  if (!c) process.exitCode = 1;
+/**
+ * The flows that need a network stub or a clock: signup -> confirmation -> survey,
+ * error states, the hero demo's playback controls, analytics events, scroll cost.
+ * `/api/waitlist*` is stubbed (the real one needs Notion), so only the UI path is under test.
+ */
+const browser = await launch();
+
+const json = (status, body) => ({
+  status,
+  contentType: 'application/json',
+  body: JSON.stringify(body),
+});
+const SIGNUP = '**/api/waitlist';
+const SURVEY = '**/api/waitlist/survey';
+const stubSignup = (p, reply = json(200, { id: 'test-page-id', emailSent: true })) =>
+  p.route(SIGNUP, (r) => r.fulfill(reply));
+const stubSurvey = (p) => p.route(SURVEY, (r) => r.fulfill(json(200, {})));
+const isPost = (url) => (r) => r.method() === 'POST' && r.url().endsWith(url);
+
+/** Every analytics event any page emitted, for the suite-wide checks at the end. */
+const seen = [];
+const track = async (p) => {
+  const e = await events(p);
+  seen.push(...e);
+  return e;
+};
+
+async function fillAndSubmit(p, position, { email = 'Someone@Example.com ', consent = true } = {}) {
+  const form = p.locator(`form[data-form-position="${position}"]`);
+  await form.locator('input[type="email"]').fill(email);
+  if (consent) await form.getByRole('checkbox').check();
+  await form.locator('button[type="submit"]').click();
 }
 
-// ---- Signup -> arrival screen ----
+/** Signs up on `position` against the success stub and waits for the confirmation screen. */
+async function arrive(p, loc, position = 'hero') {
+  await fillAndSubmit(p, position);
+  await p.getByRole('heading', { level: 2, name: firstLine(msg[loc].confirm_title) }).waitFor();
+}
+
+const group = (p, legend) => p.getByRole('group', { name: legend });
+const chip = (p, legend, i) => group(p, legend).getByRole('button').nth(i);
+const pressed = (p, legend) => group(p, legend).locator('button[aria-pressed="true"]').count();
+const nothing = (p) =>
+  p
+    .locator('select[name="job"]')
+    .count()
+    .then((n) => n === 0);
+
+// The values the Notion select options are matched against, character for character
+// (the en dash in 0–1개 is U+2013). Spelled out here on purpose: importing them from
+// src would make the test agree with whatever the code says.
+const JOB = { marketer: '마케터·콘텐츠 제작자', dev: '개발자', other: '기타' };
+const TASK = { writing: '글쓰기·문서 작성', images: '이미지 생성', other: '기타' };
+const COUNTRY = { korea: '한국', japan: '일본' };
+const AI_COUNT = { few: '0–1개', many: '4개 이상' };
+
+// ---- 1. signup carries attribution, consent and locale, then the confirmation takes over ----
 {
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  const p = await ctx.newPage();
-  p.on('pageerror', (e) => errors.push('signup: ' + e.message));
-  // The real endpoint needs Notion credentials; stub it so the UI path is what's tested.
-  await p.route('**/api/waitlist', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ id: 'test-page-id', emailSent: true }),
-    }),
+  const { ctx, p } = await open(
+    browser,
+    '/?utm_source=threads&utm_medium=social&utm_campaign=launch-1',
+    { referer: 'https://threads.net/t/abc?x=1' },
   );
-  await p.goto(BASE + '/', { waitUntil: 'networkidle' });
-  await p.waitForTimeout(900);
-
-  await p.locator('.hero input[type="email"]').fill('someone@example.com');
-  await p.locator('.hero input[type="checkbox"]').check();
-  await p.locator('.hero button[type="submit"]').click();
-  await p.waitForTimeout(1800);
-
-  ok('arrival screen replaces the flow', (await p.locator('.arrival').count()) === 1);
-  ok('the marketing page is gone', (await p.locator('section.hero').count()) === 0);
-  ok('and so is the world', (await p.locator('.world').count()) === 0);
+  await stubSignup(p);
+  const req = p.waitForRequest(isPost('/api/waitlist'));
+  await fillAndSubmit(p, 'hero');
+  const body = (await req).postDataJSON();
+  ok('the email is trimmed and lower-cased', body.email === 'someone@example.com', body.email);
+  ok('consent is sent as true', body.consent === true);
+  ok('the page locale is sent', body.locale === 'ko', body.locale);
   ok(
-    'Mos greets on arrival',
-    (await p.locator('.arrival .mos-hold img').getAttribute('src')).includes('mos-happy'),
+    'utm and the external referrer ride along, query string dropped',
+    isDeepStrictEqual(body.utm, {
+      source: 'threads',
+      medium: 'social',
+      campaign: 'launch-1',
+      referrer: 'https://threads.net/t/abc',
+    }),
+    JSON.stringify(body.utm),
   );
-  const mons = await p
-    .locator('.arrival .mon-join')
-    .evaluateAll((els) => els.filter((e) => Number(getComputedStyle(e).opacity) > 0.8).length);
-  ok('three Mon join', mons === 3, `${mons} visible`);
-  ok('welcome-email line shown', (await p.locator('.arrival .reward').count()) === 1);
-  ok('survey offered', (await p.locator('.arrival .survey').count()) === 1);
-
-  // The arrival screen inherits the shell, so its text has to be legible on it.
-  const ink = await p.locator('.arrival h2').evaluate((e) => getComputedStyle(e).color);
-  ok('arrival copy is light on the dark ground', ink === 'rgb(255, 255, 255)', ink);
-
-  // Survey submit path
-  await p.route('**/api/waitlist/survey', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+  await p.getByRole('heading', { level: 2, name: firstLine(msg.ko.confirm_title) }).waitFor();
+  ok(
+    'the confirmation replaces the marketing flow',
+    (await p.locator('form[data-form-position], [data-frame]').count()) === 0,
   );
-  await p.locator('.arrival .survey button:has-text("보내기")').click();
-  await p.waitForTimeout(900);
-  ok('survey thank-you shown', (await p.locator('.arrival .done').count()) === 1);
+  ok('and the visitor is back at the top of it', (await p.evaluate(() => scrollY)) === 0);
+  ok(
+    'the welcome-email line shows when one was sent',
+    await p.getByText(msg.ko.confirm_email_sent).isVisible(),
+  );
+  ok('the survey is offered', await p.locator('select[name="job"]').isVisible());
+  await ctx.close();
+}
+{
+  const { ctx, p } = await open(browser);
+  await stubSignup(p, json(200, { id: 'test-page-id', emailSent: false }));
+  await arrive(p, 'ko');
+  ok(
+    'no welcome-email line when none was sent',
+    (await p.getByText(msg.ko.confirm_email_sent).count()) === 0,
+  );
+  await ctx.close();
+}
+for (const position of ['join', 'final']) {
+  const { ctx, p } = await open(browser);
+  await stubSignup(p);
+  const req = p.waitForRequest(isPost('/api/waitlist'));
+  await arrive(p, 'ko', position);
+  ok(`the ${position} form signs up the same way`, (await req).postDataJSON().consent === true);
   await ctx.close();
 }
 
-// ---- The scroll actually plays, and stays inside the frame budget ----
+// ---- 2. survey: new fields, exact stored values ----
 {
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  const p = await ctx.newPage();
-  p.on('pageerror', (e) => errors.push('motion: ' + e.message));
-  await p.goto(BASE + '/', { waitUntil: 'networkidle' });
-  await p.waitForTimeout(1500);
+  const { ctx, p } = await open(browser);
+  await stubSignup(p);
+  await stubSurvey(p);
+  await arrive(p, 'ko');
 
-  /**
-   * Two numbers and a control, because one absolute number was measuring the
-   * runner rather than the page.
-   *
-   * The scene sits right on the vsync boundary of a GPU-less software
-   * rasteriser: the same build reads p50 16.7 ms at machine load ~1.0 and 33.3
-   * at ~1.8, and 33.3 is exactly two vsync intervals — the compositor halving,
-   * not the page costing more. A gate at 26 ms therefore flips on load, and
-   * best-of-three does not help when the load is sustained. Verified by
-   * isolation: hiding the bus gradient, the node stubs and the board's scrub
-   * transform each changed nothing, while hiding `.world` recovered 16.7 —
-   * i.e. the cost is the scene, which has not changed.
-   *
-   * So: measure the flow without the scene as a control, and hold each to what
-   * it can actually promise. The control has no per-frame work at all, so it
-   * must stay fast — that is where a new leak anywhere in the page would show.
-   * The scene is allowed to sit at the 30 fps floor, but 66 ms, which is what
-   * this gate was built after, still fails.
-   */
-  const measure = async (page = p) => {
-    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-    await page.waitForTimeout(400);
-    await page.evaluate(() => {
+  const ko = msg.ko;
+  ok(
+    'the country is pre-selected from the page language',
+    (await pressed(p, ko.survey_country_label)) === 1 &&
+      (await chip(p, ko.survey_country_label, 0).getAttribute('aria-pressed')) === 'true',
+  );
+  await p.locator('select[name="job"]').selectOption(JOB.marketer);
+  await chip(p, ko.survey_ai_label, 2).click();
+  await chip(p, ko.survey_ai_label, 3).click();
+  await chip(p, ko.survey_ai_count_label, 0).click();
+  await p.locator('input[name="firstTask"]').fill('FIRST-TASK-SECRET-123');
+
+  const req = p.waitForRequest(isPost('/api/waitlist/survey'));
+  await p.getByRole('button', { name: ko.survey_submit, exact: true }).click();
+  const body = (await req).postDataJSON();
+  ok(
+    'every answer is sent with the Korean option strings Notion expects',
+    isDeepStrictEqual(body, {
+      id: 'test-page-id',
+      job: JOB.marketer,
+      aiTasks: [TASK.writing, TASK.images],
+      country: COUNTRY.korea,
+      aiCount: AI_COUNT.few,
+      firstTask: 'FIRST-TASK-SECRET-123',
+    }),
+    JSON.stringify(body),
+  );
+  await p.getByText(ko.survey_done).waitFor();
+  ok('the survey closes on a thank-you', await nothing(p));
+  await ctx.close();
+}
+{
+  const { ctx, p } = await open(browser);
+  await stubSignup(p);
+  await stubSurvey(p);
+  await arrive(p, 'ko');
+  const ko = msg.ko;
+  await p.locator('select[name="job"]').selectOption(JOB.other);
+  await chip(p, ko.survey_ai_label, 5).click();
+  ok(
+    '"other" opens a job field and a task field',
+    (await p.locator('input[name="jobOther"], input[name="taskOther"]').count()) === 2,
+  );
+  await p.locator('input[name="jobOther"]').fill('OTHER-JOB-TEXT');
+  await p.locator('input[name="taskOther"]').fill('OTHER-TASK-TEXT');
+  const req = p.waitForRequest(isPost('/api/waitlist/survey'));
+  await p.getByRole('button', { name: ko.survey_submit, exact: true }).click();
+  const body = (await req).postDataJSON();
+  ok(
+    'the free text goes with "기타" in both questions',
+    body.job === JOB.other &&
+      body.jobOther === 'OTHER-JOB-TEXT' &&
+      isDeepStrictEqual(body.aiTasks, [TASK.other]) &&
+      body.taskOther === 'OTHER-TASK-TEXT',
+    JSON.stringify(body),
+  );
+  await track(p);
+  await ctx.close();
+}
+{
+  // In English only the labels change: the stored values stay Korean.
+  const { ctx, p } = await open(browser, '/en');
+  await stubSignup(p);
+  await stubSurvey(p);
+  const signupReq = p.waitForRequest(isPost('/api/waitlist'));
+  await arrive(p, 'en');
+  ok('the English page signs up as en', (await signupReq).postDataJSON().locale === 'en');
+  const en = msg.en;
+  ok('no country is guessed from English', (await pressed(p, en.survey_country_label)) === 0);
+  await p.locator('select[name="job"]').selectOption(JOB.dev);
+  await chip(p, en.survey_country_label, 1).click();
+  await chip(p, en.survey_ai_count_label, 2).click();
+  const req = p.waitForRequest(isPost('/api/waitlist/survey'));
+  await p.getByRole('button', { name: en.survey_submit, exact: true }).click();
+  const body = (await req).postDataJSON();
+  ok(
+    'English labels still store the Korean values',
+    body.job === JOB.dev &&
+      body.country === COUNTRY.japan &&
+      body.aiCount === AI_COUNT.many &&
+      isDeepStrictEqual(body.aiTasks, []),
+    JSON.stringify(body),
+  );
+  await ctx.close();
+}
+{
+  const { ctx, p } = await open(browser);
+  await stubSignup(p);
+  let surveyPosts = 0;
+  await p.route(SURVEY, (r) => {
+    surveyPosts++;
+    return r.fulfill(json(200, {}));
+  });
+  await arrive(p, 'ko');
+  await p.getByRole('button', { name: msg.ko.survey_skip, exact: true }).click();
+  ok('skipping closes the survey', await nothing(p));
+  ok('and says nothing more', (await p.getByText(msg.ko.survey_done).count()) === 0);
+  ok('and sends nothing', surveyPosts === 0, `${surveyPosts} requests`);
+  await track(p);
+  await ctx.close();
+}
+
+// ---- 3. error states ----
+{
+  const { ctx, p } = await open(browser);
+  let reply = json(200, {});
+  let posts = 0;
+  await p.route(SIGNUP, (r) => {
+    posts++;
+    return reply === 'abort' ? r.abort() : r.fulfill(reply);
+  });
+  const hero = p.locator('form[data-form-position="hero"]');
+  const alertText = () => hero.getByRole('alert').innerText();
+
+  for (const [label, status, body, text, reason] of [
+    ['a duplicate email', 409, { error: 'duplicate' }, msg.ko.error_duplicate, 'duplicate'],
+    ['a rate limit', 429, { error: 'ratelimit' }, msg.ko.error_ratelimit, 'rate_limited'],
+    ['a server error', 500, { error: 'generic' }, msg.ko.error_generic, 'server'],
+  ]) {
+    reply = json(status, body);
+    const before = (await events(p)).length;
+    await fillAndSubmit(p, 'hero');
+    await hero.getByRole('alert').waitFor();
+    ok(`${label} shows its message`, (await alertText()) === text, await alertText());
+    ok(
+      `${label} stays on the page, form usable again`,
+      (await p.locator('[data-frame]').count()) === 1 &&
+        (await hero.locator('button[type="submit"]').isEnabled()),
+    );
+    const e = (await events(p)).slice(before);
+    ok(
+      `${label} is tracked as submit then error(${reason})`,
+      isDeepStrictEqual(e, [
+        { name: 'signup_submit', data: { position: 'hero' } },
+        { name: 'signup_error', data: { position: 'hero', reason } },
+      ]),
+      JSON.stringify(e),
+    );
+  }
+
+  reply = 'abort';
+  const before = (await events(p)).length;
+  await fillAndSubmit(p, 'hero');
+  await p.waitForFunction(
+    () =>
+      document.querySelectorAll('[data-form-position="hero"] [role="alert"]').length === 1 &&
+      [...window.vaq].filter((a) => a[1]?.name === 'signup_error').length >= 4,
+  );
+  ok(
+    'a dropped connection shows the generic message',
+    (await alertText()) === msg.ko.error_generic,
+  );
+  ok(
+    'and counts as a server error',
+    (await events(p)).slice(before).at(-1)?.data.reason === 'server',
+  );
+
+  // Client-side validation never reaches the network.
+  posts = 0;
+  const b2 = (await events(p)).length;
+  await fillAndSubmit(p, 'hero', { email: 'not-an-email', consent: true });
+  await hero.getByText(msg.ko.error_invalid_email).waitFor();
+  ok('an invalid email is explained under the field', true);
+  ok('and is not sent', posts === 0);
+  ok('and is tracked as invalid', (await events(p)).slice(b2).at(-1)?.data.reason === 'invalid');
+
+  await hero.locator('input[type="email"]').fill('ok@example.com');
+  await hero.getByRole('checkbox').uncheck();
+  const b3 = (await events(p)).length;
+  await hero.locator('button[type="submit"]').click();
+  await hero.getByRole('alert').waitFor();
+  ok(
+    'missing consent is refused with its own message',
+    (await alertText()) === msg.ko.error_no_consent,
+    await alertText(),
+  );
+  ok('without a request', posts === 0);
+  ok(
+    'and is tracked as no_consent',
+    (await events(p)).slice(b3).at(-1)?.data.reason === 'no_consent',
+  );
+  await track(p);
+  await ctx.close();
+}
+
+// ---- 4. analytics: the other events, and where each form is ----
+for (const position of ['hero', 'join', 'final']) {
+  const { ctx, p } = await open(browser);
+  await stubSignup(p);
+  await arrive(p, 'ko', position);
+  const e = await track(p);
+  ok(
+    `${position} form: signup_submit then signup_success, each with its position`,
+    isDeepStrictEqual(
+      e.filter((x) => x.name.startsWith('signup')),
+      [
+        { name: 'signup_submit', data: { position } },
+        { name: 'signup_success', data: { position } },
+      ],
+    ),
+    JSON.stringify(e),
+  );
+  await ctx.close();
+}
+{
+  const { ctx, p } = await open(browser);
+  await stubSignup(p);
+  await stubSurvey(p);
+  await arrive(p, 'ko');
+  await p.locator('select[name="job"]').selectOption(JOB.marketer);
+  await chip(p, msg.ko.survey_ai_label, 2).click();
+  await chip(p, msg.ko.survey_ai_label, 3).click();
+  await chip(p, msg.ko.survey_ai_count_label, 1).click();
+  await p.locator('input[name="firstTask"]').fill('FIRST-TASK-SECRET-123');
+  await p.getByRole('button', { name: msg.ko.survey_submit, exact: true }).click();
+  await p.getByText(msg.ko.survey_done).waitFor();
+  const e = (await track(p)).filter((x) => x.name.startsWith('survey'));
+  ok(
+    'survey_submit says which questions were answered, never what the answers were',
+    isDeepStrictEqual(e, [
+      {
+        name: 'survey_submit',
+        data: { job: true, ai_tasks: 2, country: true, ai_count: true, first_task: true },
+      },
+    ]),
+    JSON.stringify(e),
+  );
+  await ctx.close();
+}
+{
+  const { ctx, p } = await open(browser);
+  await stubSignup(p);
+  await arrive(p, 'ko');
+  await p.getByRole('button', { name: msg.ko.survey_skip, exact: true }).click();
+  const e = (await track(p)).filter((x) => x.name.startsWith('survey'));
+  ok(
+    'survey_skip is tracked on its own',
+    isDeepStrictEqual(e, [{ name: 'survey_skip', data: undefined }]),
+    JSON.stringify(e),
+  );
+  await ctx.close();
+}
+{
+  const { ctx, p } = await open(browser);
+  const items = p.locator('main > section[aria-labelledby="faq-title"] details');
+  // `toggle` fires on a later task, so wait for each one instead of reading the queue early.
+  await p.evaluate(() => {
+    window.__toggles = 0;
+    for (const d of document.querySelectorAll('main details'))
+      d.addEventListener('toggle', () => window.__toggles++);
+  });
+  const toggled = (n) => p.waitForFunction((k) => window.__toggles >= k, n);
+  const last = items.nth((await items.count()) - 1);
+  await items.nth(0).locator('summary').click();
+  await toggled(1);
+  await items.nth(0).locator('summary').click(); // closing is not an "open"
+  await toggled(2);
+  await last.locator('summary').click();
+  await toggled(3);
+  const e = (await track(p)).filter((x) => x.name === 'faq_open');
+  ok(
+    'faq_open fires on opening only, once per open, with a distinct question id',
+    e.length === 2 &&
+      e[0].data?.id !== e[1].data?.id &&
+      e.every((x) => /^[a-z][a-z-]*$/.test(x.data?.id)),
+    JSON.stringify(e),
+  );
+  ok('the first question is tracked as "when"', e[0]?.data.id === 'when', e[0]?.data.id);
+  await ctx.close();
+}
+{
+  const { ctx, p } = await open(browser, '/?utm_source=threads');
+  await stubSignup(p);
+  await p.evaluate(() => (window.__sameDocument = true));
+  const toggle = (loc) => p.locator(`header a[hreflang="${loc}"]`);
+
+  await toggle('en').click();
+  await p.waitForFunction(
+    (t) => document.querySelector('h1').textContent.trim() === t,
+    msg.en.hero_title,
+  );
+  ok(
+    'the switch swaps copy in place, without a reload',
+    await p.evaluate(() => window.__sameDocument === true),
+  );
+  ok('and moves the URL to /en', /\/en\/?$/.test(p.url()), p.url());
+  ok('and updates <html lang>', (await p.evaluate(() => document.documentElement.lang)) === 'en');
+
+  await toggle('en').click(); // already English: nothing to switch
+  await toggle('ja').click();
+  await p.waitForFunction(
+    (t) => document.querySelector('h1').textContent.trim() === t,
+    msg.ja.hero_title,
+  );
+
+  const req = p.waitForRequest(isPost('/api/waitlist'));
+  await fillAndSubmit(p, 'hero');
+  const body = (await req).postDataJSON();
+  ok('after switching, signup sends the new locale', body.locale === 'ja', body.locale);
+  ok(
+    'and the first-touch utm survives the URL losing its query',
+    body.utm?.source === 'threads',
+    JSON.stringify(body.utm),
+  );
+
+  const e = (await track(p)).filter((x) => x.name === 'locale_switch');
+  ok(
+    'locale_switch is tracked per real switch, with from and to',
+    isDeepStrictEqual(e, [
+      { name: 'locale_switch', data: { from: 'ko', to: 'en' } },
+      { name: 'locale_switch', data: { from: 'en', to: 'ja' } },
+    ]),
+    JSON.stringify(e),
+  );
+  await ctx.close();
+}
+
+// ---- 5. the hero demo: it plays, and it can be stopped ----
+{
+  const { ctx, p } = await open(browser);
+  const board = p.locator('[data-frame]');
+  const pause = p.getByRole('button', { name: msg.ko.demo_pause });
+  await p.evaluate(() => {
+    const el = document.querySelector('[data-frame]');
+    window.__frames = [el.dataset.frame];
+    new MutationObserver(() => window.__frames.push(el.dataset.frame)).observe(el, {
+      attributes: true,
+      attributeFilter: ['data-frame'],
+    });
+  });
+  const count = () => p.evaluate(() => window.__frames.length);
+  /** True if the frame did not change for `ms` — a negative, so it has to wait. */
+  const holds = async (ms = 2600) => {
+    const n = await count();
+    await p.waitForTimeout(ms);
+    return (await count()) === n;
+  };
+  const advances = (from) =>
+    p
+      .waitForFunction((n) => window.__frames.length > n, from, { timeout: 9000 })
+      .then(
+        () => true,
+        () => false,
+      );
+
+  ok('it starts on the split summary (F0)', (await board.getAttribute('data-frame')) === '0');
+  await p.waitForFunction(() => window.__frames.length >= 9, null, { timeout: 30000 });
+  const seq = (await p.evaluate(() => window.__frames)).slice(0, 9).join('');
+  ok('it walks F1 to F7 over the loop, then wraps to F1 rather than F0', seq === '012345671', seq);
+
+  // Hover holds it, leaving lets it go.
+  await board.hover({ position: { x: 40, y: 200 } });
+  ok('hovering the board holds the frame', await holds());
+  let n = await count();
+  await p.mouse.move(2, 2);
+  ok('moving away resumes it', await advances(n));
+
+  // The button holds it on its own, whatever the pointer does.
+  await pause.click();
+  await p.mouse.move(2, 2);
+  ok('pause is a pressed toggle', (await pause.getAttribute('aria-pressed')) === 'true');
+  ok('the pause button holds the frame with the pointer elsewhere', await holds());
+  ok(
+    'and exposes the playing state again on a second press',
+    await pause.click().then(async () => (await pause.getAttribute('aria-pressed')) === 'false'),
+  );
+  n = await count();
+  ok('playing again resumes the loop', await advances(n));
+  await p.mouse.move(2, 2);
+
+  // Off screen the loop stops, back on screen it goes on.
+  await p.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+  await settle(p);
+  ok('the board is off screen', await board.evaluate((b) => b.getBoundingClientRect().bottom < 0));
+  ok('scrolled away, the loop holds', await holds());
+  n = await count();
+  await p.evaluate(() => scrollTo(0, 0));
+  ok('scrolled back, it resumes', await advances(n));
+
+  // A hidden tab holds it too.
+  await p.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  ok('in a hidden tab the loop holds', await holds());
+  n = await count();
+  await p.evaluate(() => {
+    delete document.hidden;
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  ok('and resumes when the tab returns', await advances(n));
+
+  const e = (await track(p)).filter((x) => x.name === 'demo_pause');
+  ok('demo_pause fires once, on pausing and not on resuming', e.length === 1, `${e.length}`);
+  await ctx.close();
+}
+{
+  // Reduced motion never runs the loop; the visitor steps through it instead.
+  const { ctx, p } = await open(browser, '/', { reducedMotion: 'reduce' });
+  const board = p.locator('[data-frame]');
+  const step = p.getByRole('button', { name: msg.ko.demo_step });
+  const frames = [];
+  for (let i = 0; i < 8; i++) {
+    await step.click();
+    frames.push(await board.getAttribute('data-frame'));
+  }
+  ok(
+    'each press shows the next frame, and the eighth returns to F0',
+    frames.join('') === '12345670',
+    frames.join(''),
+  );
+  const e = (await track(p)).filter((x) => x.name === 'demo_step');
+  ok(
+    'demo_step is tracked for F1 to F7',
+    isDeepStrictEqual(
+      e.map((x) => x.data.step),
+      [1, 2, 3, 4, 5, 6, 7],
+    ),
+    JSON.stringify(e.map((x) => x.data)),
+  );
+  await ctx.close();
+}
+
+// ---- 6. the confirmation fits a 320px phone, in every locale ----
+for (const { loc, path } of LOCALES) {
+  const { ctx, p } = await open(browser, path, {
+    viewport: { width: 320, height: 568 },
+    hasTouch: true,
+  });
+  await stubSignup(p);
+  await arrive(p, loc);
+  await settle(p);
+  const over = await p.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+  ok(`${loc} 320px: the confirmation does not scroll sideways`, over <= 0, `${over}px`);
+  const small = await p.evaluate(() =>
+    [
+      ...document.querySelectorAll(
+        '.arrival button, .arrival select, .arrival input, .arrival a[href]',
+      ),
+    ]
+      .filter((e) => e.getClientRects().length && e.getBoundingClientRect().height < 43.5)
+      .map(
+        (e) =>
+          `${e.tagName.toLowerCase()} "${(e.textContent || e.getAttribute('name') || '').trim().slice(0, 14)}" ${Math.round(e.getBoundingClientRect().height)}px`,
+      ),
+  );
+  ok(
+    `${loc} 320px: the survey's controls are 44px tall`,
+    small.length === 0,
+    [...new Set(small)].join(' | '),
+  );
+  await ctx.close();
+}
+
+// ---- 7. scrolling stays inside the frame budget ----
+{
+  const { ctx, p } = await open(browser);
+  // Best of three: the runner is a software rasteriser, and a single pass on a busy
+  // machine reads whole vsync intervals (16.7 / 33.3 / 50) rather than the page's own cost.
+  const measure = async () => {
+    await p.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
+    await p.waitForFunction(() => scrollY === 0);
+    await settle(p);
+    await p.evaluate(() => {
       window.__g = [];
       let last = 0;
       const tick = (t) => {
         if (last) window.__g.push(t - last);
         last = t;
-        requestAnimationFrame(tick);
+        window.__raf = requestAnimationFrame(tick);
       };
-      requestAnimationFrame(tick);
+      window.__raf = requestAnimationFrame(tick);
     });
     for (let i = 0; i < 60; i++) {
-      await page.mouse.wheel(0, 90);
-      await page.waitForTimeout(16);
+      await p.mouse.wheel(0, 90);
+      await p.waitForTimeout(16);
     }
-    await page.waitForTimeout(300);
-    const sorted = (await page.evaluate(() => window.__g)).sort((a, b) => a - b);
-    return {
-      p50: sorted[Math.floor(sorted.length * 0.5)],
-      p95: sorted[Math.floor(sorted.length * 0.95)],
-    };
-  };
-  const bestOf = async (n, page = p) => {
-    const runs = [];
-    for (let i = 0; i < n; i++) runs.push(await measure(page));
-    return {
-      p50: Math.min(...runs.map((r) => r.p50)),
-      p95: Math.min(...runs.map((r) => r.p95)),
-      all: runs.map((r) => r.p50.toFixed(1)).join(' / '),
-    };
-  };
-
-  const scene = await bestOf(3);
-  ok(
-    'the scene holds a frame budget',
-    scene.p50 <= 40,
-    `p50 ${scene.p50.toFixed(1)}ms  (passes: ${scene.all})`,
-  );
-  ok('with no long stalls', scene.p95 <= 60, `p95 ${scene.p95.toFixed(1)}ms`);
-
-  // Control: the same scroll with the world hidden. Nothing else on the page
-  // does per-frame work, so this has real headroom — if it slows, something new
-  // is running every frame.
-  //
-  // In its own context. `addStyleTag` cannot be undone, and hiding the world in
-  // this page left every assertion below it measuring a display:none scene.
-  const bareCtx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  const bp = await bareCtx.newPage();
-  await bp.goto(BASE + '/', { waitUntil: 'networkidle' });
-  await bp.addStyleTag({ content: '.world { display: none !important }' });
-  await bp.waitForTimeout(1200);
-  // Discarded warm-up. This is a *new* context, so it pays the process's
-  // cold-rasterise cost on its own — the scene passes above never see it
-  // because the page they measure is already warm. Without this the control
-  // read 33.2 ms while the heavier scene read 16.7, which is backwards and was
-  // the harness, not the page.
-  for (let i = 0; i < 20; i++) {
-    await bp.mouse.wheel(0, 90);
-    await bp.waitForTimeout(8);
-  }
-  const bare = await bestOf(2, bp);
-  await bareCtx.close();
-  ok(
-    'and the flow without the scene stays cheap',
-    bare.p50 <= 26,
-    `p50 ${bare.p50.toFixed(1)}ms  (passes: ${bare.all})`,
-  );
-
-  // And the world keeps easing after the input stops — the difference between a
-  // transform bolted to the wheel and one that plays toward it.
-  await p.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-  await p.waitForTimeout(700);
-  const samples = await p.evaluate(async () => {
-    const el = document.querySelector('.isle');
-    window.scrollBy({ top: 900, behavior: 'instant' });
-    const out = [];
-    for (let i = 0; i < 24; i++) {
-      await new Promise((r) => requestAnimationFrame(r));
-      out.push(new DOMMatrixReadOnly(getComputedStyle(el).transform).f);
-    }
-    return out;
-  });
-  const moving = samples.filter((v, i) => i && Math.abs(v - samples[i - 1]) > 0.01).length;
-  ok('the world keeps moving after the wheel stops', moving >= 14, `${moving}/23 frames`);
-  ok(
-    'and travels a visible distance',
-    Math.abs(samples.at(-1) - samples[0]) > 8,
-    `${samples[0].toFixed(1)} -> ${samples.at(-1).toFixed(1)}`,
-  );
-
-  // The island sinks as the page is read; rising would drive it up through the
-  // panels it sits behind.
-  ok('the island sinks rather than rises', samples.at(-1) > samples[0]);
-  await ctx.close();
-}
-
-// ---- Mos stands on the island, at every scroll depth and every width ----
-{
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  const p = await ctx.newPage();
-  p.on('pageerror', (e) => errors.push('world: ' + e.message));
-  await p.goto(BASE + '/', { waitUntil: 'networkidle' });
-  await p.waitForTimeout(1800);
-
-  const H = await p.evaluate(() => document.documentElement.scrollHeight);
-  const read = () =>
-    p.evaluate(() => {
-      const dy = (sel) =>
-        new DOMMatrixReadOnly(getComputedStyle(document.querySelector(sel)).transform).f;
-      const svg = document.querySelector('.isle-svg').getBoundingClientRect();
-      // The top surface reads at viewBox y 454 of a 0 0 1440 900 box.
-      const surface = svg.top + 454 * (svg.width / 1440);
-      const mos = document.querySelector('.mos-svg').getBoundingClientRect();
-      return {
-        isle: Math.round(dy('.isle')),
-        stage: Math.round(dy('.stage')),
-        seat: Math.round(mos.bottom - surface),
-        bottom: Math.round(mos.bottom),
-      };
-    });
-
-  // The island and Mos are one body: scaling the sink by pointer depth pulled
-  // them 228 px apart over the page and dropped Mos through the footer.
-  let glued = true;
-  let worstSeat = 0;
-  let lowest = 0;
-  for (const pct of [0, 0.25, 0.5, 0.75, 1]) {
-    await p.evaluate(
-      (v) => window.scrollTo({ top: v, behavior: 'instant' }),
-      Math.round((H - 900) * pct),
+    await settle(p);
+    const g = (await p.evaluate(() => (cancelAnimationFrame(window.__raf), window.__g))).sort(
+      (a, b) => a - b,
     );
-    await p.waitForTimeout(900);
-    const g = await read();
-    if (g.isle !== g.stage) glued = false;
-    worstSeat = Math.max(worstSeat, Math.abs(g.seat));
-    lowest = Math.max(lowest, g.bottom);
-  }
-  ok('the island and Mos sink together', glued);
-  ok('Mos stays seated on the surface', worstSeat <= 30, `worst ${worstSeat}px off`);
-  ok('and never drops out of the viewport', lowest < 900, `lowest ${lowest}px`);
-
-  // Proportion: Mos's size is derived from the island's, so the ratio holds.
-  const ratios = [];
-  for (const [w, h] of [
-    [1920, 1080],
-    [1440, 900],
-    [1024, 768],
-  ]) {
-    await p.setViewportSize({ width: w, height: h });
-    await p.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-    await p.waitForTimeout(700);
-    ratios.push(
-      await p.evaluate(() => {
-        const svg = document.querySelector('.isle-svg').getBoundingClientRect();
-        const disc = (1033 - 408) * (svg.width / 1440);
-        return document.querySelector('.mos-svg').getBoundingClientRect().width / disc;
-      }),
-    );
-  }
-  const spread = Math.max(...ratios) - Math.min(...ratios);
-  ok(
-    'Mos keeps its share of the island at any width',
-    spread < 0.03,
-    `spread ${spread.toFixed(3)}`,
-  );
-  await ctx.close();
-}
-
-// ---- The idle is one buoyant body, not three loops beating ----
-{
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  const p = await ctx.newPage();
-  p.on('pageerror', (e) => errors.push('idle: ' + e.message));
-  await p.goto(BASE + '/', { waitUntil: 'networkidle' });
-  await p.waitForTimeout(2000);
-
-  const rows = [];
-  for (let i = 0; i < 30; i++) {
-    rows.push(
-      await p.evaluate(() => {
-        const t = (sel) =>
-          new DOMMatrixReadOnly(getComputedStyle(document.querySelector(sel)).transform);
-        const body = t('[data-anim="mos-svg"]');
-        const sh = t('[data-anim="mos-shadow"]');
-        return {
-          up: -t('[data-anim="mos"]').f,
-          sy: Math.hypot(body.c, body.d),
-          sx: Math.hypot(body.a, body.b),
-          sh: Math.hypot(sh.a, sh.b),
-        };
-      }),
-    );
-    await p.waitForTimeout(100);
-  }
-  const cor = (a, b) => {
-    const ma = a.reduce((x, y) => x + y, 0) / a.length;
-    const mb = b.reduce((x, y) => x + y, 0) / b.length;
-    let n = 0;
-    let da = 0;
-    let db = 0;
-    for (let i = 0; i < a.length; i++) {
-      n += (a[i] - ma) * (b[i] - mb);
-      da += (a[i] - ma) ** 2;
-      db += (b[i] - mb) ** 2;
-    }
-    return n / Math.sqrt(da * db);
+    return { p50: g[Math.floor(g.length * 0.5)], p95: g[Math.floor(g.length * 0.95)] };
   };
-  const up = rows.map((r) => r.up);
+  const runs = [];
+  for (let i = 0; i < 3; i++) runs.push(await measure());
+  const p95 = Math.min(...runs.map((r) => r.p95));
   ok(
-    'the body bobs',
-    Math.max(...up) - Math.min(...up) > 10,
-    `${(Math.max(...up) - Math.min(...up)).toFixed(1)}px`,
-  );
-  const stretch = cor(
-    up,
-    rows.map((r) => r.sy),
-  );
-  const volume = cor(
-    rows.map((r) => r.sy),
-    rows.map((r) => r.sx),
-  );
-  const shadow = cor(
-    up,
-    rows.map((r) => r.sh),
-  );
-  ok('it stretches as it rises', stretch > 0.6, stretch.toFixed(2));
-  ok('and conserves its volume', volume < -0.8, volume.toFixed(2));
-  ok('the shadow tightens with it', shadow < -0.6, shadow.toFixed(2));
-  await ctx.close();
-}
-
-// ---- The world answers how hard you scroll ----
-{
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  const p = await ctx.newPage();
-  p.on('pageerror', (e) => errors.push('lean: ' + e.message));
-  await p.goto(BASE + '/', { waitUntil: 'networkidle' });
-  await p.waitForTimeout(1600);
-
-  const lean = () =>
-    p.evaluate(() => {
-      const m = new DOMMatrixReadOnly(
-        getComputedStyle(document.querySelector('[data-anim="mos-lean"]')).transform,
-      );
-      return { y: m.f, rot: (Math.atan2(m.b, m.a) * 180) / Math.PI };
-    });
-
-  ok('at rest there is no lean', Math.abs((await lean()).rot) < 0.4);
-  const down = [];
-  for (let i = 0; i < 20; i++) {
-    await p.mouse.wheel(0, 130);
-    down.push(await lean());
-  }
-  const peakDown = down.reduce((a, b) => (Math.abs(b.rot) > Math.abs(a.rot) ? b : a));
-  ok(
-    'scrolling makes Mos lean and lag',
-    Math.abs(peakDown.rot) > 2 && Math.abs(peakDown.y) > 8,
-    `rot ${peakDown.rot.toFixed(1)}deg y ${peakDown.y.toFixed(1)}px`,
-  );
-
-  await p.waitForTimeout(1000);
-  ok('and it settles back', Math.abs((await lean()).rot) < 1);
-
-  const up = [];
-  for (let i = 0; i < 20; i++) {
-    await p.mouse.wheel(0, -130);
-    up.push(await lean());
-  }
-  const peakUp = up.reduce((a, b) => (Math.abs(b.rot) > Math.abs(a.rot) ? b : a));
-  ok(
-    'the lean follows the direction of travel',
-    Math.sign(peakUp.rot) !== Math.sign(peakDown.rot),
-    `${peakDown.rot.toFixed(1)} vs ${peakUp.rot.toFixed(1)}`,
+    'scroll frame time p95 is at most 60ms',
+    p95 <= 60,
+    `p95 ${p95.toFixed(1)}ms, p50 ${Math.min(...runs.map((r) => r.p50)).toFixed(1)}ms (passes: ${runs.map((r) => r.p95.toFixed(1)).join(' / ')})`,
   );
   await ctx.close();
 }
 
-// ---- The hero holds together at every width ----
+// ---- 8. across the whole run: every event fired, and none carries a person ----
 {
-  // No `isMobile` anywhere here: it rewrites the viewport, so a layout audit
-  // run with it is measuring a size no device has.
-  const SIZES = [
-    [320, 568],
-    [360, 640],
-    [375, 667],
-    [390, 844],
-    [414, 896],
-    [430, 932],
-    [480, 800],
-    [600, 800],
-    [719, 900],
-    [768, 1024],
-    [834, 1112],
-    [844, 390],
-    [1024, 768],
-    [1280, 800],
-    [1440, 900],
-    [1920, 1080],
+  const names = new Set(seen.map((e) => e.name));
+  const wanted = [
+    'signup_submit',
+    'signup_success',
+    'signup_error',
+    'survey_submit',
+    'survey_skip',
+    'demo_pause',
+    'demo_step',
+    'faq_open',
+    'locale_switch',
   ];
-  let collisions = 0;
-  let overflows = 0;
-  let worstCollision = '';
-  const lowSurface = [];
-  for (const [w, h] of SIZES) {
-    const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: w < 720 });
-    const p = await ctx.newPage();
-    p.on('pageerror', (e) => errors.push(`hero ${w}x${h}: ` + e.message));
-    await p.goto(BASE + '/', { waitUntil: 'networkidle' });
-    await p.waitForTimeout(1500);
-    const g = await p.evaluate(() => {
-      const mos = document.querySelector('.mos-svg').getBoundingClientRect();
-      // Real box intersection, block by block. A vertical overlap alone is not a
-      // collision: above 720px the copy sits beside the island by design.
-      let worst = 0;
-      let on = '';
-      for (const el of document.querySelectorAll('.hero .copy > *')) {
-        const b = el.getBoundingClientRect();
-        if (!b.width || !b.height) continue;
-        const ox = Math.min(mos.right, b.right) - Math.max(mos.left, b.left);
-        const oy = Math.min(mos.bottom, b.bottom) - Math.max(mos.top, b.top);
-        if (ox > 0 && oy > 0 && ox * oy > worst) {
-          worst = ox * oy;
-          on = el.className.split(' ')[0] || el.tagName.toLowerCase();
-        }
-      }
-      const svg = document.querySelector('.isle-svg').getBoundingClientRect();
-      const surface = svg.top + 454 * (svg.width / 1440);
-      const copyBottom = document.querySelector('.hero .copy').getBoundingClientRect().bottom;
-      // The lowest the surface can sit while still clearing the copy: the
-      // component places it at copy + 30px of air + Mos's own height.
-      const cs = getComputedStyle(document.querySelector('.world'));
-      const isleW = parseFloat(cs.getPropertyValue('--isle-w'));
-      const mosK = parseFloat(cs.getPropertyValue('--mos-k'));
-      return {
-        collide: Math.round(worst),
-        on,
-        overflow: document.documentElement.scrollWidth - window.innerWidth,
-        surface,
-        highest: copyBottom + 30 + isleW * mosK * 0.853,
-        copyFrac: copyBottom / window.innerHeight,
-      };
-    });
-    if (g.collide > 200) {
-      collisions++;
-      worstCollision = `${w}x${h} .${g.on} ${g.collide}px²`;
-    }
-    if (g.overflow > 0) overflows++;
-    // The island belongs directly under the copy, not pressed against the
-    // bottom edge — the complaint this replaced was an island parked at 93% of
-    // the fold on every phone. Measured as slack against the highest it could
-    // sit, because on a 667px screen carrying 460px of copy, "in view" is not
-    // something a fraction of the fold can ask for.
-    const slack = Math.round(g.surface - g.highest);
-    if (g.copyFrac < 0.72 && slack > 12) lowSurface.push(`${w}x${h} +${slack}px`);
-    await ctx.close();
-  }
-  ok('the copy and the island never overlap', collisions === 0, worstCollision);
-  ok('nothing overflows sideways at any width', overflows === 0, `${overflows} widths`);
-  ok('the island sits as high as the copy allows', lowSurface.length === 0, lowSurface.join(', '));
-}
+  const missing = wanted.filter((n) => !names.has(n));
+  ok(
+    'every instrumented event was emitted',
+    missing.length === 0,
+    missing.length ? `missing ${missing.join()}` : `${seen.length} events`,
+  );
 
-// ---- Controls are reachable, and the cursor does not hide a caret ----
-{
-  const ctx = await browser.newContext({ viewport: { width: 640, height: 800 } });
-  const p = await ctx.newPage();
-  p.on('pageerror', (e) => errors.push('ux: ' + e.message));
-  await p.goto(BASE + '/', { waitUntil: 'networkidle' });
-  await p.waitForTimeout(1500);
-  await p.evaluate(async () => {
-    for (let y = 0; y < document.documentElement.scrollHeight; y += 400) {
-      window.scrollTo({ top: y, behavior: 'instant' });
-      await new Promise((r) => setTimeout(r, 40));
-    }
-  });
-  await p.waitForTimeout(400);
-
-  // Hit-tested, not measured. Several of these grow their target with a
-  // pseudo-element, which `getBoundingClientRect` cannot see.
-  const controls = await p
-    .locator('main button, main input, main [role="switch"], main label')
-    .all();
-  const small = [];
-  for (const h of controls) {
-    const r = await h.evaluate((el) => {
-      if (el.classList.contains('visually-hidden')) return null;
-      // A checkbox wrapped in its own label is targeted through that label,
-      // which is probed separately.
-      if (
-        el instanceof HTMLInputElement &&
-        (el.type === 'checkbox' || el.type === 'radio') &&
-        el.closest('label')
+  const raw = JSON.stringify(seen);
+  ok('no email address in any payload', !/@|example\.com|someone/i.test(raw));
+  ok('no survey free text in any payload', !/FIRST-TASK|OTHER-(JOB|TASK)/.test(raw));
+  // Everything a payload may say is a small closed vocabulary, a boolean or a count.
+  const vocab = {
+    position: ['hero', 'join', 'final'],
+    reason: ['invalid', 'no_consent', 'duplicate', 'rate_limited', 'server'],
+    from: ['ko', 'en', 'ja'],
+    to: ['ko', 'en', 'ja'],
+  };
+  const stray = seen.flatMap((e) =>
+    Object.entries(e.data ?? {})
+      .filter(([k, v]) =>
+        typeof v === 'string'
+          ? k === 'id'
+            ? !/^[a-z][a-z-]*$/.test(v) // a faq slug, never a question's text
+            : !vocab[k]?.includes(v)
+          : !['boolean', 'number'].includes(typeof v),
       )
-        return null;
-      const first = el.getBoundingClientRect();
-      if (!first.width || !first.height) return null;
-      el.scrollIntoView({ block: 'center', behavior: 'instant' });
-      const b = el.getBoundingClientRect();
-      const cx = b.left + b.width / 2;
-      const cy = b.top + b.height / 2;
-      const owns = (x, y) => {
-        const t = document.elementFromPoint(x, y);
-        return (
-          !!t &&
-          (t === el ||
-            el.contains(t) ||
-            (t.closest && t.closest('button, label, [role="switch"], input') === el))
-        );
-      };
-      if (!owns(cx, cy)) return null;
-      const reach = (dx, dy, max) => {
-        let d = 0;
-        for (let i = 1; i <= max; i++) {
-          if (owns(cx + dx * i, cy + dy * i)) d = i;
-          else break;
-        }
-        return d;
-      };
-      const hh = reach(0, -1, 34) + reach(0, 1, 34) + 1;
-      const hw = reach(-1, 0, 80) + reach(1, 0, 80) + 1;
-      return hh < 44 || hw < 44
-        ? {
-            cls: [...el.classList].filter((c) => !c.startsWith('svelte-')).join('.') || el.tagName,
-            hit: `${hw}x${hh}`,
-          }
-        : null;
-    });
-    if (r) small.push(`${r.cls} ${r.hit}`);
-  }
-  ok('every control clears the 44px target floor', small.length === 0, small.join(', '));
-
-  // The orb replaced the system I-beam on the one control the page exists to
-  // collect, which read as a stray element sitting inside the field.
-  await p.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-  await p.waitForTimeout(300);
-  const box = await p.locator('.hero input[type="email"]').boundingBox();
-  await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await p.waitForTimeout(500);
-  const overField = await p.evaluate(() => ({
-    ring: Number(getComputedStyle(document.querySelector('.orb .ring span')).opacity),
-    cursor: getComputedStyle(document.querySelector('.hero input[type="email"]')).cursor,
-  }));
-  ok('the orb steps aside over a text field', overField.ring < 0.1, `ring ${overField.ring}`);
-  ok('and the caret comes back', overField.cursor !== 'none', overField.cursor);
-
-  const cta = await p.locator('.hero button[type="submit"]').boundingBox();
-  await p.mouse.move(cta.x + cta.width / 2, cta.y + cta.height / 2);
-  await p.waitForTimeout(500);
-  const overCta = await p.evaluate(() => {
-    const s = document.querySelector('.orb .ring span');
-    const m = new DOMMatrixReadOnly(getComputedStyle(s).transform);
-    return { opacity: Number(getComputedStyle(s).opacity), scale: Math.hypot(m.a, m.b) };
-  });
-  ok(
-    'but shows over a button',
-    overCta.opacity > 0.9 && overCta.scale > 1.2,
-    `scale ${overCta.scale.toFixed(2)}`,
+      .map(([k, v]) => `${e.name}.${k}=${JSON.stringify(v)}`),
   );
   ok(
-    'at a size that still reads as a cursor',
-    overCta.scale < 1.7,
-    `scale ${overCta.scale.toFixed(2)}`,
-  );
-  await ctx.close();
-}
-
-// ---- Type roles resolve, and read the same in every section ----
-{
-  const ctx = await browser.newContext({ viewport: { width: 640, height: 800 } });
-  const p = await ctx.newPage();
-  p.on('pageerror', (e) => errors.push('type: ' + e.message));
-  await p.goto(BASE + '/', { waitUntil: 'networkidle' });
-  await p.waitForTimeout(1400);
-
-  const g = await p.evaluate(() => {
-    const probe = (name) => {
-      const el = document.createElement('span');
-      el.style.color = `var(${name})`;
-      document.body.append(el);
-      const v = getComputedStyle(el).color;
-      el.remove();
-      return v;
-    };
-    // An undefined custom property makes its declaration invalid, which is how
-    // the form controls ended up with no intended surface at all.
-    const dangling = ['--field', '--glass', '--shell-text', '--shell-body'].filter(
-      (n) => probe(n) === 'rgba(0, 0, 0, 0)' || !probe(n),
-    );
-    const heads = [...document.querySelectorAll('main section .head')].map((h) =>
-      Math.round(h.getBoundingClientRect().width),
-    );
-    // Section-closing notes only. A footnote inside a panel takes the panel's
-    // measure and is a different role.
-    const notes = [...document.querySelectorAll('main section > .container > .note')].map((n) =>
-      Math.round(n.getBoundingClientRect().width),
-    );
-    return { dangling, heads, notes };
-  });
-  ok('the shell tokens all resolve', g.dangling.length === 0, g.dangling.join(', '));
-  ok('every section head shares one measure', new Set(g.heads).size === 1, g.heads.join('/'));
-  ok('and every closing note does too', new Set(g.notes).size === 1, g.notes.join('/'));
-  await ctx.close();
-}
-
-// ---- nothing is clipped, at any width, in any shell ----
-//
-// The widget cut 118px off its own suggestion list at every width above 720px:
-// it has a fixed height and its body was not scrollable, so the browser frame's
-// `overflow: hidden` silently ate the rest. A screenshot at one width would not
-// have found it — the panel looked complete until the third row.
-//
-// So: sweep the widths, open each shell, and assert that no element with hidden
-// overflow is holding content it cannot show. Three clips are intentional and
-// named: the world's stage, the visually-hidden boxes (1px by construction) and
-// the browser's URL, which ellipsises on purpose.
-{
-  const ALLOW = /(^|\.)world($|\.)|visually-hidden|(^|\.)url($|\.)/;
-  const rows = [];
-  for (const [w, h] of [
-    [320, 568],
-    [390, 844],
-    [430, 932],
-    [768, 1024],
-    [1024, 768],
-    [1440, 900],
-  ]) {
-    const ctx = await browser.newContext({
-      viewport: { width: w, height: h },
-      reducedMotion: 'reduce',
-    });
-    const p = await ctx.newPage();
-    await p.goto(BASE + '/', { waitUntil: 'networkidle' });
-    await p.waitForTimeout(600);
-    {
-      const found = await p.evaluate(() => {
-        const bad = [];
-        const de = document.documentElement;
-        for (const el of document.querySelectorAll('main *')) {
-          const cs = getComputedStyle(el);
-          if (cs.display === 'none' || cs.visibility === 'hidden') continue;
-          const hiddenY = cs.overflowY === 'hidden' || cs.overflow === 'hidden';
-          const hiddenX = cs.overflowX === 'hidden' || cs.overflow === 'hidden';
-          const dy = hiddenY ? el.scrollHeight - el.clientHeight : 0;
-          const dx = hiddenX ? el.scrollWidth - el.clientWidth : 0;
-          if (dy > 2 || dx > 2) {
-            const cls = typeof el.className === 'string' ? el.className : '';
-            bad.push({
-              sel:
-                el.tagName.toLowerCase() +
-                '.' +
-                cls
-                  .split(' ')
-                  .filter((x) => x && !x.startsWith('svelte-'))
-                  .slice(0, 2)
-                  .join('.'),
-              dy,
-              dx,
-            });
-          }
-        }
-        return { bad, pageOver: de.scrollWidth - de.clientWidth };
-      });
-      const real = found.bad.filter((x) => !ALLOW.test(x.sel));
-      rows.push({
-        at: `${w} panel`,
-        clipped: real,
-        pageOver: found.pageOver,
-      });
-    }
-    await ctx.close();
-  }
-  const clipped = rows.filter((r) => r.clipped.length);
-  ok(
-    'nothing clips content it cannot show',
-    clipped.length === 0,
-    clipped
-      .slice(0, 3)
-      .map((r) => `${r.at}: ${r.clipped.map((c) => `${c.sel} y+${c.dy} x+${c.dx}`).join(', ')}`)
-      .join(' | '),
-  );
-  const over = rows.filter((r) => r.pageOver > 1);
-  ok(
-    'and the page never scrolls sideways',
-    over.length === 0,
-    over.map((r) => `${r.at}: ${r.pageOver}px`).join(', '),
+    'payload values are position/reason/locale words, faq slugs, booleans or counts',
+    stray.length === 0,
+    [...new Set(stray)].join(' | '),
   );
 }
 
-// ---- the pricing divider sits in the middle of its gutter ----
-{
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  const p = await ctx.newPage();
-  await p.goto(BASE + '/', { waitUntil: 'networkidle' });
-  await p.waitForTimeout(600);
-  // A full negative margin put the border at the gutter's start, flush against
-  // the left column, which reads as belonging to the right one.
-  const g = await p.evaluate(() => {
-    const cols = [...document.querySelectorAll('section.cost .split > .col')];
-    if (cols.length < 2) return null;
-    const a = cols[0].getBoundingClientRect();
-    const b = cols[1].getBoundingClientRect();
-    const pad = parseFloat(getComputedStyle(cols[1]).paddingLeft);
-    return { left: Math.round(b.left - a.right), right: Math.round(b.left + pad - b.left) };
-  });
-  ok(
-    'the divider is centred in the gutter',
-    g && Math.abs(g.left - g.right) <= 2,
-    g ? `${g.left}px / ${g.right}px` : 'no split',
-  );
-  await ctx.close();
-}
-
-await browser.close();
-console.log('\n--- errors ---');
-console.log(errors.length ? errors.join('\n') : 'none');
-if (errors.length) process.exitCode = 1;
+await finish(browser);

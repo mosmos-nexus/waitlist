@@ -82,17 +82,16 @@
   .lg {
     height: var(--control-l);
     padding-inline: var(--space-32);
-    font-size: var(--font-size-subtitle-1);
+    font-size: var(--font-size-label-1);
   }
 
+  /* Flat: the fill carries the emphasis, not a glow. */
   .primary {
     background: var(--button-primary-default);
     color: var(--static-white);
-    box-shadow: 0 6px 18px rgba(15, 111, 218, 0.34);
   }
   .primary:hover:not(:disabled) {
     background: var(--button-primary-hovered);
-    box-shadow: 0 10px 26px rgba(15, 111, 218, 0.44);
   }
   .primary:active:not(:disabled) {
     background: var(--button-primary-pressed);

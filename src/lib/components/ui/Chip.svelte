@@ -22,7 +22,7 @@
     padding: 0 14px;
     border-radius: var(--radius-full);
     border: 1px solid var(--line-normal-normal);
-    background: rgba(20, 23, 27, 0.6);
+    background: var(--field);
     color: var(--label-alternative);
     font-size: var(--font-size-body-2);
     cursor: pointer;

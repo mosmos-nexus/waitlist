@@ -2,9 +2,8 @@
    Mosmos · Waitlist global stylesheet
    Ported from the Mosmos Design System token architecture:
      primitive → semantic → typography/layout → base.
-   The waitlist runs the product's DARK deep-space chrome, so
-   `data-theme="dark"` is set on <html> and the dark roles are
-   the ones that matter here.
+   The page is light: Clear White paper, Blue Black type, Core
+   Blue for action. There is no dark theme to maintain here.
    ============================================================ */
 
 /* ---- Webfonts ----
@@ -24,60 +23,39 @@
   --color-common-0: rgb(0, 0, 0);
   --color-common-100: rgb(255, 255, 255);
 
-  --color-blue-5: rgb(2, 14, 27);
-  --color-blue-10: rgb(3, 24, 48);
-  --color-blue-20: rgb(5, 38, 75);
-  --color-blue-30: rgb(8, 62, 123);
+  --color-blue-30: rgb(10, 79, 158);
   --color-blue-40: rgb(12, 87, 170);
   --color-blue-50: rgb(15, 111, 218);
   --color-blue-55: rgb(40, 135, 240);
-  --color-blue-60: rgb(44, 137, 240);
   --color-blue-70: rgb(91, 163, 244);
-  --color-blue-80: rgb(139, 190, 247);
-  --color-blue-90: rgb(187, 217, 250);
-  --color-blue-99: rgb(234, 243, 254);
+  --color-blue-80: rgb(156, 189, 233);
+  --color-blue-97: rgb(234, 242, 252);
 
-  --color-cyan-30: rgb(0, 85, 87);
-  --color-cyan-40: rgb(0, 160, 163);
-  --color-cyan-45: rgb(0, 200, 204);
-  --color-cyan-60: rgb(0, 240, 245);
-  --color-cyan-80: rgb(153, 253, 255);
-
-  --color-green-45: rgb(79, 161, 54);
-  --color-green-99: rgb(252, 254, 251);
-
-  --color-orange-40: rgb(199, 126, 0);
-  --color-orange-99: rgb(255, 253, 250);
-
-  --color-purple-40: rgb(77, 20, 184);
-  --color-purple-50: rgb(122, 62, 234);
-  --color-purple-60: rgb(155, 110, 239);
-
-  --color-red-50: rgb(226, 29, 29);
+  --color-red-40: rgb(204, 32, 32);
   --color-red-60: rgb(233, 83, 83);
-  --color-red-99: rgb(254, 250, 250);
+
+  --color-green-30: rgb(47, 102, 31);
+  --color-green-35: rgb(59, 125, 39);
+  --color-green-45: rgb(79, 161, 54);
+
+  --color-orange-30: rgb(154, 98, 0);
+  --color-orange-40: rgb(199, 126, 0);
 
   --color-light-blue-45: rgb(70, 137, 233);
 
-  --color-blue-gray-5: rgb(5, 6, 7);
-  --color-blue-gray-7: rgb(15, 18, 20);
-  --color-blue-gray-10: rgb(20, 23, 27);
-  --color-blue-gray-15: rgb(29, 32, 38);
-  --color-blue-gray-20: rgb(35, 41, 47);
-  --color-blue-gray-25: rgb(51, 59, 67);
-  --color-blue-gray-30: rgb(66, 77, 88);
-  --color-blue-gray-50: rgb(97, 113, 128);
-  --color-blue-gray-75: rgb(154, 166, 179);
-  --color-blue-gray-97: rgb(241, 243, 245);
-  --color-blue-gray-99: rgb(247, 248, 249);
-
-  --color-cool-neutral-10: rgb(23, 23, 25);
-  --color-cool-neutral-22: rgb(46, 47, 51);
-  --color-cool-neutral-23: rgb(51, 52, 56);
-  --color-cool-neutral-25: rgb(55, 56, 60);
-  --color-cool-neutral-96: rgb(225, 226, 228);
-  --color-cool-neutral-97: rgb(234, 235, 236);
-  --color-cool-neutral-98: rgb(244, 244, 245);
+  /* Blue-gray ramp — the design system's Blue Black text ramp plus its light
+     borders. Numbers are approximate lightness, darkest first. */
+  --color-blue-gray-15: rgb(29, 32, 38); /* Blue Black */
+  --color-blue-gray-19: rgb(42, 47, 56);
+  --color-blue-gray-34: rgb(79, 85, 95); /* Dark Blue Gray */
+  --color-blue-gray-44: rgb(102, 110, 122); /* Medium Blue Gray */
+  --color-blue-gray-59: rgb(139, 149, 163);
+  --color-blue-gray-71: rgb(170, 180, 194); /* Light Blue Gray */
+  --color-blue-gray-80: rgb(194, 203, 215);
+  --color-blue-gray-88: rgb(217, 223, 231);
+  --color-blue-gray-93: rgb(232, 237, 242);
+  --color-blue-gray-95: rgb(238, 242, 247);
+  --color-blue-gray-99: rgb(247, 248, 249); /* Clear White */
 
   /* Spacing scale (Figma: numbers/space) */
   --space-2: 2px;
@@ -99,9 +77,9 @@
   --space-80: 80px;
 
   /* Radius — Mosmos rounds generously; capsule is the default button shape */
-  --radius-xs: 16px;
-  --radius-s: 18px;
-  --radius-m: 20px;
+  --radius-xs: 8px;
+  --radius-s: 12px;
+  --radius-m: 16px;
   --radius-l: 24px;
   --radius-full: 1000px;
 }
@@ -110,58 +88,45 @@
    SEMANTIC — the layer components consume.
    ============================================================ */
 :root {
-  /* Brand constants (theme-independent) */
-  --core-blue: rgb(15, 111, 218);
-  --bright-cyan: rgb(49, 220, 220);
-  --clear-white: rgb(247, 248, 249);
-  --text-black: rgb(29, 32, 38);
-  --coral-red: rgb(233, 83, 83);
-  --summon-green: rgb(33, 237, 179);
-  --summon-cyan: rgb(31, 206, 206);
   --static-white: var(--color-common-100);
   --static-black: var(--color-common-0);
 
-  /* Mon identity tints — research/organize/design */
-  --mon-research: var(--color-purple-60);
-  --mon-organize: var(--summon-green);
-  --mon-design: rgb(233, 106, 166);
-
   --primary-normal: var(--color-blue-50);
   --primary-strong: var(--color-blue-40);
-  --primary-heavy: var(--color-blue-30);
   --primary-bright: var(--color-blue-70);
   --primary-light: var(--color-blue-55);
 
-  --background-normal-normal: var(--color-common-100);
-  --background-normal-alternative: var(--color-blue-gray-97);
-  --background-elevated-normal: var(--color-blue-gray-99);
-  --background-elevated-alternative: var(--color-blue-gray-97);
-  --background-elevated-strong: var(--color-blue-gray-25);
-  --background-elevated-heavy: var(--color-blue-gray-30);
+  /* Surfaces: Clear White paper, white cards on it, a cool sunken tint for
+     anything that should read as recessed (fields inside a card, chips). */
+  --background-page: var(--color-blue-gray-99);
+  --background-card: var(--color-common-100);
+  --background-sunken: var(--color-blue-gray-95);
+  --background-tint: var(--color-blue-97);
 
-  --label-strong: var(--color-common-0);
-  --label-normal: var(--color-cool-neutral-10);
-  --label-alternative: rgba(55, 56, 60, 0.61);
-  --label-assistive: rgba(51, 59, 67, 0.35);
-  --label-disable: rgba(66, 77, 88, 0.25);
+  /* Text — the Blue Black ramp. Every step that carries words clears 4.5:1 on
+     Clear White (strong 15.4 · normal 12.6 · alternative 7.1 · assistive 4.8);
+     `disable` is decoration only. */
+  --label-strong: var(--color-blue-gray-15);
+  --label-normal: var(--color-blue-gray-19);
+  --label-alternative: var(--color-blue-gray-34);
+  --label-assistive: var(--color-blue-gray-44);
+  --label-disable: var(--color-blue-gray-71);
 
-  --line-normal-alternative: rgba(112, 115, 124, 0.08);
-  --line-normal-neutral: rgba(112, 115, 124, 0.16);
-  --line-normal-normal: rgba(112, 115, 124, 0.22);
-  --line-normal-strong: rgba(112, 115, 124, 0.52);
-  --line-solid-alternative: var(--color-cool-neutral-98);
-  --line-solid-neutral: var(--color-cool-neutral-97);
-  --line-solid-normal: var(--color-cool-neutral-96);
+  --line-normal-alternative: var(--color-blue-gray-93);
+  --line-normal-neutral: var(--color-blue-gray-93);
+  --line-normal-normal: var(--color-blue-gray-88);
+  /* The one line that identifies a control on its own — an empty text field or
+     an unchecked box has nothing else. 3.0:1 on white for WCAG 1.4.11; the
+     design system's own `border-strong` (#C2CBD7) is 1.6:1. */
+  --line-normal-strong: var(--color-blue-gray-59);
 
   --fill-weak: rgba(133, 148, 163, 0.08);
   --fill-normal: rgba(133, 148, 163, 0.15);
-  --fill-alternative: var(--color-blue-gray-50);
 
-  /* A blue you are allowed to put white text on.
-     Separate from `--primary-normal` because the two answer different
-     questions: the accent ramp answers "how vivid against the shell", and a
-     filled surface answers "how dark under white text". In dark mode those
-     pull opposite ways — see the dark block for the measurement. */
+  /* Form controls sit white on the paper, so they read as places to type. */
+  --field: var(--color-common-100);
+
+  /* A blue you are allowed to put white text on (4.88:1). */
   --primary-fill: var(--color-blue-50);
   --primary-fill-hover: var(--color-blue-40);
   --primary-fill-active: var(--color-blue-30);
@@ -169,105 +134,25 @@
   --button-primary-default: var(--primary-fill);
   --button-primary-hovered: var(--primary-fill-hover);
   --button-primary-pressed: var(--primary-fill-active);
-  --button-primary-disabled: var(--color-blue-gray-75);
 
+  /* Status pairs: `-fill` for icons and borders (3:1), `-text` where words sit.
+     Coral Red is the brand's error colour but measures 3.4:1 on the paper, so
+     error copy uses the deeper step. */
   --status-positive-fill: var(--color-green-45);
-  --status-negative: rgb(255, 66, 66);
-  --status-error-fill: var(--color-red-60);
+  /* The 35 step read 4.48:1 on the 12% green tint the 완료 pills sit on — one
+     step deeper clears AA with room to spare. */
+  --status-positive-text: var(--color-green-30);
   --status-warning-fill: var(--color-orange-40);
+  --status-warning-text: var(--color-orange-30);
+  --status-error-fill: var(--color-red-40);
+  --status-error-soft: var(--color-red-60);
   --status-info-fill: var(--color-light-blue-45);
 
   --gradient-brand: linear-gradient(135deg, var(--color-blue-50) 0%, var(--color-blue-80) 100%);
-  --gradient-sky: linear-gradient(180deg, rgb(234, 243, 254) 0%, rgb(247, 248, 249) 100%);
+  --gradient-sky: linear-gradient(180deg, var(--color-blue-97) 0%, var(--color-blue-gray-99) 100%);
 
   --focus-ring: var(--primary-normal);
   color-scheme: light;
-}
-
-/* ---- DARK — what the waitlist actually runs ---- */
-:root[data-theme='dark'],
-[data-theme='dark'] {
-  /* The accent ramp lightens by one step in dark so the blue still reads as
-     blue against a near-black shell. That is right for borders, rings and
-     glows, which only have to clear 3:1 as UI components — blue-60 sits at
-     5.26:1 on a panel. It is wrong for anything carrying white text: white on
-     blue-60 measures 3.53:1, below the 4.5:1 AA floor, and the primary CTA is
-     exactly that. So the fill ramp does not lighten; it stays where white is
-     legible on it (blue-50 = 4.88:1, hover blue-40 = 7.10:1). */
-  --primary-normal: var(--color-blue-60);
-  --primary-strong: var(--color-blue-50);
-  --primary-heavy: var(--color-blue-40);
-  --primary-bright: var(--color-blue-80);
-  --primary-light: var(--color-blue-55);
-
-  --background-normal-normal: var(--color-blue-gray-15);
-  --background-normal-alternative: var(--color-blue-gray-10);
-  --background-elevated-normal: var(--color-blue-gray-20);
-  --background-elevated-alternative: var(--color-blue-gray-10);
-  --background-elevated-strong: var(--color-blue-gray-25);
-  --background-elevated-heavy: var(--color-blue-gray-30);
-
-  --label-strong: var(--color-common-100);
-  --label-normal: var(--color-blue-gray-97);
-  /* Alphas raised from 0.61 / 0.60, which composited to 3.73:1 and 3.87:1 over
-     the darkest surfaces they actually land on. These carry the consent line
-     and the inactive language tab, so they are read, not decoration. */
-  --label-alternative: rgba(174, 176, 182, 0.72);
-  --label-assistive: rgba(174, 184, 194, 0.68);
-  --label-disable: rgba(154, 166, 179, 0.15);
-
-  --line-normal-alternative: rgba(112, 115, 124, 0.22);
-  --line-normal-neutral: rgba(112, 115, 124, 0.28);
-  --line-normal-normal: rgba(112, 115, 124, 0.32);
-  --line-normal-strong: rgba(194, 196, 200, 0.52);
-  --line-solid-alternative: var(--color-cool-neutral-22);
-  --line-solid-neutral: var(--color-cool-neutral-23);
-  --line-solid-normal: var(--color-cool-neutral-25);
-
-  --fill-weak: rgba(113, 130, 148, 0.1);
-  --fill-normal: rgba(113, 130, 148, 0.16);
-  --fill-alternative: var(--color-blue-gray-50);
-
-  --status-negative: var(--color-red-60);
-  --gradient-sky: linear-gradient(180deg, rgb(29, 32, 38) 0%, rgb(20, 23, 27) 100%);
-
-  color-scheme: dark;
-}
-
-/* ============================================================
-   APP CHROME — the deep-space shell the world scene sits in.
-   ============================================================ */
-:root {
-  --app-bg: rgb(14, 14, 21);
-  --app-bg-hovered: rgba(70, 70, 86, 0.15);
-  --app-bg-selected: rgba(70, 70, 86, 0.4);
-
-  --gray1: rgb(236, 237, 246);
-  --gray2: rgb(222, 222, 240);
-  --gray3: rgb(154, 154, 175);
-  --gray4: rgb(70, 70, 86);
-  --gray5: rgb(38, 38, 46);
-  --gray6: rgb(29, 29, 35);
-  --gray9: rgb(15, 15, 22);
-
-  --gray1-15: rgba(236, 237, 246, 0.15);
-  --gray3-70: rgba(154, 154, 175, 0.7);
-  --summon-green-20: rgba(33, 237, 179, 0.2);
-  --summon-green-40: rgba(33, 237, 179, 0.4);
-  --summon-cyan-20: rgba(31, 206, 206, 0.2);
-
-  /* The sky the island floats in — reused by hero + section washes */
-  --sky-deep: radial-gradient(
-    120% 90% at 50% 118%,
-    #1b3a63 0%,
-    #12203a 34%,
-    #0c1020 62%,
-    #08090f 100%
-  );
-  --sky-bloom:
-    radial-gradient(38% 30% at 50% 66%, rgba(31, 206, 206, 0.16), transparent 70%),
-    radial-gradient(46% 34% at 22% 24%, rgba(15, 111, 218, 0.18), transparent 72%),
-    radial-gradient(40% 30% at 84% 30%, rgba(84, 54, 180, 0.16), transparent 70%);
 }
 
 /* ============================================================
@@ -277,21 +162,24 @@
   --font-base:
     'Pretendard Variable', 'Pretendard JP Variable', 'Pretendard', -apple-system,
     BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
   --weight-bold: 700;
 
-  --font-size-display-1: 64px;
-  --font-size-display-2: 48px;
-  --font-size-display-3: 40px;
+  /* Page roles. H1 52–56 on desktop and 32–34 on a phone, H2 a step under;
+     the lead is the page's reading size (17/1.7). */
+  --font-size-h1: clamp(33px, 1.9vw + 26px, 54px);
+  --font-size-h2: clamp(26px, 1.4vw + 20px, 38px);
+  --font-size-h3: 20px;
+  --font-size-lead: 17px;
+  --line-height-h1: 1.25;
+  --line-height-h2: 1.3;
+  --line-height-lead: 1.7;
+
   --font-size-heading-1: 36px;
-  --font-size-heading-2: 32px;
-  --font-size-title-1: 28px;
   --font-size-title-2: 24px;
-  --font-size-title-3: 20px;
   --font-size-subtitle-1: 18px;
   --font-size-subtitle-2: 16px;
   --font-size-body-1: 16px;
@@ -302,8 +190,6 @@
   --font-size-caption-2: 12px;
 
   --line-height-display: 1.3;
-  --line-height-heading: 1.3;
-  --line-height-title: 1.3;
   --line-height-body-normal: 1.5;
   --line-height-body-reading: 1.6;
   --line-height-label: 1.4;
@@ -312,95 +198,33 @@
 
 @media (max-width: 640px) {
   :root {
-    --font-size-display-1: 44px;
-    --font-size-display-2: 34px;
-    --font-size-display-3: 30px;
     --font-size-heading-1: 26px;
-    --font-size-heading-2: 23px;
   }
 }
 
+/* Japanese sets every glyph full width, so at the same size it reads a step
+   larger than Hangul or Latin. Its two display roles come down to match. */
+html:lang(ja) {
+  --font-size-h1: clamp(30px, 1.6vw + 24px, 46px);
+  --font-size-h2: clamp(24px, 1.1vw + 18px, 33px);
+}
+
 /* Type ramp helpers — mirror the tokens 1:1 */
-.t-display-1,
-.t-display-2,
-.t-display-3,
 .t-heading-1,
-.t-heading-2,
-.t-title-1,
 .t-title-2 {
   font-weight: var(--weight-bold);
   line-height: var(--line-height-display);
   letter-spacing: var(--letter-spacing-tight);
 }
-.t-display-1 {
-  font-size: var(--font-size-display-1);
-}
-.t-display-2 {
-  font-size: var(--font-size-display-2);
-}
-.t-display-3 {
-  font-size: var(--font-size-display-3);
-}
 .t-heading-1 {
   font-size: var(--font-size-heading-1);
-}
-.t-heading-2 {
-  font-size: var(--font-size-heading-2);
-}
-.t-title-1 {
-  font-size: var(--font-size-title-1);
 }
 .t-title-2 {
   font-size: var(--font-size-title-2);
 }
-.t-title-3 {
-  font-size: var(--font-size-title-3);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-title);
-  letter-spacing: var(--letter-spacing-tight);
-}
-.t-subtitle-1 {
-  font-size: var(--font-size-subtitle-1);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-title);
-  letter-spacing: var(--letter-spacing-tight);
-}
-.t-subtitle-2 {
-  font-size: var(--font-size-subtitle-2);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-height-title);
-  letter-spacing: var(--letter-spacing-tight);
-}
-.t-body-1 {
-  font-size: var(--font-size-body-1);
-  line-height: var(--line-height-body-normal);
-}
 .t-body-1-reading {
   font-size: var(--font-size-body-1);
   line-height: var(--line-height-body-reading);
-}
-.t-body-2 {
-  font-size: var(--font-size-body-2);
-  line-height: var(--line-height-body-normal);
-}
-.t-body-2-reading {
-  font-size: var(--font-size-body-2);
-  line-height: var(--line-height-body-reading);
-}
-.t-label-2 {
-  font-size: var(--font-size-label-2);
-  font-weight: var(--weight-medium);
-  line-height: var(--line-height-label);
-}
-.t-caption-1 {
-  font-size: var(--font-size-caption-1);
-  line-height: var(--line-height-label);
-  color: var(--label-alternative);
-}
-.t-caption-2 {
-  font-size: var(--font-size-caption-2);
-  line-height: var(--line-height-label);
-  color: var(--label-alternative);
 }
 
 /* ============================================================
@@ -409,32 +233,28 @@
 :root {
   --width-reading: 720px;
   --width-content: 1200px;
-  --width-wide: 1440px;
   --grid-gutter: 24px;
   --grid-gutter-mobile: 16px;
+  --header-height: 64px;
 
   --section-y-desktop: 120px;
-  --section-y-tablet: 64px;
-  --section-y-mobile: 48px;
+  --section-y-tablet: 96px;
+  --section-y-mobile: 72px;
 
   --control-s: 36px;
   --control-m: 44px;
   --control-l: 52px;
+
+  --shadow-e1: 0 1px 2px rgba(29, 32, 38, 0.06), 0 1px 3px rgba(29, 32, 38, 0.08);
+  --shadow-e2: 0 4px 12px rgba(29, 32, 38, 0.08);
+  --shadow-e3: 0 12px 32px rgba(29, 32, 38, 0.12);
+  --shadow-focus: 0 0 0 3px rgba(15, 111, 218, 0.32);
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --duration-fast: 150ms;
   --duration-base: 200ms;
   --duration-slow: 250ms;
-  --transition-base: all var(--duration-base) var(--ease-out);
-}
-
-:root[data-theme='dark'],
-[data-theme='dark'] {
-  --shadow-e1: 0 1px 2px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(112, 115, 124, 0.22);
-  --shadow-e2: 0 4px 14px rgba(0, 0, 0, 0.4);
-  --shadow-e3: 0 14px 36px rgba(0, 0, 0, 0.52);
-  --shadow-focus: 0 0 0 3px rgba(44, 137, 240, 0.4);
 }
 
 /* ============================================================
@@ -449,16 +269,16 @@
 html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
-  /* The header is fixed and 96px tall, so anything scrolled to the top of the
-     viewport — an anchor jump, a `scrollIntoView` — lands underneath it. Read
-     on a phone, that put a section's heading behind the logo bar every time. */
-  scroll-padding-top: 96px;
+  /* The header is sticky, so an anchor jump would otherwise land a section's
+     heading underneath it. */
+  scroll-padding-top: calc(var(--header-height) + var(--space-16));
+  background: var(--background-page);
 }
 
 body {
   margin: 0;
   min-height: 100svh;
-  background: var(--app-bg);
+  background: var(--background-page);
   color: var(--label-normal);
   font-family: var(--font-base);
   font-size: var(--font-size-body-1);
@@ -467,6 +287,20 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  overflow-wrap: break-word;
+}
+
+/* Hangul has no inter-word breaking rule of its own, so the default splits
+   words mid-token — "또 하 / 나의" instead of "또 / 하나의". keep-all breaks at
+   spaces only. It is scoped to Korean because it does the same to Japanese,
+   which has no spaces at all; Japanese gets phrase-aware breaking instead
+   (ignored where unsupported, which falls back to the normal rules). */
+html:lang(ko) {
+  word-break: keep-all;
+}
+html:lang(ja) {
+  word-break: auto-phrase;
+  line-break: strict;
 }
 
 h1,
@@ -494,11 +328,11 @@ video {
 }
 
 a {
-  color: var(--primary-bright);
+  color: var(--primary-normal);
   text-decoration: none;
 }
 a:hover {
-  color: var(--bright-cyan);
+  color: var(--primary-strong);
 }
 
 button,
@@ -510,12 +344,12 @@ textarea {
 }
 
 :focus-visible {
-  outline: 2px solid var(--primary-light);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
 ::selection {
-  background: rgba(31, 206, 206, 0.28);
+  background: rgba(15, 111, 218, 0.18);
   color: var(--label-strong);
 }
 
@@ -534,10 +368,6 @@ textarea {
   }
 }
 
-.reading {
-  max-width: var(--width-reading);
-}
-
 /* Every marketing section shares this rhythm */
 .section {
   position: relative;
@@ -554,32 +384,48 @@ textarea {
   }
 }
 
-/* Glass panel — the recurring surface for content over the sky */
-.glass {
-  background: linear-gradient(150deg, rgba(35, 41, 47, 0.72) 0%, rgba(20, 23, 27, 0.82) 100%);
-  border: 1px solid var(--line-normal-normal);
-  border-radius: var(--radius-l);
-  backdrop-filter: blur(14px) saturate(1.2);
-  box-shadow: var(--shadow-e2);
-}
-
-/* Small uppercase kicker above section titles */
+/* Small kicker above a title */
 .eyebrow {
   display: inline-flex;
   align-items: center;
   gap: var(--space-8);
   font-size: var(--font-size-caption-1);
   font-weight: var(--weight-semibold);
-  letter-spacing: 0.06em;
-  color: var(--summon-cyan);
-  text-transform: none;
+  letter-spacing: 0.02em;
+  color: var(--primary-strong);
+}
+
+/* ============================================================
+   SECTION TYPE ROLES
+   ------------------------------------------------------------
+   Every section opens with a title and, most of the time, a
+   lead. Declared once here so the sections cannot drift apart;
+   the components only place them.
+   ============================================================ */
+main .title {
+  font-size: var(--font-size-h2);
+  font-weight: var(--weight-bold);
+  line-height: var(--line-height-h2);
+  letter-spacing: -0.025em;
+  color: var(--label-strong);
+  text-wrap: balance;
+}
+main .lead {
+  max-width: 60ch;
+  font-size: var(--font-size-lead);
+  line-height: var(--line-height-lead);
+  color: var(--label-alternative);
+  text-wrap: pretty;
+}
+main p,
+main li,
+main dd {
+  text-wrap: pretty;
 }
 
 /* Copy authored with intentional line breaks keeps them */
 .prewrap {
   white-space: pre-line;
-  overflow-wrap: break-word;
-  word-break: keep-all;
 }
 
 .visually-hidden {
@@ -595,275 +441,21 @@ textarea {
 }
 
 /* ============================================================
-   CUSTOM CURSOR — the Mana cursor hides the native pointer on
-   devices that actually have one. Touch keeps its native
-   behaviour, and reduced-motion users keep the system cursor.
+   MOTION PREFERENCE
+   ------------------------------------------------------------
+   app.html sets `reduced-motion` on <html> before first paint
+   (and leaves `no-js` there without JS). Components key their
+   own animation off those classes; this is the global floor.
    ============================================================ */
-@media (hover: hover) and (pointer: fine) {
-  :root:not(.reduced-motion) body.mana-cursor,
-  :root:not(.reduced-motion) body.mana-cursor * {
-    cursor: none;
-  }
-}
-
-/* Scroll-reveal initial state. JS clears it; without JS the
-   `no-js` guard keeps content visible. */
-.reveal {
-  opacity: 0;
-  will-change: opacity, transform;
-}
-:root.no-js .reveal,
-:root.reduced-motion .reveal {
-  opacity: 1;
-  transform: none;
-}
-
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
-  .reveal {
-    opacity: 1;
-    transform: none;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
   }
-}
-
-/* ============================================================
-   APP CHROME — the deep-space shell the Monitor screen runs in.
-   ------------------------------------------------------------
-   Every value below is lifted from the Monitor interactive draft
-   and the design system's `Ungrouped` app-chrome collection, not
-   invented. Content inside a panel still speaks in the semantic
-   layer above; these tokens are for the full-bleed shell only.
-   ============================================================ */
-:root {
-  --app-bg: #07080c;
-
-  --gray1: rgb(236, 237, 246);
-  --gray3: rgb(154, 154, 175);
-
-  /* Glass — the recipe every HUD surface in Monitor uses. */
-  /* 0.90, not 0.86: at the lower value Mos's face read through a panel it was
-     directly behind, which looks like a mistake rather than like depth. Any
-     higher and the panels stop reading as glass over the sky at all. */
-  --glass: rgba(18, 20, 28, 0.9);
-  /* Form controls. Monitor sets its fields on a faint neutral wash rather than a
-     card, so they read as recessed into the panel instead of stacked on it. */
-  --field: rgba(112, 115, 124, 0.12);
-  --field-hover: rgba(112, 115, 124, 0.18);
-  --glass-line: rgba(112, 115, 124, 0.32);
-  --glass-line-soft: rgba(112, 115, 124, 0.22);
-
-  /*
-   * Text on the shell — four steps, every one of them legible.
-   *
-   * Monitor writes body copy at 78% and meta at 50–66%, and porting those
-   * percentages directly is what put 232 of 603 line boxes below WCAG AA:
-   * composited over the darkest panel these surfaces reach, meta landed at
-   * 4.05:1 and faint at 2.54:1 against a 4.5:1 floor. Monitor can afford them
-   * because it is a signed-in dashboard whose faint text is chrome; here the
-   * same token carries every closing note on the page.
-   *
-   * The alphas below are solved, not picked: each is the lowest value that
-   * still clears its target on the darkest measured background, so the four
-   * steps stay visibly distinct while all four remain readable.
-   *   body 7.09:1 · meta 5.53:1 · faint 4.60:1
-   */
-  --shell-text: rgb(236, 237, 246);
-  --shell-body: rgba(174, 184, 194, 0.9);
-  --shell-meta: rgba(174, 184, 194, 0.77);
-  --shell-faint: rgba(174, 184, 194, 0.68);
-
-  --shadow-hud: 0 18px 44px rgba(0, 0, 0, 0.4);
-}
-
-/* The label that sits above a block. Monitor sets these in Pretendard at
-   700/.1em rather than a second family — no mono webfont to load. */
-.eyebrow {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--gray3);
-}
-/* Figures line up in columns and change in place, so they need fixed widths. */
-.tnum {
-  font-variant-numeric: tabular-nums;
-}
-
-/*
- * A HUD panel: the one surface this page repeats.
- *
- * Deliberately not `backdrop-filter`. Monitor blurs its panels because Monitor
- * is one still screen; here the same panels sit over a world that moves on
- * every scroll frame, so the filter has no cacheable backdrop and re-samples
- * continuously — measured at 33 ms per frame with blur against 17 ms without,
- * i.e. the difference between 30 and 60 fps. The fill is raised to compensate,
- * so the sky still shows through; it is simply not softened.
- */
-.hud {
-  border: 1px solid var(--glass-line);
-  border-radius: var(--radius-l);
-  background: var(--glass);
-  box-shadow: var(--shadow-hud);
-}
-/* The page is the shell. */
-html {
-  background: var(--app-bg);
-}
-body {
-  background: transparent;
-  color: var(--shell-body);
-  /* Hangul has no inter-word breaking rule of its own, so the default splits
-     words mid-token — "또 하 / 나의" instead of "또 / 하나의". keep-all breaks at
-     spaces only, and is a no-op for Latin, which already breaks at spaces. */
-  word-break: keep-all;
-  overflow-wrap: break-word;
-}
-
-/* ============================================================
-   SECTION TYPE ROLES
-   ------------------------------------------------------------
-   Every section opens the same way — eyebrow, title, lead — and
-   closes with a note. Those four were declared identically in
-   five components and drifted anyway: heads at 36 / 40 / 40 / 40
-   / 44ch and notes at 62ch or nothing, which reads as columns
-   that do not line up. They live here now; the components only
-   place them.
-   ============================================================ */
-/* The measure belongs to the running text, not to the block.
-   `.head` used to carry `max-width: 42ch`, and `ch` resolves against the
-   element's own font size — the head inherits body size, so 42ch is about
-   400px, and it was then capping a 40px title. Ten characters of 40px Hangul
-   fit in 400px, which is why short titles broke mid-phrase. The title now
-   carries its own measure at its own size; the lead and note keep theirs. */
-main .head {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-12);
-}
-/* Section titles hold one line at every width.  was actively
-   splitting them — it optimises for even line lengths, which means it prefers
-   two lines whenever two are possible. The titles are short enough now that one
-   line fits at the 24px floor, and `nowrap` is deliberately not used: it would
-   overflow rather than wrap if a translation ever grew. */
-main .title {
-  margin: 0;
-  font-size: clamp(24px, 3.4vw, 38px);
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.025em;
-  color: var(--shell-text);
-  text-wrap: nowrap;
-}
-@media (max-width: 480px) {
-  main .title {
-    text-wrap: pretty;
-  }
-}
-/* 68ch, not 44. At 44ch the measure was ~440px inside a 1120px container, so
-   every lead broke on a desktop that had room to spare. And `pretty` rather
-   than `balance`: balance optimises for even line lengths, which means it
-   prefers two lines whenever two are possible — the same thing that was
-   splitting the titles. `pretty` only avoids a stranded last word. */
-main .lead {
-  margin: 0;
-  max-width: 68ch;
-  font-size: var(--font-size-body-1);
-  line-height: 1.65;
-  color: var(--shell-body);
-  text-wrap: pretty;
-}
-main .note {
-  margin: var(--space-20) 0 0;
-  max-width: 66ch;
-  font-size: var(--font-size-caption-1);
-  line-height: 1.65;
-  color: var(--shell-faint);
-  text-wrap: pretty;
-}
-/* Everything else that can run past one line. */
-main p,
-main li,
-main dd,
-main blockquote {
-  text-wrap: pretty;
-}
-
-/*
- * Registered so they resolve.
- *
- * `--isle-w` is authored as `min(560px, 132vw)`. An unregistered custom property
- * is returned by `getComputedStyle` as that literal token, so the script that
- * places the horizon parsed it as NaN and treated the island as zero-width.
- * Registering it with a syntax makes the cascade resolve it to pixels, which is
- * what a reader of the value needs.
- */
-@property --isle-w {
-  syntax: '<length>';
-  inherits: true;
-  initial-value: 0px;
-}
-@property --mos-k {
-  syntax: '<number>';
-  inherits: true;
-  initial-value: 0;
-}
-
-/*
- * Pointer contract.
- *
- * The world is a fixed layer behind the document, and Mos is the one thing in
- * it that can be operated. The document's own wrapper covers the whole page, so
- * without this it — not the copy — receives every click in the empty half of
- * the hero, and Mos cannot be poked at all. So the wrapper lets the pointer
- * through and each piece of content claims it back. `pointer-events: none` also
- * blocks text selection, which is why every text block claims it too, not only
- * the controls.
- */
-.flow {
-  pointer-events: none;
-}
-.flow .section,
-.flow [data-claims-pointer] {
-  pointer-events: auto;
-}
-
-/* A fine pointer gets the Mana orb instead of an arrow; everything that can be
-   operated keeps its own affordance so the orb never hides a real state. */
-:root.orb-cursor,
-:root.orb-cursor body {
-  cursor: none;
-}
-:root.orb-cursor a,
-:root.orb-cursor button,
-:root.orb-cursor label,
-:root.orb-cursor [role='button'],
-:root.orb-cursor [tabindex] {
-  cursor: none;
-}
-/*
- * Text fields keep the system caret.
- *
- * The I-beam is the strongest signal that a box can be typed into, and the orb
- * replaced it with a 57px ring sitting inside the field — which reads as a
- * stray element rather than a cursor, on the one control the page exists to
- * collect. The orb hides itself over these; see ManaCursor.
- */
-:root.orb-cursor textarea,
-:root.orb-cursor input:not([type]),
-:root.orb-cursor input[type='text'],
-:root.orb-cursor input[type='email'],
-:root.orb-cursor input[type='search'],
-:root.orb-cursor input[type='tel'],
-:root.orb-cursor input[type='url'],
-:root.orb-cursor input[type='password'],
-:root.orb-cursor input[type='number'] {
-  cursor: auto;
-}
-/* A range or a checkbox is aimed at, not typed into, so it keeps the orb. */
-:root.orb-cursor input[type='range'],
-:root.orb-cursor input[type='checkbox'],
-:root.orb-cursor input[type='radio'] {
-  cursor: none;
 }

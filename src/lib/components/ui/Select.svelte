@@ -53,8 +53,8 @@
     width: 100%;
     height: var(--control-m);
     padding: 0 var(--space-40) 0 var(--space-16);
-    background: rgba(20, 23, 27, 0.72);
-    border: 1px solid var(--line-normal-normal);
+    background: var(--field);
+    border: 1px solid var(--line-normal-strong);
     border-radius: var(--radius-s);
     color: var(--label-strong);
     font-size: var(--font-size-body-1);
@@ -64,17 +64,12 @@
       box-shadow var(--duration-base) var(--ease-out);
   }
   select:hover {
-    border-color: var(--line-normal-strong);
+    border-color: var(--primary-light);
   }
   select:focus {
     outline: none;
     border-color: var(--primary-light);
     box-shadow: var(--shadow-focus);
-  }
-  /* Native option lists paint on the OS surface, so they need explicit colours */
-  select option {
-    background: var(--color-blue-gray-15);
-    color: var(--label-strong);
   }
 
   .caret {

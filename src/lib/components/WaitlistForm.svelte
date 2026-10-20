@@ -1,20 +1,26 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { track } from '@vercel/analytics';
   import Input from '$lib/components/ui/Input.svelte';
   import Checkbox from '$lib/components/ui/Checkbox.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import { m } from '$lib/locale.svelte';
   import { getLocale, localizeHref } from '$lib/locale.svelte';
+  import { features } from '$lib/config/features';
+  import { captureUtm, getUtm } from '$lib/utm';
 
   type ErrorKey = 'invalid_email' | 'no_consent' | 'duplicate' | 'ratelimit' | 'generic';
 
   interface Props {
     onSuccess: (result: { id: string; emailSent: boolean }) => void;
+    /** Which of the page's three forms this is — hero, §4 join, or the final band. */
+    position: 'hero' | 'join' | 'final';
   }
-  let { onSuccess }: Props = $props();
+  let { onSuccess, position }: Props = $props();
 
-  // The page carries this form twice — hero and closing CTA — so the field's id
-  // has to be generated. Two elements sharing `wl-email` made the label
-  // ambiguous and left one of them effectively unlabelled.
+  // The page carries this form three times, so the field's id has to be
+  // generated. Two elements sharing `wl-email` made the label ambiguous and
+  // left one of them effectively unlabelled.
   const uid = $props.id();
   const fieldId = `wl-email-${uid}`;
 
@@ -26,6 +32,23 @@
   let submitting = $state(false);
   let errorKey = $state<ErrorKey | null>(null);
   let consentInvalid = $state(false);
+
+  // Analytics vocabulary for the same failures. Never carries the email.
+  const REASON: Record<ErrorKey, string> = {
+    invalid_email: 'invalid',
+    no_consent: 'no_consent',
+    duplicate: 'duplicate',
+    ratelimit: 'rate_limited',
+    generic: 'server',
+  };
+
+  // The form mounts on page load, which is the visit's first moment to read the URL.
+  onMount(captureUtm);
+
+  function fail(key: ErrorKey) {
+    errorKey = key;
+    track('signup_error', { position, reason: REASON[key] ?? 'server' });
+  }
 
   const errorMessage = $derived.by(() => {
     switch (errorKey) {
@@ -48,15 +71,17 @@
     event.preventDefault();
     errorKey = null;
     consentInvalid = false;
+    // Every attempt, validation failures included, so each one ends in a success or an error.
+    track('signup_submit', { position });
 
     const value = email.trim().toLowerCase();
     if (!EMAIL_RE.test(value)) {
-      errorKey = 'invalid_email';
+      fail('invalid_email');
       return;
     }
     // Form-side consent block — the first of the form+API double block (DoD §1).
     if (!consent) {
-      errorKey = 'no_consent';
+      fail('no_consent');
       consentInvalid = true;
       return;
     }
@@ -66,7 +91,7 @@
       const res = await fetch('/api/waitlist', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email: value, consent, locale: getLocale() }),
+        body: JSON.stringify({ email: value, consent, locale: getLocale(), utm: getUtm() }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         id?: string;
@@ -74,20 +99,21 @@
         error?: ErrorKey;
       };
       if (res.ok && data.id) {
+        track('signup_success', { position });
         onSuccess({ id: data.id, emailSent: !!data.emailSent });
       } else {
-        errorKey = data.error ?? 'generic';
+        fail(data.error ?? 'generic');
         if (errorKey === 'no_consent') consentInvalid = true;
       }
     } catch {
-      errorKey = 'generic';
+      fail('generic');
     } finally {
       submitting = false;
     }
   }
 </script>
 
-<form class="form" onsubmit={handleSubmit} novalidate>
+<form class="form" data-form-position={position} onsubmit={handleSubmit} novalidate>
   <div class="row">
     <div class="email">
       <label class="visually-hidden" for={fieldId}>{m.hero_email_label()}</label>
@@ -113,7 +139,7 @@
   </Checkbox>
 
   <p class="microcopy">
-    {m.consent_microcopy()}
+    {features.welcomeEmail ? m.consent_microcopy_welcome() : m.consent_microcopy()}
     <a href={localizeHref('/privacy')}>{m.privacy_link()}</a>
   </p>
 
@@ -128,11 +154,12 @@
     flex-direction: column;
     gap: var(--space-16);
     width: 100%;
-    max-width: 520px;
+    max-width: 600px;
   }
   /* Wraps rather than crushing the field. The submit label is a different
      length in every locale — Japanese and English both squeezed the input below
-     the width its own placeholder needs, so the prompt was cut off mid-word. */
+     the width its own placeholder needs, so the prompt was cut off mid-word.
+     On one line the field takes all the slack; wrapped, each fills its own. */
   .row {
     display: flex;
     flex-wrap: wrap;
@@ -140,13 +167,21 @@
     align-items: stretch;
   }
   .email {
-    /* 300px is the widest placeholder plus its padding — Japanese needs 296.
-       Below that the row wraps and the field takes the full width instead. */
-    flex: 1 1 300px;
+    /* 280px is the widest placeholder plus its padding at 16px — Japanese
+       needs 280. Below that the row wraps and the field takes the full width
+       instead. */
+    flex: 999 1 280px;
     min-width: 0;
   }
   .row :global(button) {
-    flex: 0 0 auto;
+    flex: 1 0 auto;
+  }
+  /* Wrapped on a desktop-width column, a full-width button is a slab; it
+     keeps its own width there and only spans the row on a phone or tablet. */
+  @media (min-width: 900px) {
+    .row :global(button) {
+      flex-grow: 0;
+    }
   }
   .microcopy {
     margin: 0;
@@ -154,8 +189,10 @@
     line-height: var(--line-height-label);
     color: var(--label-assistive);
   }
+  /* 12px link on the hero's blue glow: Core Blue measured 4.37–4.5:1 there, so
+     the link takes the deeper step. */
   .microcopy a {
-    color: var(--primary-bright);
+    color: var(--primary-strong);
     text-decoration: underline;
     text-underline-offset: 2px;
   }
@@ -163,16 +200,5 @@
     margin: 0;
     font-size: var(--font-size-body-2);
     color: var(--status-error-fill);
-  }
-  @media (max-width: 560px) {
-    .row {
-      flex-direction: column;
-    }
-    /* `flex-basis` measures the main axis, so the 300px that keeps the field
-       wide enough for its placeholder in a row becomes a 300px minimum *height*
-       once the row turns into a column. */
-    .email {
-      flex: 0 0 auto;
-    }
   }
 </style>
